@@ -1,0 +1,23 @@
+
+=== RELATÓRIO DE VALIDAÇÃO ===
+Layout: layout_20251006_075454_layout_exemplo
+Data/Hora: 06/10/2025 07:54:54
+
+=== ESTATÍSTICAS ===
+Total de linhas: 1
+Linhas válidas: 0
+Linhas com erro: 1
+Taxa de sucesso: 0.00%
+
+=== TIPOS DE ERROS ===
+TAMANHO_LINHA: 1 ocorrências
+FORMATO_INVALIDO: 1 ocorrências
+TAMANHO_CAMPO: 1 ocorrências
+ERRO_GENERICO: 1 ocorrências
+CAMPO_OBRIGATORIO: 1 ocorrências
+
+=== ERROS POR CAMPO ===
+VALOR_CREDITO: 2 erros
+LINHA_COMPLETA: 1 erros
+DATA_NASCIMENTO: 1 erros
+STATUS: 1 erros

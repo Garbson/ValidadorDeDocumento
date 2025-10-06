@@ -1,0 +1,27 @@
+
+=== RELATÓRIO DE VALIDAÇÃO ===
+Layout: layout_20251006_091348_layout_exemplo
+Data/Hora: 06/10/2025 09:13:48
+
+=== ESTATÍSTICAS ===
+Total de linhas: 8
+Linhas válidas: 0
+Linhas com erro: 8
+Taxa de sucesso: 0.00%
+
+=== TIPOS DE ERROS ===
+ERRO_GENERICO: 10 ocorrências
+CAMPO_OBRIGATORIO: 10 ocorrências
+TAMANHO_LINHA: 8 ocorrências
+TAMANHO_CAMPO: 8 ocorrências
+FORMATO_INVALIDO: 3 ocorrências
+
+=== ERROS POR CAMPO ===
+VALOR_CREDITO: 14 erros
+LINHA_COMPLETA: 8 erros
+STATUS: 8 erros
+DATA_NASCIMENTO: 3 erros
+CODIGO_CLIENTE: 3 erros
+TELEFONE: 1 erros
+CPF: 1 erros
+NOME_CLIENTE: 1 erros
