@@ -370,11 +370,14 @@ const dataFileInput = ref(null);
 const handleLayoutFileChange = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
+
+  // Manter o arquivo selecionado
   layoutFile.value = file;
   showMapper.value = false;
   mappingConfirmed.value = false;
   mappingData.value = null;
   layoutPreview.value = null;
+
   if (previewLayout.value) {
     layoutLoading.value = true;
     try {
@@ -385,8 +388,8 @@ const handleLayoutFileChange = async (event) => {
       layoutLoading.value = false;
     }
   }
-  // permitir novo upload do mesmo arquivo
-  event.target.value = '';
+
+  // NÃO limpar o input - manter arquivo selecionado para validação
 };
 
 const handleDataFileChange = (event) => {
@@ -398,9 +401,26 @@ const handleDataFileChange = (event) => {
 
 // Handle validation
 const handleValidation = async () => {
-  if (!layoutFile.value || !dataFile.value) return;
+  // Verificar se os arquivos ainda estão disponíveis
+  if (!layoutFile.value || !dataFile.value) {
+    console.error('Arquivos não disponíveis:', {
+      layout: !!layoutFile.value,
+      data: !!dataFile.value
+    });
+    return;
+  }
+
   // Se usuário já abriu mapper exige confirmação
-  if (showMapper.value && !mappingConfirmed.value) return;
+  if (showMapper.value && !mappingConfirmed.value) {
+    console.warn('Mapper aberto mas não confirmado');
+    return;
+  }
+
+  console.log('Iniciando validação com arquivos:', {
+    layoutFile: layoutFile.value.name,
+    dataFile: dataFile.value.name
+  });
+
   try {
     await validationStore.validateFile(
       layoutFile.value,
@@ -412,7 +432,7 @@ const handleValidation = async () => {
       if (el) el.scrollIntoView({ behavior: "smooth" });
     }, 100);
   } catch (error) {
-    /* silencioso */
+    console.error('Erro na validação:', error);
   }
 };
 

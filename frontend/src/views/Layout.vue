@@ -305,8 +305,7 @@ const validateLayout = async () => {
   error.value = null
   try {
     layoutData.value = await validationStore.validateLayout(selectedFile.value)
-    // permitir re-selecionar o mesmo arquivo posteriormente
-    if (fileInput.value) fileInput.value.value = ''
+    // NÃO limpar o input - manter arquivo selecionado para futuras operações
   } catch (err) {
     error.value = err.response?.data?.detail || 'Erro ao validar layout'
   } finally {
