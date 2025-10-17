@@ -1,0 +1,229 @@
+{
+  "30e8016f104d5c98": {
+    "signature": "30e8016f104d5c98",
+    "mapping": {
+      "Campo": "CAMPO",
+      "Posicao_Inicio": "TAMANHO",
+      "Tamanho": "TAMANHO",
+      "Tipo": "TIPO",
+      "Obrigatorio": "OBRIGATORIO",
+      "Formato": "Conteúdo FTC"
+    },
+    "analysis": {
+      "missing_required": [
+        "Posicao_Inicio"
+      ],
+      "missing_optional": [
+        "Formato"
+      ],
+      "completeness": 0.8
+    },
+    "sample": [
+      {
+        "Campo": "ID_CARGA",
+        "Posicao_Inicio": 1,
+        "Tamanho": 20,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "NR_PERIODO_COMPETENCIA",
+        "Posicao_Inicio": 21,
+        "Tamanho": 6,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "NR_LOTE",
+        "Posicao_Inicio": 27,
+        "Tamanho": 4,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "COD_OPERADORA",
+        "Posicao_Inicio": 31,
+        "Tamanho": 5,
+        "Tipo": "VARCHAR2",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "ID_PARCEIRO",
+        "Posicao_Inicio": 36,
+        "Tamanho": 2,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      }
+    ],
+    "warnings": [
+      "Coluna obrigatória ausente: Posicao_Inicio",
+      "Posicao_Inicio gerada automaticamente pelo cumulativo de Tamanho."
+    ],
+    "original_samples": {
+      "CAMPO": [
+        "ID_CARGA",
+        "NR_PERIODO_COMPETENCIA",
+        "NR_LOTE"
+      ],
+      "TIPO": [
+        "NUMBER",
+        "NUMBER",
+        "NUMBER"
+      ],
+      "TAMANHO": [
+        "20.0",
+        "6.0",
+        "4.0"
+      ],
+      "OBRIGATORIO": [
+        "S",
+        "nan",
+        "nan"
+      ],
+      "COMENTARIO": [
+        "Identificador da carga. Sequence PROD_JD.SQ_NFC_CARGA_PARCEIRO_01",
+        "Ano / Mes competencia da carga emiisao (AAAAMM)",
+        "Número do lote"
+      ],
+      "ANALISE FTC": [
+        "Uso do IDMC",
+        "CN000-01-ANO-MES-LOTE",
+        "CN000-02-CODIGO DO LOTE"
+      ],
+      "Conteúdo FTC": [
+        "nan",
+        "C122-02-NUM-CPS-FATURA(1:4)",
+        "C122-02-NUM-CPS-FATURA(5:3)"
+      ],
+      "ANALISE MOBILE": [
+        "Uso do IDMC",
+        "NOTA_FISCAL_INFO_GERAL.DAT_ANO_MES_REFER_FAT",
+        "nota_fiscal_cabecalho.COD_CICLO"
+      ],
+      "Resposta DXC": [
+        "Número de identificador único (PK) da carga por ciclo para garantir a integridade do modelo de dados.IDMC irá utilizar a sequence.NEXTVAL",
+        "nan",
+        "Número para caso haja mais de um lote de remessa de carga"
+      ]
+    },
+    "normalized_rows": [
+      {
+        "Campo": "ID_CARGA",
+        "Posicao_Inicio": 1,
+        "Tamanho": 20,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "NR_PERIODO_COMPETENCIA",
+        "Posicao_Inicio": 21,
+        "Tamanho": 6,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "NR_LOTE",
+        "Posicao_Inicio": 27,
+        "Tamanho": 4,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "COD_OPERADORA",
+        "Posicao_Inicio": 31,
+        "Tamanho": 5,
+        "Tipo": "VARCHAR2",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "ID_PARCEIRO",
+        "Posicao_Inicio": 36,
+        "Tamanho": 2,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "NR_SEQUENCIAL_CARGA",
+        "Posicao_Inicio": 38,
+        "Tamanho": 2,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "DT_VENCIMENTO",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "DATE",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "DT_GERACAO",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "DATE",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "QT_COBRANCAS",
+        "Posicao_Inicio": 40,
+        "Tamanho": 10,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "VL_TOTAL_COBRANCAS",
+        "Posicao_Inicio": 50,
+        "Tamanho": 20.2,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "DT_INICIO_PROCESSAMENTO",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "DATE",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "DT_FIM_PROCESSAMENTO",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "DATE",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "ST_SITUACAO",
+        "Posicao_Inicio": 70,
+        "Tamanho": 1,
+        "Tipo": "VARCHAR2",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "ID_GERACAO_COBRANCA_PARCEIRO",
+        "Posicao_Inicio": 71,
+        "Tamanho": 15,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      }
+    ]
+  }
+}

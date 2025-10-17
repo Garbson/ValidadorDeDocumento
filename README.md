@@ -6,6 +6,8 @@ Ferramenta profissional para validação automática de arquivos sequenciais (TX
 
 ### Core da Aplicação
 - ✅ **Parser de layouts Excel** com validação robusta
+- ✅ **Mapeamento automático de layouts** com colunas variadas
+- ✅ **Geração automática de posições** quando ausentes
 - ✅ **Validação de arquivos sequenciais TXT** linha por linha
 - ✅ **Relatórios detalhados** em Excel, CSV e texto
 - ✅ **Interface CLI profissional** com cores e progressos
@@ -15,6 +17,8 @@ Ferramenta profissional para validação automática de arquivos sequenciais (TX
 
 ### Interface Web
 - 🌐 **Dashboard interativo** com gráficos e estatísticas
+- 🔄 **Mapeamento inteligente** de layouts com estruturas variadas
+- 📤 **Exportação de layouts padronizados** em Excel
 - 📊 **Visualização de erros** em tempo real
 - 📈 **Gráficos de tendências** e distribuição de erros
 - 📋 **Histórico de validações** com comparações
@@ -64,6 +68,18 @@ O arquivo Excel deve conter as seguintes colunas obrigatórias:
 | **Obrigatorio** | Campo obrigatório | S (Sim) ou N (Não) | `S` |
 | **Formato** | Formato específico (opcional) | Para datas: YYYYMMDD, etc. | `YYYYMMDD` |
 
+### 🔄 Mapeamento Automático de Layouts
+
+**Novo!** Se seu arquivo Excel tem colunas com nomes diferentes, use a página **Mapeamento**:
+
+- ✅ Aceita colunas como: `CAMPO MOBILE`, `TAM`, `PREENCH`, `DOMINIO`
+- ✅ Gera automaticamente `Posicao_Inicio` se ausente
+- ✅ Normaliza tipos automaticamente (NUM → NUMERO, TXT → TEXTO)
+- ✅ Exporta layout padronizado em Excel
+- ✅ Cache inteligente por assinatura de cabeçalhos
+
+📖 **[Leia o Guia Completo de Mapeamento](GUIA_MAPEAMENTO.md)**
+
 ## 🔧 Tipos de Dados Suportados
 
 - **TEXTO**: Qualquer caractere
@@ -100,6 +116,12 @@ ValidadorDeDocumento/
 A aplicação inclui uma API REST completa:
 
 - **POST** `/api/validar-layout` - Validar arquivo de layout
+- **POST** `/api/mapear-layout` - Mapear colunas de layout Excel
+- **POST** `/api/layout-mappings` - Salvar mapeamento customizado
+- **GET** `/api/layout-mappings/{signature}` - Recuperar mapeamento salvo
+- **POST** `/api/layout-custom` - Criar layout com campos customizados
+- **POST** `/api/layout-export` - Exportar layout padronizado em Excel
+- **GET** `/api/layout-export/download/{filename}` - Download de layout exportado
 - **POST** `/api/validar-arquivo` - Validar arquivo completo
 - **GET** `/api/download-relatorio/{timestamp}` - Download de relatórios
 - **GET** `/api/relatorios` - Listar relatórios

@@ -84,6 +84,7 @@ const mobileMenuOpen = ref(false)
 const navLinks = [
   { name: 'Home', path: '/', label: 'Início', icon: Home },
   { name: 'Validator', path: '/validador', label: 'Validador', icon: CheckSquare },
+  { name: 'Mapeamento', path: '/mapeamento', label: 'Mapeamento', icon: FileText },
   { name: 'Layout', path: '/layout', label: 'Layout', icon: FileSpreadsheet },
   { name: 'Reports', path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
 ]

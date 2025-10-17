@@ -8,8 +8,8 @@
       <p class="text-gray-600">Envie seus arquivos para validação automática</p>
     </div>
 
-    <!-- Upload Form -->
-    <div class="card max-w-4xl mx-auto" v-show="!validationStore.hasValidation">
+  <!-- Upload Form / Mapeamento -->
+  <div class="card max-w-4xl mx-auto" v-show="!validationStore.hasValidation">
       <div class="card-header">
         <h2 class="text-lg font-semibold flex items-center">
           <Upload class="w-5 h-5 mr-2" />
@@ -17,7 +17,7 @@
         </h2>
       </div>
       <div class="card-body space-y-6">
-        <form @submit.prevent="handleValidation" class="space-y-6">
+    <form v-if="!showMapper && !mappingConfirmed" @submit.prevent="handleValidation" class="space-y-6">
           <!-- Layout File Upload -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -96,8 +96,16 @@
             </div>
           </div>
 
-          <!-- Submit Button -->
-          <div class="flex justify-center">
+          <!-- Ações -->
+          <div class="flex justify-center gap-4 flex-wrap">
+            <button
+              type="button"
+              v-if="layoutFile"
+              class="btn-secondary px-6 py-3"
+              @click="abrirMapper"
+            >
+              Mapear / Ajustar Layout
+            </button>
             <button
               type="submit"
               :disabled="!layoutFile || !dataFile || validationStore.isLoading"
@@ -114,6 +122,18 @@
             </button>
           </div>
         </form>
+
+        <!-- Etapa 2: Mapeamento -->
+        <div v-if="showMapper && layoutFile" class="space-y-4">
+          <div class="p-3 bg-blue-50 text-blue-700 text-sm rounded">
+            Revise e confirme o mapeamento antes de validar os dados.
+          </div>
+            <LayoutMapper
+              :file="layoutFile"
+              @cancel="cancelarMapper"
+              @confirmed="onMappingConfirmed"
+            />
+        </div>
 
         <!-- Error Message -->
         <div
@@ -318,6 +338,7 @@
 </template>
 
 <script setup>
+import LayoutMapper from "@/components/LayoutMapper.vue";
 import ValidationResults from "@/components/ValidationResults.vue";
 import { useValidationStore } from "@/stores/validation";
 import {
@@ -336,6 +357,10 @@ const dataFile = ref(null);
 const maxErrors = ref(100); // Valor padrão balanceado para performance
 const previewLayout = ref(true);
 const layoutPreview = ref(null);
+const layoutLoading = ref(false);
+const showMapper = ref(false);
+const mappingConfirmed = ref(false);
+const mappingData = ref(null);
 
 // Refs para os inputs
 const layoutFileInput = ref(null);
@@ -344,19 +369,24 @@ const dataFileInput = ref(null);
 // Handle file changes
 const handleLayoutFileChange = async (event) => {
   const file = event.target.files[0];
-  if (file) {
-    layoutFile.value = file;
-
-    // Preview do layout se habilitado
-    if (previewLayout.value) {
-      try {
-        layoutPreview.value = await validationStore.validateLayout(file);
-      } catch (error) {
-        console.error("Erro no preview do layout:", error);
-        layoutPreview.value = null;
-      }
+  if (!file) return;
+  layoutFile.value = file;
+  showMapper.value = false;
+  mappingConfirmed.value = false;
+  mappingData.value = null;
+  layoutPreview.value = null;
+  if (previewLayout.value) {
+    layoutLoading.value = true;
+    try {
+      layoutPreview.value = await validationStore.validateLayout(file);
+    } catch (_) {
+      layoutPreview.value = null;
+    } finally {
+      layoutLoading.value = false;
     }
   }
+  // permitir novo upload do mesmo arquivo
+  event.target.value = '';
 };
 
 const handleDataFileChange = (event) => {
@@ -368,28 +398,36 @@ const handleDataFileChange = (event) => {
 
 // Handle validation
 const handleValidation = async () => {
-  if (!layoutFile.value || !dataFile.value) {
-    return;
-  }
-
+  if (!layoutFile.value || !dataFile.value) return;
+  // Se usuário já abriu mapper exige confirmação
+  if (showMapper.value && !mappingConfirmed.value) return;
   try {
-    const result = await validationStore.validateFile(
+    await validationStore.validateFile(
       layoutFile.value,
       dataFile.value,
       maxErrors.value || 100
     );
-
-    // Scroll para os resultados
     setTimeout(() => {
-      const resultsElement = document.querySelector(
-        "[data-validation-results]"
-      );
-      if (resultsElement) {
-        resultsElement.scrollIntoView({ behavior: "smooth" });
-      }
+      const el = document.querySelector("[data-validation-results]");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
     }, 100);
   } catch (error) {
-    // Erro capturado
+    /* silencioso */
+  }
+};
+
+const abrirMapper = () => {
+  showMapper.value = true;
+};
+const cancelarMapper = () => {
+  showMapper.value = false;
+};
+const onMappingConfirmed = async (payload) => {
+  mappingData.value = payload;
+  mappingConfirmed.value = true;
+  showMapper.value = false;
+  if (payload && payload.layout && payload.layout.campos) {
+    layoutPreview.value = payload.layout;
   }
 };
 

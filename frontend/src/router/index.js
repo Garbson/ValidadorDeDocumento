@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Validator from '../views/Validator.vue'
 import Reports from '../views/Reports.vue'
 import Layout from '../views/Layout.vue'
+import Mapeamento from '../views/Mapeamento.vue'
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: '/relatorios',
     name: 'Reports',
     component: Reports
+  },
+  {
+    path: '/mapeamento',
+    name: 'Mapeamento',
+    component: Mapeamento
   },
 ]
 

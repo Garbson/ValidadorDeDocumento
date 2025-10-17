@@ -290,20 +290,23 @@ const exemploLinha = computed(() => {
 
 const handleFileChange = (event) => {
   const file = event.target.files[0]
-  if (file) {
-    selectedFile.value = file
-    clearLayout() // Limpar resultados anteriores
-  }
+  if (!file) return
+  // Se o mesmo arquivo for escolhido novamente o evento pode não disparar; resetamos o input após uso
+  selectedFile.value = file
+  layoutData.value = null
+  error.value = null
+  // Opcional: auto validar ao selecionar (descomentar abaixo)
+  // validateLayout()
 }
 
 const validateLayout = async () => {
-  if (!selectedFile.value) return
-
+  if (!selectedFile.value || isLoading.value) return
   isLoading.value = true
   error.value = null
-
   try {
     layoutData.value = await validationStore.validateLayout(selectedFile.value)
+    // permitir re-selecionar o mesmo arquivo posteriormente
+    if (fileInput.value) fileInput.value.value = ''
   } catch (err) {
     error.value = err.response?.data?.detail || 'Erro ao validar layout'
   } finally {
@@ -314,10 +317,8 @@ const validateLayout = async () => {
 const clearLayout = () => {
   layoutData.value = null
   error.value = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
   selectedFile.value = null
+  if (fileInput.value) fileInput.value.value = ''
 }
 
 const getTipoBadgeClass = (tipo) => {

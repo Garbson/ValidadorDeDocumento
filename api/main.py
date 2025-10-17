@@ -1,4 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -8,7 +9,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from collections import Counter
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent / 'src')
@@ -16,6 +17,10 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from src.layout_parser import LayoutParser
+from src.layout_normalizer import (
+    map_layout_file, normalize_dataframe, suggest_mapping, analyze_mapping,
+    CANONICAL_COLUMNS, headers_signature, get_cached_mapping, save_cached_mapping
+)
 from src.file_validator import ValidadorArquivo
 from src.report_generator import GeradorRelatorio
 from src.models import TipoCampo
@@ -168,6 +173,204 @@ async def validar_layout(layout_file: UploadFile = File(...)):
         if temp_layout.exists():
             os.remove(temp_layout)
         raise HTTPException(status_code=400, detail=f"Erro ao processar layout: {str(e)}")
+
+
+@app.post("/api/mapear-layout")
+async def mapear_layout(layout_file: UploadFile = File(...)):
+    """Realiza mapeamento automático das colunas de um layout Excel sem validar estrutura completa.
+    Retorna cache se já existir para a assinatura de cabeçalhos."""
+    if not layout_file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
+    temp_layout = UPLOAD_DIR / f"map_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{layout_file.filename}"
+    try:
+        content = await layout_file.read()
+        with open(temp_layout, "wb") as buffer:
+            buffer.write(content)
+        import pandas as pd
+        df_head = pd.read_excel(temp_layout, nrows=0)
+        signature = headers_signature(list(df_head.columns))
+        cached = get_cached_mapping(signature)
+        
+        # Se cache não tem normalized_rows ou original_samples, regenerar
+        needs_regen = cached and (not cached.get("normalized_rows") or not cached.get("original_samples"))
+        
+        result = map_layout_file(str(temp_layout)) if (not cached or needs_regen) else None
+        
+        # Se cached não possui novos campos manter compatibilidade
+        response = {
+            "signature": signature,
+            "cached": cached is not None and not needs_regen,
+            "mapping": cached["mapping"] if (cached and not needs_regen) else result.mapping,
+            "analysis": cached["analysis"] if (cached and not needs_regen) else result.analysis,
+            "warnings": cached.get("warnings", []) if (cached and not needs_regen) else result.warnings,
+            "sample": cached.get("sample", []) if (cached and not needs_regen) else result.sample,
+            "canonical_columns": CANONICAL_COLUMNS,
+            "original_samples": cached.get("original_samples", {}) if (cached and not needs_regen) else result.original_samples,
+            "normalized_rows": cached.get("normalized_rows", []) if (cached and not needs_regen) else result.normalized_rows,
+            "original_headers": list(df_head.columns)
+        }
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao mapear layout: {str(e)}")
+    finally:
+        if temp_layout.exists():
+            os.remove(temp_layout)
+
+
+class SaveMappingRequest(BaseModel):  # type: ignore
+    signature: str
+    mapping: Dict[str, Optional[str]]
+    analysis: Dict[str, Any]
+    sample: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+    original_samples: Dict[str, List[str]] = {}
+    normalized_rows: List[Dict[str, Any]] = []
+
+
+@app.post("/api/layout-mappings")
+async def salvar_mapping(data: SaveMappingRequest):
+    """Salva mapeamento customizado no cache."""
+    save_cached_mapping(data.signature, data.dict())
+    return {"saved": True}
+
+
+class CustomCampo(BaseModel):  # type: ignore
+    nome: str
+    posicao_inicio: int
+    tamanho: int
+    tipo: str
+    obrigatorio: bool = False
+    formato: Optional[str] = None
+
+
+class ExportLayoutRequest(BaseModel):  # type: ignore
+    nome: str
+    campos: List[CustomCampo]
+    signature: Optional[str] = None
+
+
+LAYOUT_EXPORT_DIR = Path("data/layouts")
+LAYOUT_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _slugify(nome: str) -> str:
+    import re, unicodedata
+    nome_norm = unicodedata.normalize('NFKD', nome).encode('ascii', 'ignore').decode('ascii')
+    nome_norm = re.sub(r'[^A-Za-z0-9]+', '-', nome_norm).strip('-').lower()
+    return nome_norm or 'layout'
+
+
+@app.post("/api/layout-export")
+async def exportar_layout(req: ExportLayoutRequest):
+    """Gera arquivo Excel do layout customizado e retorna URL de download."""
+    try:
+        if not req.campos:
+            raise HTTPException(status_code=400, detail="Lista de campos vazia")
+        # Reusar lógica de layout_custom para validar
+        from types import SimpleNamespace
+        campos_objs = []
+        tamanho_linha = 0
+        for c in req.campos:
+            pos_fim = c.posicao_inicio + c.tamanho - 1
+            tamanho_linha = max(tamanho_linha, pos_fim)
+            campos_objs.append(SimpleNamespace(
+                nome=c.nome,
+                posicao_inicio=c.posicao_inicio,
+                posicao_fim=pos_fim,
+                tamanho=c.tamanho,
+                tipo=SimpleNamespace(value=c.tipo.upper()),
+                obrigatorio=c.obrigatorio,
+                formato=c.formato
+            ))
+        layout_fake = SimpleNamespace(nome=req.nome, campos=campos_objs, tamanho_linha=tamanho_linha)
+        layout_response = converter_layout_para_response(layout_fake)
+
+        # Construir DataFrame canônico
+        import pandas as pd
+        rows = []
+        for c in layout_response.campos:
+            rows.append({
+                'Campo': c.nome,
+                'Posicao_Inicio': c.posicao_inicio,
+                'Tamanho': c.tamanho,
+                'Tipo': c.tipo,
+                'Obrigatorio': 'S' if c.obrigatorio else 'N',
+                'Formato': c.formato or ''
+            })
+        df = pd.DataFrame(rows, columns=['Campo','Posicao_Inicio','Tamanho','Tipo','Obrigatorio','Formato'])
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        slug = _slugify(req.nome)
+        signature_part = f"_{req.signature}" if req.signature else ''
+        filename = f"layout_normalizado_{slug}{signature_part}_{timestamp}.xlsx"
+        file_path = LAYOUT_EXPORT_DIR / filename
+        df.to_excel(file_path, index=False)
+        return {
+            'saved': True,
+            'filename': filename,
+            'download_url': f"/api/layout-export/download/{filename}",
+            'layout': layout_response
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao exportar layout: {str(e)}")
+
+
+@app.get("/api/layout-export/download/{filename}")
+async def baixar_layout_exportado(filename: str):
+    file_path = LAYOUT_EXPORT_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return FileResponse(str(file_path), filename=filename, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.get("/api/layout-mappings/{signature}")
+async def obter_mapping(signature: str):
+    cached = get_cached_mapping(signature)
+    if not cached:
+        raise HTTPException(status_code=404, detail="Mapping não encontrado")
+    return cached
+
+
+class CustomLayoutRequest(BaseModel):  # type: ignore
+    nome: str
+    campos: List[CustomCampo]
+
+
+@app.post("/api/layout-custom")
+async def layout_custom(data: CustomLayoutRequest):
+    """Recebe layout customizado (após usuário editar colunas) e retorna LayoutResponse compatível."""
+    try:
+        # Validar campos básicos
+        if not data.campos:
+            raise HTTPException(status_code=400, detail="Lista de campos vazia")
+        # Construir objeto fake similar ao LayoutParser
+        from types import SimpleNamespace
+        campos_objs = []
+        tamanho_linha = 0
+        for c in data.campos:
+            if c.posicao_inicio <= 0 or c.tamanho <= 0:
+                raise HTTPException(status_code=400, detail=f"Campo {c.nome}: posição e tamanho devem ser > 0")
+            pos_fim = c.posicao_inicio + c.tamanho - 1
+            tamanho_linha = max(tamanho_linha, pos_fim)
+            tipo_upper = c.tipo.upper()
+            if tipo_upper not in [t.value for t in TipoCampo]:
+                raise HTTPException(status_code=400, detail=f"Tipo inválido: {c.tipo}")
+            campos_objs.append(SimpleNamespace(
+                nome=c.nome,
+                posicao_inicio=c.posicao_inicio,
+                posicao_fim=pos_fim,
+                tamanho=c.tamanho,
+                tipo=SimpleNamespace(value=tipo_upper),
+                obrigatorio=c.obrigatorio,
+                formato=c.formato
+            ))
+        layout_fake = SimpleNamespace(nome=data.nome, campos=campos_objs, tamanho_linha=tamanho_linha)
+        return converter_layout_para_response(layout_fake)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar layout customizado: {str(e)}")
 
 
 @app.post("/api/validar-arquivo")
