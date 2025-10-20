@@ -215,3 +215,8 @@ test_*.py
 # Cache
 .cache/
 *.cache
+
+# Frontend (Vite) artifacts and dependencies
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
