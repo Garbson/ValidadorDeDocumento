@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 from typing import List, Dict, Any
 from pathlib import Path
 
@@ -57,9 +58,10 @@ class LayoutParser:
             erros.append(f"Linha {numero_linha}: Tamanho deve ser um número")
 
         # Tipo deve ser válido
-        tipo = str(linha.get('Tipo', '')).upper().strip()
+        raw_tipo = str(linha.get('Tipo', '') or '')
+        tipo = self._normalize_tipo(raw_tipo)
         if tipo not in self.tipos_validos:
-            erros.append(f"Linha {numero_linha}: Tipo '{tipo}' inválido. Use: {', '.join(self.tipos_validos)}")
+            erros.append(f"Linha {numero_linha}: Tipo '{raw_tipo}' inválido. Use: {', '.join(self.tipos_validos)}")
 
         # Obrigatório deve ser S ou N
         obrigatorio = str(linha.get('Obrigatorio', '')).upper().strip()
@@ -94,11 +96,14 @@ class LayoutParser:
             # Converter para objetos CampoLayout
             campos = []
             for _, linha in df.iterrows():
+                # Normalizar tipo antes de criar o objeto
+                raw_tipo = str(linha.get('Tipo', '') or '')
+                tipo_normalizado = self._normalize_tipo(raw_tipo)
                 campo = CampoLayout(
                     nome=str(linha['Campo']).strip(),
                     posicao_inicio=int(linha['Posicao_Inicio']),
                     tamanho=int(linha['Tamanho']),
-                    tipo=TipoCampo(str(linha['Tipo']).upper().strip()),
+                    tipo=TipoCampo(tipo_normalizado),
                     obrigatorio=str(linha['Obrigatorio']).upper().strip() == 'S',
                     formato=str(linha.get('Formato', '')).strip() if pd.notna(linha.get('Formato')) else None
                 )
@@ -115,6 +120,27 @@ class LayoutParser:
 
         except Exception as e:
             raise ValueError(f"Erro ao processar Excel: {str(e)}")
+
+    def _normalize_tipo(self, tipo_str: str) -> str:
+        """Tenta extrair um dos tipos válidos (TEXTO, NUMERO, DATA, DECIMAL) a partir
+        de strings que podem vir com prefixos/namespace (ex: 'TIPOCAMPOAPI.NUMERO').
+        Retorna a versão normalizada em maiúsculas ou a string original em maiúsculas
+        caso não encontre um token conhecido.
+        """
+        if not tipo_str:
+            return ''
+        s = str(tipo_str).upper().strip()
+        # Se contém ponto, extrai a última parte
+        if '.' in s:
+            s = s.split('.')[-1]
+        # Remover prefixos comuns
+        s = s.replace('TIPOCAMPOAPI', '')
+        s = s.strip()
+        # Buscar um dos tokens conhecidos
+        m = re.search(r"(TEXTO|NUMERO|DATA|DECIMAL)", s)
+        if m:
+            return m.group(1)
+        return s
 
     def _validar_sobreposicoes(self, campos: List[CampoLayout]) -> None:
         """Valida se há sobreposições entre campos"""

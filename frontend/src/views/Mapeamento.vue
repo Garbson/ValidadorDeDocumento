@@ -46,7 +46,6 @@
           <div v-if="downloadUrl" class="mb-3 flex flex-wrap items-center gap-3">
             <a :href="downloadUrl" target="_blank" class="btn-primary">Download Layout Excel</a>
             <button @click="usarNoValidador" class="btn-success">Usar no Validador</button>
-            <span class="text-xs text-gray-500 truncate" :title="downloadFilename">{{ downloadFilename }}</span>
           </div>
           <div class="overflow-x-auto">
             <table class="table">
@@ -82,8 +81,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Upload } from 'lucide-vue-next'
 import LayoutMapper from '@/components/LayoutMapper.vue'
+import { useTempStore } from '@/stores/temp'
 
 const router = useRouter()
+const tempStore = useTempStore()
 const layoutFile = ref(null)
 const loading = ref(false)
 const showMapper = ref(false)
@@ -121,21 +122,22 @@ function onConfirmed(payload){
 
 async function usarNoValidador(){
   if(!downloadUrl.value) return
-  // Baixar o arquivo Excel e redirecionar para validador
-  const fullUrl = `http://localhost:8000${downloadUrl.value}`
-  // Criar um File object a partir do download
-  try {
-    const response = await fetch(fullUrl)
-    const blob = await response.blob()
-    const file = new File([blob], downloadFilename.value, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    // Navegar para validador passando o arquivo e layout
-    router.push({
-      name: 'validator',
-      state: { layoutFile: file, layoutData: confirmedLayout.value }
-    })
-  } catch(e){
+  const fullUrl = downloadUrl.value.startsWith('http') ? downloadUrl.value : `http://localhost:8000${downloadUrl.value}`
+  try{
+    loading.value = true
+    const res = await fetch(fullUrl)
+    if(!res.ok) throw new Error('Falha no download: ' + res.status)
+    const blob = await res.blob()
+    const filename = downloadFilename.value || 'layout.xlsx'
+    const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    // Salvar no store temporário e navegar para o Validador
+    tempStore.setLayout(file, confirmedLayout.value)
+    router.push({ name: 'Validator' })
+  }catch(e){
     console.error('Erro ao preparar layout para validador:', e)
     alert('Erro ao carregar layout. Por favor, faça o download manualmente e carregue no validador.')
+  }finally{
+    loading.value = false
   }
 }
 

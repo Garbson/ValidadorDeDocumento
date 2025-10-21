@@ -339,7 +339,8 @@ import {
   FileSpreadsheet,
   Upload,
 } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
+import { useTempStore } from '@/stores/temp'
 
 const validationStore = useValidationStore();
 
@@ -476,6 +477,23 @@ watch(previewLayout, (newValue) => {
 // Removido clearValidation ao montar para não apagar resultados recém-gerados ao voltar para a tela
 // Limpa apenas erros residuais (ex: mensagem de erro anterior)
 validationStore.clearError();
+// Ao montar, verificar temp store (preferencial) para obter arquivo/layout vindo do Mapeamento
+onMounted(() => {
+  try{
+    const temp = useTempStore()
+    if(temp.layoutFile){
+      const lf = temp.layoutFile
+      layoutFile.value = lf
+      try{ const dt = new DataTransfer(); dt.items.add(lf); if(layoutFileInput.value) layoutFileInput.value.files = dt.files }catch(e){}
+      if(temp.layoutData){ layoutPreview.value = temp.layoutData }
+      temp.clear()
+      return
+    }
+    // fallback para history.state
+    const st = window.history.state || {}
+  if(st.layoutFile){ const lf = st.layoutFile; if(lf instanceof File){ layoutFile.value = lf; try{ const dt = new DataTransfer(); dt.items.add(lf); if(layoutFileInput.value) layoutFileInput.value.files = dt.files }catch(e){} if(st.layoutData){ layoutPreview.value = st.layoutData } } }
+  }catch(e){ console.warn('Erro ao ler temp store/history state:', e) }
+})
 // Montagem concluída
 
 // Preview paginado de registros
