@@ -148,4 +148,29 @@ function resetAll(){
   downloadUrl.value = null
   downloadFilename.value = null
 }
+
+async function downloadMapping(){
+  if(!downloadUrl.value) return
+  try{
+    loading.value = true
+    const fullUrl = downloadUrl.value.startsWith('http') ? downloadUrl.value : `http://localhost:8000${downloadUrl.value}`
+    const res = await fetch(fullUrl)
+    if(!res.ok) throw new Error('Erro ao baixar arquivo')
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = downloadFilename.value || 'layout.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  }catch(e){
+    console.error('Erro ao salvar mapeamento:', e)
+    alert('Falha ao baixar o arquivo. Por favor, tente novamente.')
+  }finally{
+    loading.value = false
+  }
+}
+
 </script>
