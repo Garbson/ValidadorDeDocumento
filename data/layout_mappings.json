@@ -225,5 +225,162 @@
         "Formato": ""
       }
     ]
+  },
+  "8adc6eaa4b7a0f75": {
+    "signature": "8adc6eaa4b7a0f75",
+    "mapping": {
+      "Campo": "Campo",
+      "Posicao_Inicio": "Posicao_Inicio",
+      "Tamanho": "Tamanho",
+      "Tipo": "Tipo",
+      "Obrigatorio": "Obrigatorio",
+      "Formato": "Formato"
+    },
+    "analysis": {
+      "missing_required": [],
+      "missing_optional": [],
+      "completeness": 1
+    },
+    "sample": [
+      {
+        "Campo": "CODIGO_CLIENTE",
+        "Posicao_Inicio": 1,
+        "Tamanho": 10,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "NOME_CLIENTE",
+        "Posicao_Inicio": 11,
+        "Tamanho": 30,
+        "Tipo": "TEXTO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "CPF",
+        "Posicao_Inicio": 41,
+        "Tamanho": 11,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "DATA_NASCIMENTO",
+        "Posicao_Inicio": 52,
+        "Tamanho": 8,
+        "Tipo": "DATA",
+        "Obrigatorio": "N",
+        "Formato": "YYYYMMDD"
+      },
+      {
+        "Campo": "TELEFONE",
+        "Posicao_Inicio": 60,
+        "Tamanho": 11,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      }
+    ],
+    "warnings": [],
+    "original_samples": {
+      "Campo": [
+        "CODIGO_CLIENTE",
+        "NOME_CLIENTE",
+        "CPF"
+      ],
+      "Posicao_Inicio": [
+        "1",
+        "11",
+        "41"
+      ],
+      "Tamanho": [
+        "10",
+        "30",
+        "11"
+      ],
+      "Tipo": [
+        "NUMERO",
+        "TEXTO",
+        "NUMERO"
+      ],
+      "Obrigatorio": [
+        "S",
+        "S",
+        "S"
+      ],
+      "Formato": [
+        "nan",
+        "nan",
+        "nan"
+      ]
+    },
+    "normalized_rows": [
+      {
+        "Campo": "CODIGO_CLIENTE",
+        "Posicao_Inicio": 1,
+        "Tamanho": 10,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "NOME_CLIENTE",
+        "Posicao_Inicio": 11,
+        "Tamanho": 30,
+        "Tipo": "TEXTO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "CPF",
+        "Posicao_Inicio": 41,
+        "Tamanho": 11,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      },
+      {
+        "Campo": "DATA_NASCIMENTO",
+        "Posicao_Inicio": 52,
+        "Tamanho": 8,
+        "Tipo": "DATA",
+        "Obrigatorio": "N",
+        "Formato": "YYYYMMDD"
+      },
+      {
+        "Campo": "TELEFONE",
+        "Posicao_Inicio": 60,
+        "Tamanho": 11,
+        "Tipo": "NUMERO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "EMAIL",
+        "Posicao_Inicio": 71,
+        "Tamanho": 50,
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "VALOR_CREDITO",
+        "Posicao_Inicio": 121,
+        "Tamanho": 10,
+        "Tipo": "DECIMAL",
+        "Obrigatorio": "S",
+        "Formato": "2"
+      },
+      {
+        "Campo": "STATUS",
+        "Posicao_Inicio": 131,
+        "Tamanho": 1,
+        "Tipo": "TEXTO",
+        "Obrigatorio": "S",
+        "Formato": ""
+      }
+    ]
   }
 }

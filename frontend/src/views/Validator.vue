@@ -321,19 +321,11 @@
     <!-- Validation Results -->
     <div v-if="validationStore.hasValidation">
       <div class="mb-4 p-4 bg-green-100 text-green-800 rounded">
-        🎉 CONDIÇÃO ATENDIDA: Dados de validação carregados! hasValidation =
-        {{ validationStore.hasValidation }}
+        🎉 CONDIÇÃO ATENDIDA: Dados de validação carregados!
       </div>
       <ValidationResults />
     </div>
 
-    <!-- Debug do estado -->
-    <div class="mt-4 p-4 bg-gray-100 text-sm rounded">
-      <strong>Debug Estado:</strong><br />
-      hasValidation: {{ validationStore.hasValidation }}<br />
-      isLoading: {{ validationStore.isLoading }}<br />
-      currentValidation existe: {{ !!validationStore.currentValidation }}
-    </div>
   </div>
 </template>
 
@@ -351,11 +343,14 @@ import { computed, ref, watch } from "vue";
 
 const validationStore = useValidationStore();
 
+// Mostrar painel de debug apenas em modo desenvolvimento
+const isDev = !!import.meta.env.DEV;
+
 // Reactive data
 const layoutFile = ref(null);
 const dataFile = ref(null);
 const maxErrors = ref(100); // Valor padrão balanceado para performance
-const previewLayout = ref(true);
+const previewLayout = ref(false);
 const layoutPreview = ref(null);
 const layoutLoading = ref(false);
 const showMapper = ref(false);
@@ -368,7 +363,7 @@ const dataFileInput = ref(null);
 
 // Handle file changes
 const handleLayoutFileChange = async (event) => {
-  const file = event.target.files[0];
+  const file = event?.target?.files?.[0] || event?.dataTransfer?.files?.[0];
   if (!file) return;
 
   // Manter o arquivo selecionado
@@ -388,14 +383,21 @@ const handleLayoutFileChange = async (event) => {
       layoutLoading.value = false;
     }
   }
-
-  // NÃO limpar o input - manter arquivo selecionado para validação
 };
 
-const handleDataFileChange = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    dataFile.value = file;
+// Handle data file (TXT) change
+const handleDataFileChange = async (event) => {
+  const file = event?.target?.files?.[0] || event?.dataTransfer?.files?.[0];
+  if (!file) return;
+
+  dataFile.value = file;
+  // Recarrega o preview paginado de registros
+  try {
+    await loadFileLines();
+  } catch (e) {
+    console.error('Falha ao carregar linhas do arquivo de dados:', e);
+    fileLines.value = [];
+    fullLineCount.value = 0;
   }
 };
 
