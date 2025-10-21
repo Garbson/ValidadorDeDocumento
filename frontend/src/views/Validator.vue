@@ -160,7 +160,7 @@
       <div class="card-header">
         <h3 class="text-lg font-semibold flex items-center">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
-          Preview do Layout: {{ layoutPreview.nome }}
+          Preview do Layout: (Arquivo Excel)
         </h3>
       </div>
       <div class="card-body">
@@ -211,7 +211,7 @@
 
     <!-- Preview Paginado de Registros -->
     <div
-      v-if="layoutPreview && fileLines.length && dataFile"
+      v-if="layoutPreview && previewLayout && fileLines.length && dataFile"
       class="card max-w-6xl mx-auto"
     >
       <div
@@ -219,7 +219,7 @@
       >
         <h3 class="text-lg font-semibold flex items-center">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
-          Registros do Arquivo (Preview)
+          Registros do Arquivo (Preview Arquivo TXT)
         </h3>
         <div class="flex items-center flex-wrap gap-2 text-sm">
           <button
