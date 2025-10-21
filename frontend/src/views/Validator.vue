@@ -211,7 +211,7 @@
 
     <!-- Preview Paginado de Registros -->
     <div
-      v-if="layoutPreview && fileLines.length"
+      v-if="layoutPreview && fileLines.length && dataFile"
       class="card max-w-6xl mx-auto"
     >
       <div
@@ -604,4 +604,49 @@ const jumpToLine = () => {
   currentLineIndex.value = idx;
   jumpLine.value = idx + 1;
 };
+
+// Reset local validator state (used when user starts a new validation)
+const resetLocalState = () => {
+  // Clear files and previews
+  layoutFile.value = null;
+  dataFile.value = null;
+  previewLayout.value = false;
+  layoutPreview.value = null;
+  layoutLoading.value = false;
+
+  // Mapper state
+  showMapper.value = false;
+  mappingConfirmed.value = false;
+  mappingData.value = null;
+
+  // Preview paginado
+  fileLines.value = [];
+  fullLineCount.value = 0;
+  currentLineIndex.value = 0;
+  jumpLine.value = 1;
+  truncated.value = false;
+
+  // Clear input elements (if present)
+  try {
+    if (layoutFileInput.value) layoutFileInput.value.value = "";
+    if (dataFileInput.value) dataFileInput.value.value = "";
+  } catch (e) {
+    // ignore
+  }
+
+  // Also clear any temp store entries
+  try {
+    const temp = useTempStore();
+    if (temp && temp.clear) temp.clear();
+  } catch (e) {
+    // ignore
+  }
+};
+
+// Quando o store indica que não há validação ativa, resetar o estado local
+watch(() => validationStore.hasValidation, (has) => {
+  if (!has) {
+    resetLocalState();
+  }
+});
 </script>
