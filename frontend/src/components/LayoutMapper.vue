@@ -12,7 +12,7 @@
     </div>
 
     <div v-if="response.cached" class="p-3 bg-green-50 border border-green-200 text-sm rounded">
-      Mapeamento recuperado do cache (assinatura: <code>{{ response.signature }}</code>). Confirme ou ajuste.
+      Mapeamento recuperado do cache, confirme ou ajuste.
     </div>
     <div v-else class="p-3 bg-blue-50 border border-blue-200 text-sm rounded">
       Mapeamento sugerido automaticamente (assinatura: <code>{{ response.signature }}</code>). Revise antes de confirmar.
