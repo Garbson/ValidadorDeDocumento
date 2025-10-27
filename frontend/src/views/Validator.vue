@@ -8,8 +8,8 @@
       <p class="text-gray-600">Envie seus arquivos para validação automática</p>
     </div>
 
-  <!-- Upload Form / Mapeamento -->
-  <div class="card max-w-4xl mx-auto" v-show="!validationStore.hasValidation">
+    <!-- Upload Form / Mapeamento -->
+    <div class="card max-w-4xl mx-auto" v-show="!validationStore.hasValidation">
       <div class="card-header">
         <h2 class="text-lg font-semibold flex items-center">
           <Upload class="w-5 h-5 mr-2" />
@@ -17,7 +17,11 @@
         </h2>
       </div>
       <div class="card-body space-y-6">
-    <form v-if="!showMapper && !mappingConfirmed" @submit.prevent="handleValidation" class="space-y-6">
+        <form
+          v-if="!showMapper && !mappingConfirmed"
+          @submit.prevent="handleValidation"
+          class="space-y-6"
+        >
           <!-- Layout File Upload -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -128,11 +132,11 @@
           <div class="p-3 bg-blue-50 text-blue-700 text-sm rounded">
             Revise e confirme o mapeamento antes de validar os dados.
           </div>
-            <LayoutMapper
-              :file="layoutFile"
-              @cancel="cancelarMapper"
-              @confirmed="onMappingConfirmed"
-            />
+          <LayoutMapper
+            :file="layoutFile"
+            @cancel="cancelarMapper"
+            @confirmed="onMappingConfirmed"
+          />
         </div>
 
         <!-- Error Message -->
@@ -157,11 +161,37 @@
 
     <!-- Layout Preview -->
     <div v-if="layoutPreview && previewLayout" class="card max-w-6xl mx-auto">
-      <div class="card-header">
+      <div class="card-header flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h3 class="text-lg font-semibold flex items-center">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
           Preview do Layout: {{ layoutPreview.nome }}
         </h3>
+        <div class="flex items-center flex-wrap gap-2 text-sm">
+          <!-- Paginação de Campos no Preview do Layout -->
+          <div class="flex items-center gap-2">
+            <button
+              class="btn-secondary px-2 py-1"
+              @click="paginaAnteriorCampos"
+              :disabled="paginaAtualCampos === 1"
+              title="Página anterior"
+            >
+              «P
+            </button>
+            <span class="text-xs text-gray-600">
+              Campos:
+              <strong>{{ paginaAtualCampos }}/{{ totalPaginasCampos }}</strong>
+              <span v-if="allVisibleCampos.length > 0">({{ allVisibleCampos.length }} total)</span>
+            </span>
+            <button
+              class="btn-secondary px-2 py-1"
+              @click="proximaPaginaCampos"
+              :disabled="paginaAtualCampos >= totalPaginasCampos"
+              title="Próxima página"
+            >
+              P»
+            </button>
+          </div>
+        </div>
       </div>
       <div class="card-body">
         <div class="overflow-x-auto">
@@ -177,7 +207,7 @@
               </tr>
             </thead>
             <tbody class="table-body">
-              <tr v-for="campo in layoutPreview.campos" :key="campo.nome">
+              <tr v-for="campo in visibleCampos" :key="campo.nome">
                 <td class="table-cell font-medium">{{ campo.nome }}</td>
                 <td class="table-cell">
                   {{ campo.posicao_inicio }}-{{ campo.posicao_fim }}
@@ -199,9 +229,6 @@
         </div>
         <div class="mt-4 text-sm text-gray-600">
           <p>
-            <strong>Total de campos:</strong> {{ layoutPreview.campos.length }}
-          </p>
-          <p>
             <strong>Tamanho da linha:</strong>
             {{ layoutPreview.tamanho_linha }} caracteres
           </p>
@@ -222,6 +249,30 @@
           Registros do Arquivo (Preview)
         </h3>
         <div class="flex items-center flex-wrap gap-2 text-sm">
+          <!-- Paginação de Campos -->
+          <div class="flex items-center gap-2 mr-4">
+            <button
+              class="btn-secondary px-2 py-1"
+              @click="paginaAnteriorCampos"
+              :disabled="paginaAtualCampos === 1"
+              title="Página anterior"
+            >
+              «P
+            </button>
+            <span class="text-xs text-gray-600">
+              Campos:
+              <strong>{{ paginaAtualCampos }}/{{ totalPaginasCampos }}</strong>
+              <span v-if="allVisibleCampos.length > 0">({{ allVisibleCampos.length }} total)</span>
+            </span>
+            <button
+              class="btn-secondary px-2 py-1"
+              @click="proximaPaginaCampos"
+              :disabled="paginaAtualCampos >= totalPaginasCampos"
+              title="Próxima página"
+            >
+              P»
+            </button>
+          </div>
           <button
             class="btn-secondary px-2 py-1"
             @click="firstRecord"
@@ -270,8 +321,14 @@
       </div>
       <div class="card-body">
         <div class="mb-3 text-xs text-gray-500">
-          Comprimento da linha atual: {{ currentRawLine.length }} / Tamanho
-          esperado layout: {{ layoutPreview.tamanho_linha }}
+          Comprimento da linha atual: {{ currentRawLine.length }} /
+          Tamanho esperado layout: {{ layoutPreview.tamanho_linha }} |
+          Tipo detectado da linha: <strong>{{ currentLineKey || '-' }}</strong> |
+          Mostrando campos {{ (paginaAtualCampos - 1) * camposPorPagina + 1 }}-{{ Math.min(paginaAtualCampos * camposPorPagina, allVisibleCampos.length) }} de {{ allVisibleCampos.length }}<br>
+          <strong>Valores:</strong>
+          {{ currentFields.filter(f => f.valor && f.valor.trim()).length }} preenchidos,
+          {{ currentFields.filter(f => !f.valor || !f.valor.trim()).length }} vazios
+          (apenas campos tipo {{ currentLineKey?.slice(0, 2) || '??' }} têm valores)
         </div>
         <div class="overflow-x-auto">
           <table class="table">
@@ -289,10 +346,17 @@
               <tr
                 v-for="f in currentFields"
                 :key="f.nome"
-                :class="{ 'bg-error-50': f.erro }"
+                :class="{
+                  'bg-error-50': f.erro,
+                  'bg-gray-50': !f.valor || !f.valor.trim(),
+                  'bg-green-50': f.valor && f.valor.trim() && !f.erro
+                }"
               >
                 <td class="table-cell text-xs">{{ currentLineIndex + 1 }}</td>
-                <td class="table-cell font-medium">{{ f.nome }}</td>
+                <td class="table-cell font-medium">
+                  <span v-if="f.valor && f.valor.trim()" class="text-blue-600 font-bold">{{ f.nome }}</span>
+                  <span v-else class="text-gray-400">{{ f.nome }}</span>
+                </td>
                 <td class="table-cell text-xs">
                   {{ f.pos_inicio }}-{{ f.pos_fim }}
                 </td>
@@ -313,7 +377,9 @@
           </table>
         </div>
         <p class="mt-4 text-xs text-gray-500">
-          Valores com tamanho divergente destacados. Espaços mostrados como '·'.
+          Valores com tamanho divergente destacados. Espaços mostrados como '·'.<br>
+          <strong>Dica:</strong> Use os botões «P / P» para navegar entre todas as {{ totalPaginasCampos }} páginas de campos ({{ camposPorPagina }} campos por página).<br>
+          <strong>Comportamento:</strong> Mostra TODOS os campos de TODOS os tipos, mas apenas os campos do tipo da linha atual têm valores preenchidos.
         </p>
       </div>
     </div>
@@ -361,10 +427,12 @@ const layoutLoading = ref(false);
 const showMapper = ref(false);
 const mappingConfirmed = ref(false);
 const mappingData = ref(null);
+const organizarLayout = ref(null); // legado: não mais usado para renderização
 
 // Refs para os inputs
 const layoutFileInput = ref(null);
 const dataFileInput = ref(null);
+const armazenaLayout = ref(null);
 
 // Handle file changes
 const handleLayoutFileChange = async (event) => {
@@ -377,11 +445,16 @@ const handleLayoutFileChange = async (event) => {
   mappingConfirmed.value = false;
   mappingData.value = null;
   layoutPreview.value = null;
+  organizarLayout.value = null;
 
   if (previewLayout.value) {
     layoutLoading.value = true;
     try {
-      layoutPreview.value = await validationStore.validateLayout(file);
+      armazenaLayout.value = await validationStore.validateLayout(file);
+      // mantenha o objeto completo no layoutPreview
+      layoutPreview.value = armazenaLayout.value;
+  // organizarLayout (legado) não é mais necessário; filtragem é feita por grupo
+      console.log("Layout preview carregado:", layoutPreview.value);
     } catch (_) {
       layoutPreview.value = null;
     } finally {
@@ -403,22 +476,22 @@ const handleDataFileChange = (event) => {
 const handleValidation = async () => {
   // Verificar se os arquivos ainda estão disponíveis
   if (!layoutFile.value || !dataFile.value) {
-    console.error('Arquivos não disponíveis:', {
+    console.error("Arquivos não disponíveis:", {
       layout: !!layoutFile.value,
-      data: !!dataFile.value
+      data: !!dataFile.value,
     });
     return;
   }
 
   // Se usuário já abriu mapper exige confirmação
   if (showMapper.value && !mappingConfirmed.value) {
-    console.warn('Mapper aberto mas não confirmado');
+    console.warn("Mapper aberto mas não confirmado");
     return;
   }
 
-  console.log('Iniciando validação com arquivos:', {
+  console.log("Iniciando validação com arquivos:", {
     layoutFile: layoutFile.value.name,
-    dataFile: dataFile.value.name
+    dataFile: dataFile.value.name,
   });
 
   try {
@@ -432,7 +505,7 @@ const handleValidation = async () => {
       if (el) el.scrollIntoView({ behavior: "smooth" });
     }, 100);
   } catch (error) {
-    console.error('Erro na validação:', error);
+    console.error("Erro na validação:", error);
   }
 };
 
@@ -447,7 +520,9 @@ const onMappingConfirmed = async (payload) => {
   mappingConfirmed.value = true;
   showMapper.value = false;
   if (payload && payload.layout && payload.layout.campos) {
+    // mantenha o objeto completo
     layoutPreview.value = payload.layout;
+  // filtragem é dinâmica pelos grupos
   }
 };
 
@@ -455,14 +530,25 @@ const onMappingConfirmed = async (payload) => {
 watch(previewLayout, (newValue) => {
   if (!newValue) {
     layoutPreview.value = null;
-  } else if (layoutFile.value) {
+  } else if (
+    (console.log("Habilitando previewLayout novamente"), layoutFile.value)
+  ) {
     // Recarregar preview se habilitado novamente
     validationStore
       .validateLayout(layoutFile.value)
       .then((result) => {
-        layoutPreview.value = result;
+        console.log(
+          "Recarregando preview do layout após reabilitar previewLayout"
+        );
+        console.log(
+          "Recarregando preview do layout após reabilitar previewLayout"
+        );
+        armazenaLayout.value = result;
+        layoutPreview.value = armazenaLayout.value;
+        console.log("Layout preview recarregado:", layoutPreview.value);
       })
       .catch(() => {
+        console.error("Erro ao recarregar preview do layout");
         layoutPreview.value = null;
       });
   }
@@ -513,38 +599,115 @@ const currentRawLine = computed(
   () => fileLines.value[currentLineIndex.value] || ""
 );
 
+// Utilidades para agrupamento
+const normalizeName = (s) => String(s || "").trim().toUpperCase();
+const prefix5 = (s) => normalizeName(s).slice(0, 5);
+// Prefixo da linha atual (sem trim do conteúdo total para não afetar posições; apenas detecção do tipo)
+const currentLineKey = computed(() => (currentRawLine.value || "").slice(0, 5).toUpperCase());
+
+// Lista completa de campos (ou vazia)
+const allCampos = computed(() => layoutPreview.value?.campos ?? []);
+
+// Função removida - não mais necessária com paginação
+
+// Resetar para a primeira página quando mudar o layout
+watch(allCampos, () => {
+  paginaAtualCampos.value = 1;
+});
+
+// Todos os campos sem filtro (será paginado)
+const allVisibleCampos = computed(() => {
+  return allCampos.value;
+});
+
+// Paginação de campos
+const camposPorPagina = ref(50); // Mostrar 50 campos por página
+const paginaAtualCampos = ref(1);
+
+const totalPaginasCampos = computed(() => {
+  return Math.ceil(allVisibleCampos.value.length / camposPorPagina.value);
+});
+
+const visibleCampos = computed(() => {
+  const inicio = (paginaAtualCampos.value - 1) * camposPorPagina.value;
+  const fim = inicio + camposPorPagina.value;
+  return allVisibleCampos.value.slice(inicio, fim);
+});
+
+// Funções de navegação da paginação
+const proximaPaginaCampos = () => {
+  if (paginaAtualCampos.value < totalPaginasCampos.value) {
+    paginaAtualCampos.value++;
+  }
+};
+
+const paginaAnteriorCampos = () => {
+  if (paginaAtualCampos.value > 1) {
+    paginaAtualCampos.value--;
+  }
+};
+
+// Função de navegação direta removida - usando apenas botões anterior/próximo
+
+// Navegação removida - agora usamos paginação de campos
+
 const parseLine = (raw) => {
   if (!layoutPreview.value || !raw) return [];
-  const campos = layoutPreview.value.campos || [];
+  const campos = visibleCampos.value;
+
+  // Detectar tipo de registro da linha atual
+  const lineType = raw.slice(0, 2); // Primeiros 2 chars
+  const tipoPrefix = `NFE${lineType}-`;
+
+  // Sanear linha: remover CR final e garantir comprimento mínimo com padding
+  let line = raw;
+  if (line.endsWith("\r")) line = line.slice(0, -1);
+  // Tabs não devem deslocar colunas; se existirem, trate como espaços
+  line = line.replace(/\t/g, " ");
+  const expected = layoutPreview.value?.tamanho_linha || line.length;
+  if (line.length < expected) {
+    line = line.padEnd(expected, " ");
+  }
+
   return campos.map((c) => {
-    const startIdx = c.posicao_inicio - 1;
-    const endIdx = c.posicao_fim
-      ? c.posicao_fim
-      : c.posicao_inicio - 1 + c.tamanho;
-    let valor = raw.slice(startIdx, endIdx);
-    const trimmed = valor.trim();
-    const tipo = (c.tipo || "").toUpperCase();
-    // Apenas erro se exceder o tamanho; valores menores (preenchimento parcial) são permitidos
-    const overflow = valor.length > c.tamanho;
-    const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
-    const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(valor);
-    const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9 ]/.test(valor);
+    let valor = "";
     let erro = null;
-    if (c.obrigatorio && trimmed.length === 0) {
-      erro = "Vazio obrigatório";
-    } else if (invalidNumero) {
-      erro = "Caracter inválido (NUMERO)";
-    } else if (invalidData) {
-      erro = "Data inválida (AAAAmmdd)";
-    } else if (invalidDecimal) {
-      erro = "Decimal inválido (somente dígitos)";
-    } else if (overflow) {
-      erro = `Excede (${valor.length}/${c.tamanho})`;
+
+    // LÓGICA PRINCIPAL: só extrair valor se o campo pertence ao tipo da linha
+    if (c.nome.startsWith(tipoPrefix)) {
+      // Campo pertence ao tipo da linha atual - extrair valor
+      const startIdx = Math.max(0, (c.posicao_inicio || 1) - 1);
+      const endExclusive = c.posicao_fim
+        ? c.posicao_fim
+        : startIdx + (c.tamanho || 0);
+      valor = line.slice(startIdx, endExclusive);
+
+      // Validar apenas campos que têm valor
+      const trimmed = valor.trim();
+      const tipo = (c.tipo || "").toUpperCase();
+      const overflow = c.tamanho ? valor.length > c.tamanho : false;
+      const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
+      const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(valor);
+      const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9 ]/.test(valor);
+
+      if (c.obrigatorio && trimmed.length === 0) {
+        erro = "Vazio obrigatório";
+      } else if (invalidNumero) {
+        erro = "Caracter inválido (NUMERO)";
+      } else if (invalidData) {
+        erro = "Data inválida (AAAAmmdd)";
+      } else if (invalidDecimal) {
+        erro = "Decimal inválido (somente dígitos)";
+      } else if (overflow) {
+        erro = `Excede (${valor.length}/${c.tamanho})`;
+      }
     }
+    // Caso contrário, campo fica vazio (é de outro tipo)
+
     return {
       nome: c.nome,
       pos_inicio: c.posicao_inicio,
-      pos_fim: c.posicao_fim || endIdx,
+      pos_fim: c.posicao_fim || (c.posicao_inicio + c.tamanho - 1),
       tamanho: c.tamanho,
       valor,
       display: (valor || "").replace(/ /g, "·") || "(vazio)",

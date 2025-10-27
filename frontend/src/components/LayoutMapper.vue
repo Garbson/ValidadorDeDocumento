@@ -36,7 +36,7 @@
             <td class="table-cell">
               <select v-model="localMapping[c]" class="input w-full">
                 <option :value="null">-- Selecionar --</option>
-                <option v-for="h in allOriginalHeaders" :key="h" :value="h">{{ h }}</option>
+                <option v-for="(h, index) in allOriginalHeaders" :key="`header-${index}-${h}`" :value="h">{{ h }}</option>
                 <option value="__custom__">(Nova Coluna Manual)</option>
               </select>
               <div v-if="localMapping[c] === '__custom__'" class="mt-2">
@@ -110,7 +110,8 @@ import api from '@/services/api'
 import { computed, reactive, ref } from 'vue'
 
 const props = defineProps({
-  file: { type: File, required: true }
+  file: { type: File, required: true },
+  selectedSheet: { type: Number, default: null }
 })
 const emits = defineEmits(['cancel', 'confirmed'])
 
@@ -153,6 +154,9 @@ function resolveColumnName(c){
 async function loadMapping(){
   const form = new FormData()
   form.append('layout_file', props.file)
+  if (props.selectedSheet !== null) {
+    form.append('sheet_name', props.selectedSheet.toString())
+  }
   const { data } = await api.post('/mapear-layout', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   Object.assign(response, data)
   originalHeaders.value = Object.values(data.mapping).filter(Boolean)

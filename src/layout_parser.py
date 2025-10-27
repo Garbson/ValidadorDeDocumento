@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 try:
@@ -68,14 +68,40 @@ class LayoutParser:
 
         return erros
 
-    def parse_excel(self, caminho_excel: str) -> Layout:
-        """Converte Excel para objeto Layout"""
+    def parse_excel(self, caminho_excel: str, sheet_name: Optional[int] = None) -> Layout:
+        """Converte Excel para objeto Layout
+
+        Args:
+            caminho_excel: Caminho para o arquivo Excel
+            sheet_name: Índice da aba (None = primeira aba, 0 = primeira, 1 = segunda, etc.)
+        """
         if not Path(caminho_excel).exists():
             raise FileNotFoundError(f"Arquivo não encontrado: {caminho_excel}")
 
         try:
-            # Ler Excel
-            df = pd.read_excel(caminho_excel)
+            # Importar função de detecção de cabeçalho
+            try:
+                from .layout_normalizer import find_header_row
+            except ImportError:
+                from layout_normalizer import find_header_row
+
+            # Ler Excel com seleção de aba e detecção automática de cabeçalho
+            sheet_index = sheet_name if sheet_name is not None else 0
+
+            # Detectar linha de cabeçalho
+            header_row = find_header_row(caminho_excel, sheet_index)
+
+            # Ler Excel usando a linha de cabeçalho detectada
+            df = pd.read_excel(caminho_excel, sheet_name=sheet_index, header=header_row)
+
+            # Filtrar linhas de títulos de seção (como "01 - Identificação da NFCom")
+            if not df.empty:
+                first_col = df.iloc[:, 0].astype(str)
+                section_titles_mask = first_col.str.match(r'^\d+\s*-\s*', na=False)
+
+                if section_titles_mask.any():
+                    df = df[~section_titles_mask]
+                    df = df.reset_index(drop=True)
 
             # Validar estrutura
             erros_estrutura = self.validar_excel(df)

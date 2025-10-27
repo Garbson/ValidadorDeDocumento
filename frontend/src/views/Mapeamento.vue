@@ -21,14 +21,47 @@
       </div>
     </div>
 
-    <div v-if="layoutFile" class="card max-w-3xl mx-auto" v-show="!mappingLoaded">
+    <!-- Seleção de aba -->
+    <div v-if="layoutFile && !sheetsLoaded" class="card max-w-3xl mx-auto">
       <div class="card-body flex items-center justify-between flex-wrap gap-4">
         <div class="text-sm text-gray-600 truncate">Selecionado: <strong>{{ layoutFile.name }}</strong></div>
         <div class="flex gap-2">
           <button class="btn-secondary" @click="resetAll">Trocar Arquivo</button>
-          <button class="btn-primary" :disabled="loading" @click="carregarMapping">
+          <button class="btn-primary" :disabled="loading" @click="carregarAbas">
+            <span v-if="loading" class="flex items-center"><span class="loading-spinner w-5 h-5 mr-2"></span>Carregando abas...</span>
+            <span v-else>Próximo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seleção de aba do Excel -->
+    <div v-if="sheetsLoaded && !mappingLoaded" class="card max-w-3xl mx-auto">
+      <div class="card-header">
+        <h2 class="text-lg font-semibold flex items-center">
+          <FileSpreadsheet class="w-5 h-5 mr-2" />
+          Selecionar Aba do Excel
+        </h2>
+      </div>
+      <div class="card-body space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Abas disponíveis <span class="text-red-500">*</span>
+          </label>
+          <select v-model="selectedSheet" class="input w-full">
+            <option v-for="(sheet, index) in sheets" :key="index" :value="index">
+              {{ index + 1 }}. {{ sheet }}
+            </option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">
+            Encontradas {{ sheets.length }} aba(s). Selecione a que contém o layout.
+          </p>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button class="btn-secondary" @click="voltarParaArquivo">Voltar</button>
+          <button class="btn-primary" :disabled="selectedSheet === null || loading" @click="carregarMapping">
             <span v-if="loading" class="flex items-center"><span class="loading-spinner w-5 h-5 mr-2"></span>Processando...</span>
-            <span v-else>Mapear</span>
+            <span v-else>Mapear Aba Selecionada</span>
           </button>
         </div>
       </div>
@@ -40,7 +73,7 @@
         <button class="btn-secondary" @click="resetAll">Novo Arquivo</button>
       </div>
       <div class="card-body space-y-6">
-        <LayoutMapper :file="layoutFile" @confirmed="onConfirmed" @cancel="resetAll" />
+        <LayoutMapper :file="layoutFile" :selected-sheet="selectedSheet" @confirmed="onConfirmed" @cancel="resetAll" />
         <div v-if="confirmedLayout" class="border rounded p-4 bg-gray-50 text-sm">
           <p class="font-medium mb-2">Layout Confirmado (preview campos):</p>
           <div v-if="downloadUrl" class="mb-3 flex flex-wrap items-center gap-3">
@@ -78,12 +111,14 @@
 </template>
 
 <script setup>
+import LayoutMapper from '@/components/LayoutMapper.vue'
+import { useValidationStore } from '@/stores/validation'
+import { FileSpreadsheet, Upload } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Upload } from 'lucide-vue-next'
-import LayoutMapper from '@/components/LayoutMapper.vue'
 
 const router = useRouter()
+const validationStore = useValidationStore()
 const layoutFile = ref(null)
 const loading = ref(false)
 const showMapper = ref(false)
@@ -92,6 +127,11 @@ const confirmedLayout = ref(null)
 const downloadUrl = ref(null)
 const downloadFilename = ref(null)
 
+// Novas variáveis para seleção de abas
+const sheetsLoaded = ref(false)
+const sheets = ref([])
+const selectedSheet = ref(null)
+
 function onFileChange(e){
   const f = e.target.files[0]
   if(!f) return
@@ -99,6 +139,31 @@ function onFileChange(e){
   mappingLoaded.value = false
   confirmedLayout.value = null
   showMapper.value = false
+  sheetsLoaded.value = false
+  sheets.value = []
+  selectedSheet.value = null
+}
+
+async function carregarAbas(){
+  if(!layoutFile.value) return
+  loading.value = true
+  try {
+    const result = await validationStore.listExcelSheets(layoutFile.value)
+    sheets.value = result.sheets
+    selectedSheet.value = result.default_sheet
+    sheetsLoaded.value = true
+  } catch (error) {
+    console.error('Erro ao carregar abas:', error)
+    alert('Erro ao carregar abas do Excel: ' + (error.response?.data?.detail || error.message))
+  } finally {
+    loading.value = false
+  }
+}
+
+function voltarParaArquivo(){
+  sheetsLoaded.value = false
+  sheets.value = []
+  selectedSheet.value = null
 }
 
 async function carregarMapping(){
@@ -147,5 +212,8 @@ function resetAll(){
   confirmedLayout.value = null
   downloadUrl.value = null
   downloadFilename.value = null
+  sheetsLoaded.value = false
+  sheets.value = []
+  selectedSheet.value = null
 }
 </script>
