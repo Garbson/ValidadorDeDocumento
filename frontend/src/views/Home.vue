@@ -167,5 +167,5 @@
 </template>
 
 <script setup>
-import { CheckSquare, FileSpreadsheet, Zap, BarChart3, Shield, FileText } from 'lucide-vue-next'
+import { BarChart3, CheckSquare, FileSpreadsheet, FileText, Shield, Zap } from 'lucide-vue-next';
 </script>

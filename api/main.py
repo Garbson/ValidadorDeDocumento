@@ -19,9 +19,11 @@ if src_path not in sys.path:
 from src.layout_parser import LayoutParser
 from src.layout_normalizer import (
     map_layout_file, normalize_dataframe, suggest_mapping, analyze_mapping,
-    CANONICAL_COLUMNS, headers_signature, get_cached_mapping, save_cached_mapping
+    CANONICAL_COLUMNS, headers_signature, get_cached_mapping, save_cached_mapping,
+    list_excel_sheets, find_header_row
 )
 from src.file_validator import ValidadorArquivo
+from src.multi_record_validator import MultiRecordValidator
 from src.report_generator import GeradorRelatorio
 from src.models import TipoCampo
 
@@ -73,7 +75,7 @@ def converter_layout_para_response(layout) -> LayoutResponse:
             posicao_inicio=campo.posicao_inicio,
             posicao_fim=campo.posicao_fim,
             tamanho=campo.tamanho,
-            tipo=TipoCampoAPI(campo.tipo.value),
+            tipo=campo.tipo.value,
             obrigatorio=campo.obrigatorio,
             formato=campo.formato
         ))
@@ -147,11 +149,20 @@ async def health_check():
 
 
 @app.post("/api/validar-layout")
-async def validar_layout(layout_file: UploadFile = File(...)):
-    """Valida e retorna informações de um arquivo de layout Excel"""
+async def validar_layout(
+    layout_file: UploadFile = File(...),
+    sheet_name: Optional[int] = Form(None)
+):
+    """Valida e retorna informações de um arquivo de layout Excel (suporte multi-registro)
+
+    Args:
+        layout_file: Arquivo Excel
+        sheet_name: Índice da aba (0=primeira, 1=segunda, etc.). Se None, usa aba 1 (layout detalhado).
+    """
     if not layout_file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
 
+    temp_layout = None
     try:
         # Salvar arquivo temporário
         temp_layout = UPLOAD_DIR / f"layout_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{layout_file.filename}"
@@ -159,26 +170,83 @@ async def validar_layout(layout_file: UploadFile = File(...)):
             content = await layout_file.read()
             buffer.write(content)
 
-        # Processar layout
-        parser = LayoutParser()
-        layout = parser.parse_excel(str(temp_layout))
+        # Tentar carregar como multi-registro primeiro
+        try:
+            sheet_index = sheet_name if sheet_name is not None else 1  # Default para aba 1
+            multi_validator = MultiRecordValidator(str(temp_layout), sheet_index)
 
-        # Limpar arquivo temporário
-        os.remove(temp_layout)
+            # Criar layout combinado com TODOS os campos de TODOS os tipos
+            todos_campos = []
+            for tipo, layout in sorted(multi_validator.layouts_por_tipo.items()):
+                todos_campos.extend(layout.campos)
 
-        return converter_layout_para_response(layout)
+            # Criar layout combinado
+            layout_combinado = Layout(
+                nome=f"Layout Multi-Registro ({len(multi_validator.layouts_por_tipo)} tipos)",
+                campos=todos_campos,
+                tamanho_linha=540  # Tamanho padrão
+            )
+
+            return converter_layout_para_response(layout_combinado)
+
+        except Exception as multi_error:
+            # Fallback para método antigo se multi-registro falhar
+            print(f"Multi-registro falhou: {multi_error}, tentando método antigo...")
+            parser = LayoutParser()
+            sheet_index = sheet_name if sheet_name is not None else 0
+            layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
+            return converter_layout_para_response(layout)
 
     except Exception as e:
-        # Limpar arquivo se der erro
+        raise HTTPException(status_code=400, detail=f"Erro ao processar layout: {str(e)}")
+    finally:
+        # Limpar arquivo temporário
+        if temp_layout and temp_layout.exists():
+            os.remove(temp_layout)
+
+
+@app.post("/api/listar-abas-excel")
+async def listar_abas_excel(layout_file: UploadFile = File(...)):
+    """Lista todas as abas disponíveis em um arquivo Excel"""
+    if not layout_file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
+
+    temp_layout = UPLOAD_DIR / f"sheets_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{layout_file.filename}"
+    try:
+        content = await layout_file.read()
+        with open(temp_layout, "wb") as buffer:
+            buffer.write(content)
+
+        result = list_excel_sheets(str(temp_layout))
+
+        return {
+            "sheets": result.sheets,
+            "default_sheet": result.default_sheet,
+            "total_sheets": len(result.sheets)
+        }
+    except Exception as e:
+        import traceback
+        error_detail = f"Erro ao listar abas do Excel: {str(e)}"
+        print(f"Erro ao listar abas: {error_detail}")
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=error_detail)
+    finally:
         if temp_layout.exists():
             os.remove(temp_layout)
-        raise HTTPException(status_code=400, detail=f"Erro ao processar layout: {str(e)}")
 
 
 @app.post("/api/mapear-layout")
-async def mapear_layout(layout_file: UploadFile = File(...)):
+async def mapear_layout(
+    layout_file: UploadFile = File(...),
+    sheet_name: Optional[int] = Form(None)
+):
     """Realiza mapeamento automático das colunas de um layout Excel sem validar estrutura completa.
-    Retorna cache se já existir para a assinatura de cabeçalhos."""
+    Retorna cache se já existir para a assinatura de cabeçalhos.
+
+    Args:
+        layout_file: Arquivo Excel
+        sheet_name: Índice da aba (0=primeira, 1=segunda, etc.). Se None, usa primeira aba.
+    """
     if not layout_file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
     temp_layout = UPLOAD_DIR / f"map_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{layout_file.filename}"
@@ -187,14 +255,20 @@ async def mapear_layout(layout_file: UploadFile = File(...)):
         with open(temp_layout, "wb") as buffer:
             buffer.write(content)
         import pandas as pd
-        df_head = pd.read_excel(temp_layout, nrows=0)
+
+        # Usar sheet_name para ler cabeçalhos
+        sheet_index = sheet_name if sheet_name is not None else 0
+
+        # Detectar linha de cabeçalho automaticamente
+        header_row = find_header_row(str(temp_layout), sheet_index)
+        df_head = pd.read_excel(temp_layout, nrows=0, sheet_name=sheet_index, header=header_row)
         signature = headers_signature(list(df_head.columns))
         cached = get_cached_mapping(signature)
-        
+
         # Se cache não tem normalized_rows ou original_samples, regenerar
         needs_regen = cached and (not cached.get("normalized_rows") or not cached.get("original_samples"))
-        
-        result = map_layout_file(str(temp_layout)) if (not cached or needs_regen) else None
+
+        result = map_layout_file(str(temp_layout), sheet_name=sheet_index) if (not cached or needs_regen) else None
         
         # Se cached não possui novos campos manter compatibilidade
         response = {
@@ -207,11 +281,17 @@ async def mapear_layout(layout_file: UploadFile = File(...)):
             "canonical_columns": CANONICAL_COLUMNS,
             "original_samples": cached.get("original_samples", {}) if (cached and not needs_regen) else result.original_samples,
             "normalized_rows": cached.get("normalized_rows", []) if (cached and not needs_regen) else result.normalized_rows,
-            "original_headers": list(df_head.columns)
+            "original_headers": list(df_head.columns),
+            "sheet_name": sheet_index,
+            "selected_sheet": sheet_index
         }
         return response
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao mapear layout: {str(e)}")
+        import traceback
+        error_detail = f"Erro ao mapear layout: {str(e)}"
+        print(f"Erro no mapeamento de layout: {error_detail}")
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=error_detail)
     finally:
         if temp_layout.exists():
             os.remove(temp_layout)
@@ -377,9 +457,17 @@ async def layout_custom(data: CustomLayoutRequest):
 async def validar_arquivo_completo(
     layout_file: UploadFile = File(...),
     data_file: UploadFile = File(...),
-    max_erros: int = Form(default=None)
+    max_erros: int = Form(default=None),
+    sheet_name: Optional[int] = Form(None)
 ):
-    """Valida arquivo completo e retorna resultados detalhados"""
+    """Valida arquivo completo e retorna resultados detalhados
+
+    Args:
+        layout_file: Arquivo Excel com layout
+        data_file: Arquivo TXT com dados
+        max_erros: Máximo de erros antes de parar validação
+        sheet_name: Índice da aba (0=primeira, 1=segunda, etc.). Se None, usa primeira aba.
+    """
     if not layout_file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Layout deve ser Excel (.xlsx ou .xls)")
 
@@ -403,13 +491,19 @@ async def validar_arquivo_completo(
             content = await data_file.read()
             buffer.write(content)
 
-        # Processar layout
-        parser = LayoutParser()
-        layout = parser.parse_excel(str(temp_layout))
-
-        # Validar arquivo
-        validador = ValidadorArquivo(layout)
+        # Usar MultiRecordValidator para suportar todos os tipos de registro
+        sheet_index = sheet_name if sheet_name is not None else 1  # Default para aba 1 (layout detalhado)
+        validador = MultiRecordValidator(str(temp_layout), sheet_index)
         resultado = validador.validar_arquivo(str(temp_data), max_erros)
+
+        # Para compatibilidade, criar um layout fictício baseado no primeiro tipo disponível
+        if validador.layouts_por_tipo:
+            primeiro_tipo = sorted(validador.layouts_por_tipo.keys())[0]
+            layout = validador.layouts_por_tipo[primeiro_tipo]
+        else:
+            # Fallback para o método antigo se não conseguir carregar tipos
+            parser = LayoutParser()
+            layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
 
         # Converter para responses
         layout_response = converter_layout_para_response(layout)

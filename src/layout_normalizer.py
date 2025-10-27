@@ -28,7 +28,8 @@ SYNONYMS = {
         'tipo','type','categoria','formato_tipo','tipo_campo','TIPO'
     ],
     'Obrigatorio': [
-        'obrigatorio','obrig','required','req','mandatory','obg','necessario','OBRIGATORIO','preench','preenchimento'
+        'obrigatorio','obrig','required','req','mandatory','obg','necessario','OBRIGATORIO','preench','preenchimento',
+        'facult','facultativo','opcional'
     ],
     'Formato': [
         'formato','pattern','mascara','mask','regex','dominio'
@@ -45,8 +46,8 @@ TIPO_NORMALIZATION = {
     'DATE': 'DATA', 'DATETIME': 'DATA', 'TIMESTAMP': 'DATA', 'DT': 'DATA'
 }
 
-OBRIGATORIO_TRUE = {'S', 'SIM', 'Y', 'YES', '1', 'TRUE'}
-OBRIGATORIO_FALSE = {'N', 'NAO', 'NA', 'NO', '0', 'FALSE'}
+OBRIGATORIO_TRUE = {'S', 'SIM', 'Y', 'YES', '1', 'TRUE', 'OBRIG', 'OBRIGATORIO'}
+OBRIGATORIO_FALSE = {'N', 'NAO', 'NA', 'NO', '0', 'FALSE', 'FACULT', 'FACULTATIVO'}
 
 
 def _norm(s: str) -> str:
@@ -62,13 +63,22 @@ def suggest_mapping(headers: List[str]) -> Dict[str, Optional[str]]:
     normalized = {h: _norm(h) for h in headers}
     mapping: Dict[str, Optional[str]] = {c: None for c in CANONICAL_COLUMNS}
 
-    # Passo 1: sinônimos diretos
+    # Passo 1: sinônimos diretos - priorizar cabeçalhos mais específicos
     for canon in CANONICAL_COLUMNS:
         syns = {_norm(x) for x in SYNONYMS.get(canon, [])} | {_norm(canon)}
+
+        # Priorizar correspondências exatas primeiro
         for orig, normed in normalized.items():
-            if normed in syns and mapping[canon] is None:
+            if normed == _norm(canon) and mapping[canon] is None:
                 mapping[canon] = orig
                 break
+
+        # Se não encontrou exato, usar sinônimos
+        if mapping[canon] is None:
+            for orig, normed in normalized.items():
+                if normed in syns and mapping[canon] is None:
+                    mapping[canon] = orig
+                    break
 
     # Heurística adicional: se não existir Campo mas existir algo com 'campo' dentro
     if mapping['Campo'] is None:
@@ -160,16 +170,21 @@ def normalize_dataframe(df: pd.DataFrame, mapping: Dict[str, Optional[str]]) -> 
     Retorna df_normalizado, warnings"""
     warnings = []
     data: Dict[str, Any] = {}
+
+    # Determinar o índice baseado no DataFrame original
+    index = df.index if not df.empty else range(0)
+
     for canon in CANONICAL_COLUMNS:
         orig = mapping.get(canon)
         if orig and orig in df.columns:
             data[canon] = df[orig]
         else:
-            data[canon] = None
+            # Criar uma série com valores None do mesmo tamanho que o DataFrame original
+            data[canon] = pd.Series([None] * len(df), index=index)
             if canon in ['Campo', 'Posicao_Inicio', 'Tamanho', 'Tipo', 'Obrigatorio']:
                 warnings.append(f'Coluna obrigatória ausente: {canon}')
 
-    norm_df = pd.DataFrame(data)
+    norm_df = pd.DataFrame(data, index=index)
 
     # Limpeza e normalização de tipos
     if 'Obrigatorio' in norm_df:
@@ -204,15 +219,17 @@ def normalize_dataframe(df: pd.DataFrame, mapping: Dict[str, Optional[str]]) -> 
             posicoes = []
             for tam in norm_df['Tamanho']:
                 try:
-                    t = int(tam)
-                except Exception:
+                    t = int(tam) if pd.notna(tam) else None
+                except (ValueError, TypeError):
                     t = None
                 if t is None or t <= 0:
                     posicoes.append(None)
                 else:
                     posicoes.append(start)
                     start += t
-            norm_df['Posicao_Inicio'] = posicoes
+
+            # Criar Series com o mesmo índice do DataFrame
+            norm_df['Posicao_Inicio'] = pd.Series(posicoes, index=norm_df.index)
             # Aviso de geração automática
             warnings.append('Posicao_Inicio gerada automaticamente pelo cumulativo de Tamanho.')
 
@@ -234,19 +251,133 @@ class LayoutMappingResult:
     normalized_rows: List[Dict[str, Any]]  # todas as linhas normalizadas (layout base)
 
 
-def map_layout_file(temp_path: str) -> LayoutMappingResult:
+@dataclass
+class ExcelSheetsResult:
+    sheets: List[str]  # nomes das abas
+    default_sheet: int  # índice da aba padrão (0)
+
+
+def find_header_row(temp_path: str, sheet_name: int = 0) -> int:
+    """Encontra a linha que contém os cabeçalhos reais (procura por 'Campo', 'Tipo', etc.)"""
     import pandas as pd
-    df = pd.read_excel(temp_path)
-    headers = list(df.columns)
+
+    # Palavras-chave que indicam uma linha de cabeçalho válida
+    header_keywords = ['campo', 'tipo', 'tamanho', 'tam', 'posicao', 'inicio', 'obrigatorio', 'preenc', 'facult', 'obrig']
+
+    try:
+        # Ler as primeiras 10 linhas para analisar
+        df_preview = pd.read_excel(temp_path, sheet_name=sheet_name, nrows=10, header=None)
+
+        for row_idx in range(len(df_preview)):
+            row_values = df_preview.iloc[row_idx].astype(str).str.lower().str.strip()
+
+            # Contar quantas palavras-chave encontramos nesta linha
+            keyword_count = sum(1 for val in row_values if any(keyword in str(val) for keyword in header_keywords))
+
+            # Se encontramos pelo menos 3 palavras-chave, provavelmente é uma linha de cabeçalho
+            if keyword_count >= 3:
+                return row_idx
+
+        # Se não encontrou, usar linha 0 como fallback
+        return 0
+
+    except Exception as e:
+        print(f"Erro ao detectar linha de cabeçalho: {e}")
+        return 0
+
+
+def list_excel_sheets(temp_path: str) -> ExcelSheetsResult:
+    """Lista todas as abas de um arquivo Excel"""
+    import pandas as pd
+    try:
+        # Usar ExcelFile para obter todas as abas sem carregar dados
+        excel_file = pd.ExcelFile(temp_path)
+        sheets = excel_file.sheet_names
+        excel_file.close()
+
+        return ExcelSheetsResult(
+            sheets=sheets,
+            default_sheet=0
+        )
+    except Exception as e:
+        raise ValueError(f"Erro ao ler abas do Excel: {str(e)}")
+
+
+def suggest_mapping_with_data(headers: List[str], df: pd.DataFrame) -> Dict[str, Optional[str]]:
+    """Sugere mapeamento analisando também os dados das colunas"""
     mapping = suggest_mapping(headers)
+
+    # Melhorar mapeamento analisando o conteúdo das colunas
+    if not df.empty:
+        # Para coluna Obrigatorio, procurar coluna que contém 'obrig'/'facult' nos dados
+        if mapping['Obrigatorio'] is None or True:  # Sempre verificar para melhorar
+            for col in headers:
+                try:
+                    # Analisar os primeiros valores não nulos da coluna
+                    sample_values = df[col].dropna().astype(str).str.lower().str.strip()
+                    if len(sample_values) > 0:
+                        obrig_count = sum(val in ['obrig', 'obrigatorio'] for val in sample_values)
+                        facult_count = sum(val in ['facult', 'facultativo'] for val in sample_values)
+
+                        # Se encontrou valores de obrigatoriedade, usar esta coluna
+                        if obrig_count + facult_count > 0:
+                            print(f"Detectada coluna de obrigatoriedade: {col} (obrig: {obrig_count}, facult: {facult_count})")
+                            mapping['Obrigatorio'] = col
+                            break
+                except Exception:
+                    continue
+
+    return mapping
+
+
+def map_layout_file(temp_path: str, sheet_name: Optional[int] = None) -> LayoutMappingResult:
+    """Mapeia layout de arquivo Excel com suporte a seleção de aba
+
+    Args:
+        temp_path: Caminho para o arquivo Excel
+        sheet_name: Índice da aba (None = primeira aba, 0 = primeira, 1 = segunda, etc.)
+    """
+    import pandas as pd
+
+    # Se sheet_name não especificado, usar primeira aba (comportamento original)
+    if sheet_name is None:
+        sheet_name = 0
+
+    try:
+        # Detectar automaticamente a linha de cabeçalho
+        header_row = find_header_row(temp_path, sheet_name)
+        print(f"Detectada linha de cabeçalho: {header_row}")
+
+        # Ler Excel usando a linha de cabeçalho detectada
+        df = pd.read_excel(temp_path, sheet_name=sheet_name, header=header_row)
+
+        # Filtrar apenas linhas que não são títulos de seção
+        # (linhas que começam com números seguidos de ' - ' são títulos de seção)
+        if not df.empty:
+            # Verificar se a primeira coluna contém títulos de seção
+            first_col = df.iloc[:, 0].astype(str)
+            section_titles_mask = first_col.str.match(r'^\d+\s*-\s*', na=False)
+
+            if section_titles_mask.any():
+                # Remover linhas de títulos de seção
+                df = df[~section_titles_mask]
+                df = df.reset_index(drop=True)
+
+    except Exception as e:
+        raise ValueError(f"Erro ao ler aba {sheet_name} do Excel: {str(e)}")
+
+    headers = list(df.columns)
+    mapping = suggest_mapping_with_data(headers, df)
     analysis = analyze_mapping(mapping)
     norm_df, warnings = normalize_dataframe(df, mapping)
     sample = norm_df.head(5).fillna('').to_dict(orient='records')
+
     # Amostras originais: primeiros 3 valores não nulos por coluna
     original_samples: Dict[str, List[str]] = {}
     for col in headers:
         serie = df[col].astype(str).fillna('').tolist()
         original_samples[col] = [v for v in serie if v.strip()][:3]
+
     normalized_rows = norm_df.fillna('').to_dict(orient='records')
     return LayoutMappingResult(
         mapping=mapping,

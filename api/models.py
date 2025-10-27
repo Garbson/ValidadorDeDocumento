@@ -15,7 +15,7 @@ class CampoLayoutResponse(BaseModel):
     posicao_inicio: int
     posicao_fim: int
     tamanho: int
-    tipo: TipoCampoAPI
+    tipo: str
     obrigatorio: bool
     formato: Optional[str] = None
 

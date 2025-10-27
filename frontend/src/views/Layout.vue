@@ -231,9 +231,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { FileSpreadsheet, CheckSquare, AlertCircle, CheckCircle, RefreshCw, FileText, BookOpen } from 'lucide-vue-next'
 import { useValidationStore } from '@/stores/validation'
+import { AlertCircle, BookOpen, CheckCircle, CheckSquare, FileSpreadsheet, FileText, RefreshCw } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 
 const validationStore = useValidationStore()
 

@@ -30,13 +30,39 @@ export const useValidationStore = defineStore('validation', () => {
   })
 
   // Actions
-  const validateLayout = async (layoutFile) => {
+  const listExcelSheets = async (layoutFile) => {
     isLoading.value = true
     error.value = null
 
     try {
       const formData = new FormData()
       formData.append('layout_file', layoutFile)
+
+      const response = await api.post('/listar-abas-excel', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      return response.data
+    } catch (err) {
+      error.value = err.response?.data?.detail || 'Erro ao listar abas do Excel'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const validateLayout = async (layoutFile, sheetName = null) => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const formData = new FormData()
+      formData.append('layout_file', layoutFile)
+      if (sheetName !== null) {
+        formData.append('sheet_name', sheetName.toString())
+      }
 
       const response = await api.post('/validar-layout', formData, {
         headers: {
@@ -53,7 +79,7 @@ export const useValidationStore = defineStore('validation', () => {
     }
   }
 
-  const validateFile = async (layoutFile, dataFile, maxErrors = 100) => {
+  const validateFile = async (layoutFile, dataFile, maxErrors = 100, sheetName = null) => {
     // Garantir que sempre temos um limite de erros balanceado para performance
     const finalMaxErrors = maxErrors || 100
     // Iniciando validação de arquivo
@@ -69,6 +95,11 @@ export const useValidationStore = defineStore('validation', () => {
 
       // Sempre enviar o limite de erros para evitar respostas muito grandes
       formData.append('max_erros', finalMaxErrors.toString())
+
+      // Adicionar sheet_name se especificado
+      if (sheetName !== null) {
+        formData.append('sheet_name', sheetName.toString())
+      }
 
       // Enviando requisição para /validar-arquivo
       const startTime = Date.now()
@@ -188,6 +219,7 @@ export const useValidationStore = defineStore('validation', () => {
     errorsByField,
 
     // Actions
+    listExcelSheets,
     validateLayout,
     validateFile,
     downloadReport,

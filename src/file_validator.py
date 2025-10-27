@@ -39,6 +39,18 @@ class ValidadorArquivo:
         """Valida uma linha individual"""
         erros = []
 
+        # Verificar se a linha começa com espaços (problema de formatação)
+        if linha.startswith(' '):
+            erro = ErroValidacao(
+                linha=numero_linha,
+                campo='FORMATO_LINHA',
+                valor_encontrado=f"Linha começa com espaços: [{linha[:20]}...]",
+                erro_tipo='FORMATO_LINHA_INVALIDO',
+                descricao=f"Linha não deve começar com espaços. Deve começar com tipo de registro ou código do cliente",
+                valor_esperado="Linha deve começar com caracteres válidos (números/letras)"
+            )
+            erros.append(erro)
+
         # Verificar tamanho mínimo da linha
         tamanho_esperado = self.layout.tamanho_linha
         if len(linha) < tamanho_esperado:
@@ -161,6 +173,25 @@ class ValidadorArquivo:
         else:
             return f"Valor válido do tipo {campo.tipo.value}"
 
+    def _reconstruir_registros_sequenciais(self, caminho_arquivo: str, encoding: str = 'utf-8') -> Generator[str, None, None]:
+        """Reconstrói registros sequenciais a partir de arquivo com quebras incorretas"""
+        with open(caminho_arquivo, 'r', encoding=encoding) as arquivo:
+            buffer = ""
+
+            for linha in arquivo:
+                linha = linha.rstrip('\n\r')
+                buffer += linha
+
+                # Quando o buffer atingir o tamanho esperado da linha, extrair registros
+                while len(buffer) >= self.layout.tamanho_linha:
+                    registro = buffer[:self.layout.tamanho_linha]
+                    buffer = buffer[self.layout.tamanho_linha:]
+                    yield registro
+
+            # Se sobrou algo no buffer, é um registro incompleto
+            if buffer.strip():
+                yield buffer
+
     def validar_arquivo_generator(self, caminho_arquivo: str) -> Generator[Tuple[int, List[ErroValidacao]], None, None]:
         """Generator que valida arquivo linha por linha (para arquivos grandes)"""
         if not Path(caminho_arquivo).exists():
@@ -171,6 +202,11 @@ class ValidadorArquivo:
                 for numero_linha, linha in enumerate(arquivo, 1):
                     # Remover quebra de linha
                     linha = linha.rstrip('\n\r')
+
+                    # Adicionar padding de espaços para completar o tamanho esperado
+                    if len(linha) < self.layout.tamanho_linha:
+                        linha = linha.ljust(self.layout.tamanho_linha)
+
                     erros_linha = self.validar_linha(numero_linha, linha)
                     yield numero_linha, erros_linha
 
@@ -180,6 +216,11 @@ class ValidadorArquivo:
                 with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
                     for numero_linha, linha in enumerate(arquivo, 1):
                         linha = linha.rstrip('\n\r')
+
+                        # Adicionar padding de espaços para completar o tamanho esperado
+                        if len(linha) < self.layout.tamanho_linha:
+                            linha = linha.ljust(self.layout.tamanho_linha)
+
                         erros_linha = self.validar_linha(numero_linha, linha)
                         yield numero_linha, erros_linha
             except Exception as e:
