@@ -405,7 +405,8 @@ import {
   FileSpreadsheet,
   Upload,
 } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
+import { useTempStore } from '@/stores/temp'
 
 const validationStore = useValidationStore();
 
@@ -563,6 +564,59 @@ watch(previewLayout, (newValue) => {
 // Limpa apenas erros residuais (ex: mensagem de erro anterior)
 validationStore.clearError();
 // Montagem concluída
+
+// Ao montar, verificar se o Mapeamento deixou algo no temp store (arquivo ou filename)
+onMounted(async () => {
+  try {
+    const temp = useTempStore()
+    if (temp.layoutFile) {
+      const lf = temp.layoutFile
+      layoutFile.value = lf
+      try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) { /* ignore */ }
+      if (temp.layoutData) layoutPreview.value = temp.layoutData
+      temp.clear()
+      return
+    }
+
+    if (temp.layoutFilename && !temp.layoutFile) {
+      const filename = temp.layoutFilename
+      let downloadUrl = `/api/layout-export/download/${filename}`
+      try {
+        let resp = await fetch(downloadUrl)
+        if (!resp.ok) {
+          // tentar backend direto
+          const backendUrl = `http://localhost:8000${downloadUrl}`
+          resp = await fetch(backendUrl)
+          if (!resp.ok) throw new Error('Falha ao baixar layout: ' + resp.status)
+          downloadUrl = backendUrl
+        }
+        const blob = await resp.blob()
+        const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+        layoutFile.value = file
+        try { const dt = new DataTransfer(); dt.items.add(file); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
+        if (temp.layoutData) layoutPreview.value = temp.layoutData
+        temp.clear()
+        return
+      } catch (err) {
+        console.warn('Não foi possível baixar layout indicado pelo Mapeamento:', err)
+        // continuar fallback para history.state
+      }
+    }
+
+    // fallback: verificar history.state (compatibilidade antiga)
+    const st = window.history.state || {}
+    if (st.layoutFile) {
+      const lf = st.layoutFile
+      if (lf instanceof File) {
+        layoutFile.value = lf
+        try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
+        if (st.layoutData) layoutPreview.value = st.layoutData
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao processar layout pré-carregado:', err)
+  }
+})
 
 // Preview paginado de registros
 const fileLines = ref([]);

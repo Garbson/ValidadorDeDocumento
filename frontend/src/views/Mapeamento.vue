@@ -116,9 +116,11 @@ import { useValidationStore } from '@/stores/validation'
 import { FileSpreadsheet, Upload } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTempStore } from '@/stores/temp'
 
 const router = useRouter()
 const validationStore = useValidationStore()
+const tempStore = useTempStore()
 const layoutFile = ref(null)
 const loading = ref(false)
 const showMapper = ref(false)
@@ -186,21 +188,16 @@ function onConfirmed(payload){
 
 async function usarNoValidador(){
   if(!downloadUrl.value) return
-  // Baixar o arquivo Excel e redirecionar para validador
-  const fullUrl = `http://localhost:8000${downloadUrl.value}`
-  // Criar um File object a partir do download
+  // Save server filename in temp store so Validator can fetch it reliably
   try {
-    const response = await fetch(fullUrl)
-    const blob = await response.blob()
-    const file = new File([blob], downloadFilename.value, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    // Navegar para validador passando o arquivo e layout
-    router.push({
-      name: 'validator',
-      state: { layoutFile: file, layoutData: confirmedLayout.value }
-    })
-  } catch(e){
-    console.error('Erro ao preparar layout para validador:', e)
-    alert('Erro ao carregar layout. Por favor, faça o download manualmente e carregue no validador.')
+    const filename = downloadFilename.value || (downloadUrl.value || '').split('/').pop()
+    if (!filename) throw new Error('Nome do arquivo desconhecido')
+    tempStore.setLayoutFromFilename(filename, confirmedLayout.value)
+    // Navegar para Validador (usar nome de rota consistente)
+    router.push({ name: 'Validator' })
+  } catch (e) {
+    console.error('Erro ao preparar layout para validador (fallback):', e)
+    alert('Erro ao preparar layout para o Validador. Por favor, baixe manualmente e carregue o arquivo.')
   }
 }
 
