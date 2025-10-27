@@ -238,7 +238,7 @@
 
     <!-- Preview Paginado de Registros -->
     <div
-      v-if="layoutPreview && fileLines.length"
+      v-if="layoutPreview && previewLayout && fileLines.length"
       class="card max-w-6xl mx-auto"
     >
       <div
@@ -419,6 +419,7 @@ const dataFile = ref(null);
 const maxErrors = ref(100); // Valor padrão balanceado para performance
 const previewLayout = ref(false);
 const layoutPreview = ref(null);
+const preloadedLayoutData = ref(null);
 const layoutLoading = ref(false);
 const showMapper = ref(false);
 const mappingConfirmed = ref(false);
@@ -569,11 +570,15 @@ validationStore.clearError();
 onMounted(async () => {
   try {
     const temp = useTempStore()
-    if (temp.layoutFile) {
+      if (temp.layoutFile) {
       const lf = temp.layoutFile
       layoutFile.value = lf
       try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) { /* ignore */ }
-      if (temp.layoutData) layoutPreview.value = temp.layoutData
+      if (temp.layoutData) {
+        // only set visible preview if user asked for preview; otherwise keep data cached
+        if (previewLayout.value) layoutPreview.value = temp.layoutData
+        else preloadedLayoutData.value = temp.layoutData
+      }
       temp.clear()
       return
     }
@@ -594,7 +599,10 @@ onMounted(async () => {
         const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         layoutFile.value = file
         try { const dt = new DataTransfer(); dt.items.add(file); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
-        if (temp.layoutData) layoutPreview.value = temp.layoutData
+        if (temp.layoutData) {
+          if (previewLayout.value) layoutPreview.value = temp.layoutData
+          else preloadedLayoutData.value = temp.layoutData
+        }
         temp.clear()
         return
       } catch (err) {
@@ -610,12 +618,30 @@ onMounted(async () => {
       if (lf instanceof File) {
         layoutFile.value = lf
         try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
-        if (st.layoutData) layoutPreview.value = st.layoutData
+        if (st.layoutData) {
+          if (previewLayout.value) layoutPreview.value = st.layoutData
+          else preloadedLayoutData.value = st.layoutData
+        }
       }
     }
   } catch (err) {
     console.warn('Erro ao processar layout pré-carregado:', err)
   }
+})
+
+// Se o usuário habilitar o preview e já tivermos layout pré-carregado em memória, aplicar
+watch(previewLayout, (newValue) => {
+  if (!newValue) {
+    layoutPreview.value = null;
+    return;
+  }
+  // If user enabled preview and we have cached preloaded data, use it
+  if (preloadedLayoutData.value) {
+    layoutPreview.value = preloadedLayoutData.value;
+    preloadedLayoutData.value = null;
+    return;
+  }
+  // Otherwise existing watch below will handle reloading from file when necessary
 })
 
 // Preview paginado de registros

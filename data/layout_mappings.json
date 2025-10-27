@@ -10760,5 +10760,564 @@
         "Formato": ""
       }
     ]
+  },
+  "c7c81185d9c0cda6": {
+    "signature": "c7c81185d9c0cda6",
+    "mapping": {
+      "Campo": "Documento",
+      "Posicao_Inicio": "Descrição",
+      "Tamanho": "Tipo Reg",
+      "Tipo": "Tipo Reg",
+      "Obrigatorio": "Descrição.1",
+      "Formato": null
+    },
+    "analysis": {
+      "missing_required": [
+        "Campo",
+        "Posicao_Inicio",
+        "Tamanho",
+        "Tipo",
+        "Obrigatorio"
+      ],
+      "missing_optional": [
+        "Formato"
+      ],
+      "completeness": 0
+    },
+    "sample": [
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      }
+    ],
+    "warnings": [
+      "Coluna obrigatória ausente: Campo",
+      "Coluna obrigatória ausente: Posicao_Inicio",
+      "Coluna obrigatória ausente: Tamanho",
+      "Coluna obrigatória ausente: Tipo",
+      "Coluna obrigatória ausente: Obrigatorio",
+      "Posicao_Inicio gerada automaticamente pelo cumulativo de Tamanho."
+    ],
+    "original_samples": {
+      "Documento": [
+        "Header",
+        "Nota 1",
+        "nan"
+      ],
+      "Descrição": [
+        "Inf. Arquivo",
+        "Informações Nfcom",
+        "Inf. Emitente"
+      ],
+      "Tipo Reg": [
+        "0",
+        "1",
+        "2"
+      ],
+      "Descrição.1": [
+        "Dados arquivo",
+        "Id Nfcom",
+        "Id Emitente"
+      ],
+      "Unnamed: 4": [
+        "nan",
+        "nan",
+        "nan"
+      ]
+    },
+    "normalized_rows": [
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      },
+      {
+        "Campo": "",
+        "Posicao_Inicio": "",
+        "Tamanho": "",
+        "Tipo": "TEXTO",
+        "Obrigatorio": "N",
+        "Formato": ""
+      }
+    ]
   }
 }
