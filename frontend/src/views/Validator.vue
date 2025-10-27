@@ -164,7 +164,7 @@
       <div class="card-header flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h3 class="text-lg font-semibold flex items-center">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
-          Preview do Layout: {{ layoutPreview.nome }}
+          Preview do Layout
         </h3>
         <div class="flex items-center flex-wrap gap-2 text-sm">
           <!-- Paginação de Campos no Preview do Layout -->
