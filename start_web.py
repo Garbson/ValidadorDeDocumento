@@ -11,6 +11,7 @@ import time
 import signal
 import threading
 from pathlib import Path
+import shutil
 
 
 def check_dependencies():
@@ -106,16 +107,46 @@ def start_frontend():
     print("🎨 Iniciando frontend (Vue.js dev server)...")
 
     try:
-        process = subprocess.Popen(
+        # Tentar executar npm; em Windows pode ser necessário npm.cmd
+        commands_to_try = [
             ["npm", "run", "dev"],
-            cwd="frontend",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            bufsize=1
-        )
+            ["npm.cmd", "run", "dev"],
+            ["npx", "vite"],
+            ["pnpm", "run", "dev"]
+        ]
 
-        return process
+        last_exc = None
+        for cmd in commands_to_try:
+            # verificar se o executável existe no PATH antes de tentar
+            exe = cmd[0]
+            if shutil.which(exe) is None:
+                # pular tentativa se não existir
+                continue
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    cwd="frontend",
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                    bufsize=1
+                )
+                print(f"✅ Frontend iniciado com: {' '.join(cmd)}")
+                return process
+            except FileNotFoundError as fe:
+                last_exc = fe
+                # tentar próximo
+                continue
+
+        # Se chegou aqui, nenhum comando funcionou
+        err_msg = (
+            "Não foi possível iniciar o frontend: nenhum executor (npm/npx/pnpm) encontrado no PATH "
+            "ou falha ao invocar o comando. Tente executar manualmente:\n  cd frontend && npm run dev"
+        )
+        print(f"❌ {err_msg}")
+        if last_exc:
+            print(f"Detalhe do último erro: {last_exc}")
+        return None
     except Exception as e:
         print(f"❌ Erro ao iniciar frontend: {e}")
         return None
