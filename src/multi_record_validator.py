@@ -80,7 +80,7 @@ class MultiRecordValidator:
             })
 
         # Salvar layout temporário
-        layout_path = f'exemplos/layout_tipo_{tipo}.xlsx'
+        layout_path = f'layout_tipo_{tipo}.xlsx'
         df_convertido = pd.DataFrame(campos_convertidos)
         df_convertido.to_excel(layout_path, index=False)
 

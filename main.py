@@ -15,7 +15,9 @@ from rich.text import Text
 
 from src.layout_parser import LayoutParser
 from src.file_validator import ValidadorArquivo
+from src.multi_record_validator import MultiRecordValidator
 from src.report_generator import GeradorRelatorio
+import pandas as pd
 
 
 console = Console()
@@ -30,6 +32,28 @@ def mostrar_banner():
 [bold blue]╚═══════════════════════════════════════╝[/bold blue]
 """)
     console.print(banner)
+
+
+def detectar_layout_multi_registro(layout_path: str) -> bool:
+    """Detecta se o layout contém múltiplos tipos de registro"""
+    try:
+        # Lê o Excel para verificar se tem campos NFE com diferentes prefixos
+        df = pd.read_excel(layout_path, sheet_name=1, header=1)
+        df_clean = df[df['Campo'].notna() & (df['Campo'] != 'Campo')].copy()
+
+        # Verifica se há campos com padrão NFE##- (múltiplos tipos)
+        tipos_encontrados = set()
+        for _, row in df_clean.iterrows():
+            campo_nome = str(row['Campo'])
+            if 'NFE' in campo_nome and '-' in campo_nome:
+                tipo = campo_nome.split('-')[0].replace('NFE', '')
+                if tipo.isdigit():
+                    tipos_encontrados.add(tipo)
+
+        # Se encontrou mais de um tipo de registro, é multi-registro
+        return len(tipos_encontrados) > 1
+    except:
+        return False
 
 
 def validar_arquivos_existem(layout_path: str, arquivo_path: str) -> bool:
@@ -184,26 +208,40 @@ def main(layout, arquivo, relatorio, max_erros, silencioso, info_layout):
             console.print(f"[bold red]❌ Arquivo de layout não encontrado: {layout}[/bold red]")
             sys.exit(1)
 
-        # Carregar layout
-        if not silencioso:
-            console.print("📖 Carregando layout...")
+        # Detectar se é layout multi-registro
+        is_multi_registro = detectar_layout_multi_registro(layout)
 
-        parser = LayoutParser()
-        layout_obj = parser.parse_excel(layout)
+        if is_multi_registro:
+            if not silencioso:
+                console.print("📖 Detectado layout multi-registro, carregando validador especializado...")
 
-        if not silencioso:
-            console.print(f"[bold green]✅ Layout '{layout_obj.nome}' carregado com sucesso![/bold green]")
+            # Usar validador multi-registro
+            validador = MultiRecordValidator(layout)
+            layout_obj = None  # MultiRecordValidator já carrega os layouts internamente
 
-        # Se só quer info do layout, mostrar e sair
-        if info_layout:
-            mostrar_info_layout(layout_obj)
-            return
+            if not silencioso:
+                console.print(f"[bold green]✅ Validador multi-registro carregado com sucesso![/bold green]")
+        else:
+            # Usar validador simples
+            if not silencioso:
+                console.print("📖 Carregando layout...")
 
-        if not silencioso:
-            mostrar_info_layout(layout_obj)
+            parser = LayoutParser()
+            layout_obj = parser.parse_excel(layout)
 
-        # Validar arquivo
-        validador = ValidadorArquivo(layout_obj)
+            if not silencioso:
+                console.print(f"[bold green]✅ Layout '{layout_obj.nome}' carregado com sucesso![/bold green]")
+
+            # Se só quer info do layout, mostrar e sair
+            if info_layout:
+                mostrar_info_layout(layout_obj)
+                return
+
+            if not silencioso:
+                mostrar_info_layout(layout_obj)
+
+            # Validar arquivo
+            validador = ValidadorArquivo(layout_obj)
 
         with Progress(
             SpinnerColumn(),
@@ -227,7 +265,18 @@ def main(layout, arquivo, relatorio, max_erros, silencioso, info_layout):
         if not silencioso:
             console.print("\n📊 Gerando relatórios...")
 
-        gerador = GeradorRelatorio(resultado, layout_obj)
+        if is_multi_registro:
+            # Para multi-registro, criar um layout fictício para o relatório
+            from src.models import Layout, CampoLayout, TipoCampo
+            layout_ficticio = Layout(
+                nome="Multi-Registro",
+                campos=[CampoLayout(nome="MULTI_RECORD", posicao_inicio=1, tamanho=540, tipo=TipoCampo.TEXTO, obrigatorio=False)],
+                tamanho_linha=540
+            )
+            gerador = GeradorRelatorio(resultado, layout_ficticio)
+        else:
+            gerador = GeradorRelatorio(resultado, layout_obj)
+
         arquivos_relatorio = gerador.gerar_relatorio_completo(relatorio)
 
         # Mostrar caminhos dos relatórios
