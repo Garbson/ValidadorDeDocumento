@@ -1,0 +1,926 @@
+🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS
+================================================================================
+
+📊 ESTATÍSTICAS GERAIS:
+   Total de linhas comparadas: 23
+   Linhas idênticas: 0
+   Linhas com diferenças: 23
+   Taxa de identidade: 0.00%
+
+❌ ENCONTRADAS 23 LINHAS COM DIFERENÇAS:
+
+🔸 TIPO DE REGISTRO: 01
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 1
+   Total de diferenças: 3
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 01
+================================================================================
+ARQUIVO BASE:          010250820000166RJCLO57 000000009332620000000 202510261415481 330455700000000000000000000                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+ARQUIVO A SER VALIDADO: 010250866000073RJETV   000000001332620000000 100           1 330455700000000000000000000                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      01 | 0250820000166 | RJ | CLO | 57  | 000000009 | 33 | 2 | 62 | 0000000 |   | 20251026141548 | 1 |   | 3304557 | 0 | 0 | 000000000000000000   |   |   |   |                |                                                                                                                                                                                                                                                                  |                                                                                                                                                                                  
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (1) | (2) | (7) | (1) | (14) | (1) | (1) | (7) | (1) | (1) | (20) | (1) | (1) | (1) | (14) | (256) | (177)
+VALIDADO:  01 | 0250866000073 | RJ | ETV |     | 000000001 | 33 | 2 | 62 | 0000000 |   | 100            | 1 |   | 3304557 | 0 | 0 | 000000000000000000   |   |   |   |                |                                                                                                                                                                                                                                                                  |                                                                                                                                                                                  
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (1) | (2) | (7) | (1) | (14) | (1) | (1) | (7) | (1) | (1) | (20) | (1) | (1) | (1) | (14) | (256) | (177)
+
+STATUS DOS CAMPOS:
+  ✅ NFE01-TP-REG
+  ✅ NFE01-NUM-FATURA
+  ✅ NFE01-SIGLA-UF-EMISSAO
+  ✅ NFE01-SIGLA-EMP
+  ❌ NFE01-SERIE-NF
+  ✅ NFE01-NUM-NF
+  ✅ NFE01-UF-EMISSAO
+  ✅ NFE01-TP-AMBIENTE
+  ✅ NFE01-MODELO-NF
+  ✅ NFE01-NUM-ALEATORIO
+  ❌ NFE01-DV-CHV-NFCOM
+  ✅ NFE01-DT-HR-EMISSAO
+  ✅ NFE01-FORMA-EMISSAO
+  ❌ NFE01-NUM-SITE
+  ✅ NFE01-IBGE-ESTAB
+  ✅ NFE01-FINALIDADE
+  ✅ NFE01-TP-FATURAMENTO
+  ✅ NFE01-VERSAO
+  ✅ NFE01-IND-PREPAGO
+  ✅ NFE01-IND-CESSAO-REDE
+  ✅ NFE01-INDIC-NOTA-ENTRADA
+  ✅ NFE01-DT-HR-CONTINGENCIA
+  ✅ NFE01-JUST-CONTINGENCIA
+  ✅ NFE01-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE01-SERIE-NF' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 02
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 2
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 02
+================================================================================
+ARQUIVO BASE:          020250820000166RJCLO57 0000000094043254400626900000078002840              3CLARO S/A                                                   CLARO S/A                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+ARQUIVO A SER VALIDADO: 020250866000073RJETV   0000000010913265900017600000078387548              0RADIO E TELEVISAO MODELO PAULI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      02 | 0250820000166 | RJ | CLO | 57  | 000000009 | 40432544006269 | 00000078002840 |                | 3 | CLARO S/A                                                    | CLARO S/A                                                    |                                                                                                                                                                                                                                                                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (14) | (14) | (14) | (1) | (60) | (60) | (345)
+VALIDADO:  02 | 0250866000073 | RJ | ETV |     | 000000001 | 09132659000176 | 00000078387548 |                | 0 | RADIO E TELEVISAO MODELO PAULI                               |                                                              |                                                                                                                                                                                                                                                                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (14) | (14) | (14) | (1) | (60) | (60) | (345)
+
+STATUS DOS CAMPOS:
+  ✅ NFE02-TP-REG
+  ✅ NFE02-NUM-FATURA
+  ✅ NFE02-SIGLA-UF-EMISSAO
+  ✅ NFE02-SIGLA-EMP
+  ❌ NFE02-SERIE-NF
+  ✅ NFE02-NUM-NF
+  ✅ NFE02-CNPJ-EMIT
+  ✅ NFE02-IE-EMIT
+  ✅ NFE02-IE-VIRTUAL-UF-EMIT
+  ✅ NFE02-COD-REG-TRIB-EMIT
+  ✅ NFE02-NOME-EMIT
+  ✅ NFE02-NOME-FANTASIA-EMIT
+  ✅ NFE02-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE02-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 04
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 3
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 04
+================================================================================
+ARQUIVO BASE:          040250820000166RJCLO57 000000009RUA MENA BARRETO                                            00042                                                                 BOTAFOGO                                                    3304557RIO DE JANEIRO                                              22271100RJ1058BRASIL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+ARQUIVO A SER VALIDADO: 040250866000073RJETV   000000001AVENIDA PRESIDENTE VARGAS 1012 10 ANDAR PARTE CENTRO        100                                                                   TAQUARA                                                     3304557RIO DE JANEIRO                                              20071910RJ1058BRASIL                                                      000000000                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      04 | 0250820000166 | RJ | CLO | 57  | 000000009 | RUA MENA BARRETO                                             | 00042      |                                                              | BOTAFOGO                                                     | 3304557 | RIO DE JANEIRO                                               | 22271100 | RJ | 1058 | BRASIL                                                       |              |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+VALIDADO:  04 | 0250866000073 | RJ | ETV |     | 000000001 | AVENIDA PRESIDENTE VARGAS 1012 10 ANDAR PARTE CENTRO         | 100        |                                                              | TAQUARA                                                      | 3304557 | RIO DE JANEIRO                                               | 20071910 | RJ | 1058 | BRASIL                                                       | 000000000    |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+
+STATUS DOS CAMPOS:
+  ✅ NFE04-TP-REG
+  ✅ NFE04-NUM-FATURA
+  ✅ NFE04-SIGLA-UF-EMISSAO
+  ✅ NFE04-SIGLA-EMP
+  ❌ NFE04-SERIE-NF
+  ✅ NFE04-NUM-NF
+  ✅ NFE04-LOGRAD-EMIT
+  ✅ NFE04-NUM-LOGRAD-EMIT
+  ✅ NFE04-COMPL-LOGRAD-EMIT
+  ✅ NFE04-BAIRRO-EMIT
+  ✅ NFE04-IBGE-EMIT
+  ✅ NFE04-MUNICIPIO-EMIT
+  ✅ NFE04-CEP-EMIT
+  ✅ NFE04-UF-EMIT
+  ✅ NFE04-PAIS-EMIT
+  ✅ NFE04-NOME-PAIS-EMIT
+  ✅ NFE04-FONE-EMIT
+  ✅ NFE04-EMAIL-EMIT
+  ✅ NFE04-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE04-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 06
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 4
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 06
+================================================================================
+ARQUIVO BASE:          060250820000166RJCLO57 000000009SERVICOS DE PETROLEO CONSTELLATION S A                      130521090000127      100000081340455                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+ARQUIVO A SER VALIDADO: 060250866000073RJETV   000000001RADIO E TELEVISAO MODELO PAULISTA LTDA                      104425426000148      100116144842116                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      06 | 0250820000166 | RJ | CLO | 57  | 000000009 | SERVICOS DE PETROLEO CONSTELLATION S A                       | 1 | 30521090000127       | 1 | 00000081340455 |                 |                                                                                                                                                                                                                                                                                                                                                                                                              
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (1) | (20) | (1) | (14) | (15) | (397)
+VALIDADO:  06 | 0250866000073 | RJ | ETV |     | 000000001 | RADIO E TELEVISAO MODELO PAULISTA LTDA                       | 1 | 04425426000148       | 1 | 00116144842116 |                 |                                                                                                                                                                                                                                                                                                                                                                                                              
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (1) | (20) | (1) | (14) | (15) | (397)
+
+STATUS DOS CAMPOS:
+  ✅ NFE06-TP-REG
+  ✅ NFE06-NUM-FATURA
+  ✅ NFE06-SIGLA-UF-EMISSAO
+  ✅ NFE06-SIGLA-EMP
+  ❌ NFE06-SERIE-NF
+  ✅ NFE06-NUM-NF
+  ✅ NFE06-NOME-CLI
+  ✅ NFE06-TP-DOC
+  ✅ NFE06-NUM-DOCUMENTO
+  ✅ NFE06-INDIC-IE-CLI
+  ✅ NFE06-IE-CLI
+  ✅ NFE06-IM-CLI
+  ✅ NFE06-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE06-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 08
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 5
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 08
+================================================================================
+ARQUIVO BASE:          080250820000166RJCLO57 000000009PRESIDENTE ANTONIO CARLOS                                   51        7                                                           CENTRO                                                      3304557RIO DE JANEIRO                                              20020909RJ1058BRASIL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+ARQUIVO A SER VALIDADO: 080250866000073RJETV   000000001DO GUERENGUE                                                25        LOJA A ETR BANDEIR  1000                                    TAQUARA                                                     3304557RIO DE JANEIRO                                              22713003RJ1058BRASIL                                                      00000000000                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      08 | 0250820000166 | RJ | CLO | 57  | 000000009 | PRESIDENTE ANTONIO CARLOS                                    | 51         | 7                                                            | CENTRO                                                       | 3304557 | RIO DE JANEIRO                                               | 20020909 | RJ | 1058 | BRASIL                                                       |              |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+VALIDADO:  08 | 0250866000073 | RJ | ETV |     | 000000001 | DO GUERENGUE                                                 | 25         | LOJA A ETR BANDEIR  1000                                     | TAQUARA                                                      | 3304557 | RIO DE JANEIRO                                               | 22713003 | RJ | 1058 | BRASIL                                                       | 00000000000  |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+
+STATUS DOS CAMPOS:
+  ✅ NFE08-TP-REG
+  ✅ NFE08-NUM-FATURA
+  ✅ NFE08-SIGLA-UF-EMISSAO
+  ✅ NFE08-SIGLA-EMP
+  ❌ NFE08-SERIE-NF
+  ✅ NFE08-NUM-NF
+  ✅ NFE08-LOGRAD-CLI
+  ✅ NFE08-NUM-LOGRAD-CLI
+  ✅ NFE08-COMPL-LOGRAD-CLI
+  ✅ NFE08-BAIRRO-CLI
+  ✅ NFE08-IBGE-CLI
+  ✅ NFE08-MUNICIPIO-CLI
+  ✅ NFE08-CEP-CLI
+  ✅ NFE08-UF-CLI
+  ✅ NFE08-PAIS-CLI
+  ✅ NFE08-NOME-PAIS-CLI
+  ✅ NFE08-FONE-CLI
+  ✅ NFE08-EMIAL-CLI
+  ✅ NFE08-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE08-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 10
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 6
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 10
+================================================================================
+ARQUIVO BASE:          100250820000166RJCLO57 0000000090000000000000000000000000000001 6000000000000000000002025-01-012025-12-251135497758  33                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+ARQUIVO A SER VALIDADO: 100250866000073RJETV   000000001000000000000000000000000000000 10000000000000000000002006-09-112025-10-23            33                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      10 | 0250820000166 | RJ | CLO | 57  | 000000009 | 000000000000000000000000000000 | 1  | 6 | 00000000000000000000 | 2025-01-01 | 2025-12-25 | 1135497758   | 33 |                                                                                                                                                                                                                                                                                                                                                                                                                                      
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (30) | (2) | (1) | (20) | (10) | (10) | (12) | (2) | (421)
+VALIDADO:  10 | 0250866000073 | RJ | ETV |     | 000000001 | 000000000000000000000000000000 |  1 | 0 | 00000000000000000000 | 2006-09-11 | 2025-10-23 |              | 33 |                                                                                                                                                                                                                                                                                                                                                                                                                                      
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (30) | (2) | (1) | (20) | (10) | (10) | (12) | (2) | (421)
+
+STATUS DOS CAMPOS:
+  ✅ NFE10-TP-REG
+  ✅ NFE10-NUM-FATURA
+  ✅ NFE10-SIGLA-UF-EMISSAO
+  ✅ NFE10-SIGLA-EMP
+  ❌ NFE10-SERIE-NF
+  ✅ NFE10-NUM-NF
+  ✅ NFE10-COD-UNICO-CLI
+  ✅ NFE10-TP-ASSINANTE-CLI
+  ✅ NFE10-TP-SERV-UTILIZ-CLI
+  ✅ NFE10-NUM-CONTRATO-CLI
+  ✅ NFE10-DT-CONTR-INI-CLI
+  ✅ NFE10-DT-CONTR-FIM-CLI
+  ✅ NFE10-TERM-PRI-CLI
+  ✅ NFE10-COD-UF-TERM-PRI-CLI
+  ✅ NFE10-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE10-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 20
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 7
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 20
+================================================================================
+ARQUIVO BASE:          200250820000166RJCLO57 0000000090001                                                 VPE                                                         VIP ESPECIAL                                                                                                            03001025302              400000000001.0000000000003592.580000000000000.000000000000000.000000000003592.58                                                                                                                                                                      0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 200250866000073RJETV   0000000010001                                                0SEC                                                         SERV  TVSAT - MEIO DE REDE SEAC                                                                                         0400301530109132659000176400000000001.0000000000031853.570000000000000.000000000000000.000000000041912.5800000000000                                                                                                                                                           0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      20 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0001 |                                              |      |   | VPE                                                          | VIP ESPECIAL                                                                                                             | 0300102 | 5302 |                | 4 | 00000000001.000 | 0000000003592.58 | 0000000000000.00 | 0000000000000.00 | 0000000003592.58 |            |   |                                                                                                                                                            0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (4) | (44) | (4) | (1) | (60) | (120) | (7) | (4) | (14) | (1) | (15) | (16) | (16) | (16) | (16) | (10) | (1) | (159)
+VALIDADO:  20 | 0250866000073 | RJ | ETV |     | 000000001 | 0001 |                                              |      | 0 | SEC                                                          | SERV  TVSAT - MEIO DE REDE SEAC                                                                                          | 0400301 | 5301 | 09132659000176 | 4 | 00000000001.000 | 0000000031853.57 | 0000000000000.00 | 0000000000000.00 | 0000000041912.58 | 0000000000 | 0 |                                                                                                                                                            0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (4) | (44) | (4) | (1) | (60) | (120) | (7) | (4) | (14) | (1) | (15) | (16) | (16) | (16) | (16) | (10) | (1) | (159)
+
+STATUS DOS CAMPOS:
+  ✅ NFE20-TP-REG
+  ✅ NFE20-NUM-FATURA
+  ✅ NFE20-SIGLA-UF-EMISSAO
+  ✅ NFE20-SIGLA-EMP
+  ❌ NFE20-SERIE-NF
+  ✅ NFE20-NUM-NF
+  ✅ NFE20-NUM-ITEM
+  ✅ NFE20-CHV-NFCOM-ANT
+  ✅ NFE20-NUM-ITEM-ANT
+  ✅ NFE20-IND-NF-PAPEL-FAT-CENTRAL
+  ✅ NFE20-COD-ITEM
+  ✅ NFE20-DESCRICAO-ITEM
+  ✅ NFE20-CLASSIFICACAO-ITEM
+  ✅ NFE20-CFOP
+  ✅ NFE20-CNPJ-OPER
+  ✅ NFE20-UNID-MEDIDA
+  ✅ NFE20-QTD-FATURADA
+  ✅ NFE20-VLR-ITEM
+  ✅ NFE20-VLR-DESCONTO
+  ✅ NFE20-VLR-OUTROS
+  ✅ NFE20-VLR-TOTAL
+  ✅ NFE20-DT-EXPIRACAO
+  ✅ NFE20-IND-DEVOLUCAO
+  ✅ NFE20-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE20-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 13
+   Total de diferenças: 14
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 20
+================================================================================
+ARQUIVO BASE:          200250820000166RJCLO57 0000000090002                                                 ZAT                                                         PRESTADORA TELEMAR                                                                                                      03001015302              400000000001.0000000000000008.900000000000000.000000000000000.000000000000008.90                                                                                                                                                                      0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      20 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0002 |                                              |      |   | ZAT                                                          | PRESTADORA TELEMAR                                                                                                       | 0300101 | 5302 |                | 4 | 00000000001.000 | 0000000000008.90 | 0000000000000.00 | 0000000000000.00 | 0000000000008.90 |            |   |                                                                                                                                                            0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (4) | (44) | (4) | (1) | (60) | (120) | (7) | (4) | (14) | (1) | (15) | (16) | (16) | (16) | (16) | (10) | (1) | (159)
+VALIDADO:     |               |    |     |     |           |      |                                              |      |   |                                                              |                                                                                                                          |         |      |                |   |                 |                  |                  |                  |                  |            |   |                                                                                                                                                                
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (4) | (44) | (4) | (1) | (60) | (120) | (7) | (4) | (14) | (1) | (15) | (16) | (16) | (16) | (16) | (10) | (1) | (159)
+
+STATUS DOS CAMPOS:
+  ❌ NFE20-TP-REG
+  ❌ NFE20-NUM-FATURA
+  ❌ NFE20-SIGLA-UF-EMISSAO
+  ❌ NFE20-SIGLA-EMP
+  ❌ NFE20-SERIE-NF
+  ❌ NFE20-NUM-NF
+  ❌ NFE20-NUM-ITEM
+  ✅ NFE20-CHV-NFCOM-ANT
+  ✅ NFE20-NUM-ITEM-ANT
+  ✅ NFE20-IND-NF-PAPEL-FAT-CENTRAL
+  ❌ NFE20-COD-ITEM
+  ❌ NFE20-DESCRICAO-ITEM
+  ❌ NFE20-CLASSIFICACAO-ITEM
+  ✅ NFE20-CFOP
+  ✅ NFE20-CNPJ-OPER
+  ❌ NFE20-UNID-MEDIDA
+  ❌ NFE20-QTD-FATURADA
+  ❌ NFE20-VLR-ITEM
+  ✅ NFE20-VLR-DESCONTO
+  ✅ NFE20-VLR-OUTROS
+  ❌ NFE20-VLR-TOTAL
+  ✅ NFE20-DT-EXPIRACAO
+  ✅ NFE20-IND-DEVOLUCAO
+  ✅ NFE20-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE20-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE20-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE20-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE20-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE20-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE20-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE20-NUM-ITEM' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE20-COD-ITEM' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE20-DESCRICAO-ITEM' está vazio no arquivo validado
+  10. Campo obrigatório 'NFE20-CLASSIFICACAO-ITEM' está vazio no arquivo validado
+  11. Campo obrigatório 'NFE20-UNID-MEDIDA' está vazio no arquivo validado
+  12. Campo obrigatório 'NFE20-QTD-FATURADA' está vazio no arquivo validado
+  13. Campo obrigatório 'NFE20-VLR-ITEM' está vazio no arquivo validado
+  14. Campo obrigatório 'NFE20-VLR-TOTAL' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 22
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 8
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 22
+================================================================================
+ARQUIVO BASE:          220250820000166RJCLO57 000000009000000000003592.58024.000000000000862.21000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                          0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 220250866000073RJETV   000000001000000000041912.58024.000000000010059.01000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                          0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      22 | 0250820000166 | RJ | CLO | 57  | 000000009 | 00 | 0000000003592.58 | 024.00 | 0000000000862.21 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                           0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (6) | (16) | (446)
+VALIDADO:  22 | 0250866000073 | RJ | ETV |     | 000000001 | 00 | 0000000041912.58 | 024.00 | 0000000010059.01 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                           0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (6) | (16) | (446)
+
+STATUS DOS CAMPOS:
+  ✅ NFE22-TP-REG
+  ✅ NFE22-NUM-FATURA
+  ✅ NFE22-SIGLA-UF-EMISSAO
+  ✅ NFE22-SIGLA-EMP
+  ❌ NFE22-SERIE-NF
+  ✅ NFE22-NUM-NF
+  ✅ NFE22-ICM00-CST
+  ✅ NFE22-ICM00-VLR-BC
+  ✅ NFE22-ICM00-ALIQ
+  ✅ NFE22-ICM00-VLR
+  ✅ NFE22-ICM00-ALIQ-FCP
+  ✅ NFE22-ICM00-VLR-FCP
+  ✅ NFE22-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE22-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 14
+   Total de diferenças: 10
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 22
+================================================================================
+ARQUIVO BASE:          220250820000166RJCLO57 000000009000000000000000.00000.000000000000000.00000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                          0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      22 | 0250820000166 | RJ | CLO | 57  | 000000009 | 00 | 0000000000000.00 | 000.00 | 0000000000000.00 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                           0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (6) | (16) | (446)
+VALIDADO:     |               |    |     |     |           |    |                  |        |                  |        |                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (6) | (16) | (446)
+
+STATUS DOS CAMPOS:
+  ❌ NFE22-TP-REG
+  ❌ NFE22-NUM-FATURA
+  ❌ NFE22-SIGLA-UF-EMISSAO
+  ❌ NFE22-SIGLA-EMP
+  ❌ NFE22-SERIE-NF
+  ❌ NFE22-NUM-NF
+  ❌ NFE22-ICM00-CST
+  ❌ NFE22-ICM00-VLR-BC
+  ❌ NFE22-ICM00-ALIQ
+  ❌ NFE22-ICM00-VLR
+  ✅ NFE22-ICM00-ALIQ-FCP
+  ✅ NFE22-ICM00-VLR-FCP
+  ✅ NFE22-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE22-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE22-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE22-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE22-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE22-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE22-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE22-ICM00-CST' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE22-ICM00-VLR-BC' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE22-ICM00-ALIQ' está vazio no arquivo validado
+  10. Campo obrigatório 'NFE22-ICM00-VLR' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 38
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 9
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 38
+================================================================================
+ARQUIVO BASE:          380250820000166RJCLO57 000000009010000000002730.37000.650000000000017.74                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 380250866000073RJETV   000000001000000000010059.01000.650000000000207.04                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      38 | 0250820000166 | RJ | CLO | 57  | 000000009 | 01 | 0000000002730.37 | 000.65 | 0000000000017.74 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+VALIDADO:  38 | 0250866000073 | RJ | ETV |     | 000000001 | 00 | 0000000010059.01 | 000.65 | 0000000000207.04 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+
+STATUS DOS CAMPOS:
+  ✅ NFE38-TP-REG
+  ✅ NFE38-NUM-FATURA
+  ✅ NFE38-SIGLA-UF-EMISSAO
+  ✅ NFE38-SIGLA-EMP
+  ❌ NFE38-SERIE-NF
+  ✅ NFE38-NUM-NF
+  ✅ NFE38-PIS-CST
+  ✅ NFE38-PIS-VLR-BC
+  ✅ NFE38-PIS-ALIQ
+  ✅ NFE38-PIS-VLR
+  ✅ NFE38-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE38-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 15
+   Total de diferenças: 10
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 38
+================================================================================
+ARQUIVO BASE:          380250820000166RJCLO57 000000009010000000000000.00000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      38 | 0250820000166 | RJ | CLO | 57  | 000000009 | 01 | 0000000000000.00 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+VALIDADO:     |               |    |     |     |           |    |                  |        |                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+
+STATUS DOS CAMPOS:
+  ❌ NFE38-TP-REG
+  ❌ NFE38-NUM-FATURA
+  ❌ NFE38-SIGLA-UF-EMISSAO
+  ❌ NFE38-SIGLA-EMP
+  ❌ NFE38-SERIE-NF
+  ❌ NFE38-NUM-NF
+  ❌ NFE38-PIS-CST
+  ❌ NFE38-PIS-VLR-BC
+  ❌ NFE38-PIS-ALIQ
+  ❌ NFE38-PIS-VLR
+  ✅ NFE38-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE38-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE38-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE38-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE38-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE38-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE38-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE38-PIS-CST' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE38-PIS-VLR-BC' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE38-PIS-ALIQ' está vazio no arquivo validado
+  10. Campo obrigatório 'NFE38-PIS-VLR' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 40
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 10
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 40
+================================================================================
+ARQUIVO BASE:          400250820000166RJCLO57 000000009010000000002730.37003.000000000000081.91                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 400250866000073RJETV   000000001000000000000955.60003.000000000000955.60                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      40 | 0250820000166 | RJ | CLO | 57  | 000000009 | 01 | 0000000002730.37 | 003.00 | 0000000000081.91 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+VALIDADO:  40 | 0250866000073 | RJ | ETV |     | 000000001 | 00 | 0000000000955.60 | 003.00 | 0000000000955.60 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+
+STATUS DOS CAMPOS:
+  ✅ NFE40-TP-REG
+  ✅ NFE40-NUM-FATURA
+  ✅ NFE40-SIGLA-UF-EMISSAO
+  ✅ NFE40-SIGLA-EMP
+  ❌ NFE40-SERIE-NF
+  ✅ NFE40-NUM-NF
+  ✅ NFE40-COFINS-CST
+  ✅ NFE40-COFINS-VLR-BC
+  ✅ NFE40-COFINS-ALIQ
+  ✅ NFE40-COFINS-VLR
+  ✅ NFE40-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE40-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 16
+   Total de diferenças: 10
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 40
+================================================================================
+ARQUIVO BASE:          400250820000166RJCLO57 000000009010000000000000.00000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      40 | 0250820000166 | RJ | CLO | 57  | 000000009 | 01 | 0000000000000.00 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+VALIDADO:     |               |    |     |     |           |    |                  |        |                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (2) | (16) | (6) | (16) | (468)
+
+STATUS DOS CAMPOS:
+  ❌ NFE40-TP-REG
+  ❌ NFE40-NUM-FATURA
+  ❌ NFE40-SIGLA-UF-EMISSAO
+  ❌ NFE40-SIGLA-EMP
+  ❌ NFE40-SERIE-NF
+  ❌ NFE40-NUM-NF
+  ❌ NFE40-COFINS-CST
+  ❌ NFE40-COFINS-VLR-BC
+  ❌ NFE40-COFINS-ALIQ
+  ❌ NFE40-COFINS-VLR
+  ✅ NFE40-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE40-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE40-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE40-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE40-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE40-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE40-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE40-COFINS-CST' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE40-COFINS-VLR-BC' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE40-COFINS-ALIQ' está vazio no arquivo validado
+  10. Campo obrigatório 'NFE40-COFINS-VLR' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 42
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 11
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 42
+================================================================================
+ARQUIVO BASE:          420250820000166RJCLO57 0000000090000000002730.37001.000000000000027.30                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 420250866000073RJETV   0000000010000000000306.90001.000000000000306.90                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      42 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0000000002730.37 | 001.00 | 0000000000027.30 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+VALIDADO:  42 | 0250866000073 | RJ | ETV |     | 000000001 | 0000000000306.90 | 001.00 | 0000000000306.90 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+
+STATUS DOS CAMPOS:
+  ✅ NFE42-TP-REG
+  ✅ NFE42-NUM-FATURA
+  ✅ NFE42-SIGLA-UF-EMISSAO
+  ✅ NFE42-SIGLA-EMP
+  ❌ NFE42-SERIE-NF
+  ✅ NFE42-NUM-NF
+  ✅ NFE42-FUST-VLR-BC
+  ✅ NFE42-FUST-ALIQ
+  ✅ NFE42-FUST-VLR
+  ✅ NFE42-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE42-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 17
+   Total de diferenças: 9
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 42
+================================================================================
+ARQUIVO BASE:          420250820000166RJCLO57 0000000090000000000000.00000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      42 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0000000000000.00 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+VALIDADO:     |               |    |     |     |           |                  |        |                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+
+STATUS DOS CAMPOS:
+  ❌ NFE42-TP-REG
+  ❌ NFE42-NUM-FATURA
+  ❌ NFE42-SIGLA-UF-EMISSAO
+  ❌ NFE42-SIGLA-EMP
+  ❌ NFE42-SERIE-NF
+  ❌ NFE42-NUM-NF
+  ❌ NFE42-FUST-VLR-BC
+  ❌ NFE42-FUST-ALIQ
+  ❌ NFE42-FUST-VLR
+  ✅ NFE42-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE42-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE42-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE42-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE42-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE42-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE42-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE42-FUST-VLR-BC' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE42-FUST-ALIQ' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE42-FUST-VLR' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 44
+   Total de linhas com diferenças: 2
+
+📍 EXEMPLO 1 - LINHA 12
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 44
+================================================================================
+ARQUIVO BASE:          440250820000166RJCLO57 0000000090000000002730.37000.500000000000013.65                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO: 440250866000073RJETV   0000000010000000000153.45001.000000000000153.45                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      44 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0000000002730.37 | 000.50 | 0000000000013.65 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+VALIDADO:  44 | 0250866000073 | RJ | ETV |     | 000000001 | 0000000000153.45 | 001.00 | 0000000000153.45 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0001
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+
+STATUS DOS CAMPOS:
+  ✅ NFE44-TP-REG
+  ✅ NFE44-NUM-FATURA
+  ✅ NFE44-SIGLA-UF-EMISSAO
+  ✅ NFE44-SIGLA-EMP
+  ❌ NFE44-SERIE-NF
+  ✅ NFE44-NUM-NF
+  ✅ NFE44-FUNTEL-VLR-BC
+  ✅ NFE44-FUNTEL-ALIQ
+  ✅ NFE44-FUNTEL-VLR
+  ✅ NFE44-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE44-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+📍 EXEMPLO 2 - LINHA 18
+   Total de diferenças: 9
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 44
+================================================================================
+ARQUIVO BASE:          440250820000166RJCLO57 0000000090000000000000.00000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0002                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ARQUIVO A SER VALIDADO:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      44 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0000000000000.00 | 000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0002
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+VALIDADO:     |               |    |     |     |           |                  |        |                  |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (6) | (16) | (470)
+
+STATUS DOS CAMPOS:
+  ❌ NFE44-TP-REG
+  ❌ NFE44-NUM-FATURA
+  ❌ NFE44-SIGLA-UF-EMISSAO
+  ❌ NFE44-SIGLA-EMP
+  ❌ NFE44-SERIE-NF
+  ❌ NFE44-NUM-NF
+  ❌ NFE44-FUNTEL-VLR-BC
+  ❌ NFE44-FUNTEL-ALIQ
+  ❌ NFE44-FUNTEL-VLR
+  ✅ NFE44-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE44-TP-REG' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE44-NUM-FATURA' está vazio no arquivo validado
+  3. Campo obrigatório 'NFE44-SIGLA-UF-EMISSAO' está vazio no arquivo validado
+  4. Campo obrigatório 'NFE44-SIGLA-EMP' está vazio no arquivo validado
+  5. Campo obrigatório 'NFE44-SERIE-NF' está vazio no arquivo validado
+  6. Campo obrigatório 'NFE44-NUM-NF' está vazio no arquivo validado
+  7. Campo obrigatório 'NFE44-FUNTEL-VLR-BC' está vazio no arquivo validado
+  8. Campo obrigatório 'NFE44-FUNTEL-ALIQ' está vazio no arquivo validado
+  9. Campo obrigatório 'NFE44-FUNTEL-VLR' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 56
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 19
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 56
+================================================================================
+ARQUIVO BASE:          560250820000166RJCLO57 0000000090000000003601.480000000003592.580000000000862.210000000000000.000000000000000.000000000000081.910000000000017.740000000000013.650000000000027.300000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000003601.48                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+ARQUIVO A SER VALIDADO: 560250866000073RJETV   0000000010000000041912.580000000041912.580000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.000000000000000.00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      56 | 0250820000166 | RJ | CLO | 57  | 000000009 | 0000000003601.48 | 0000000003592.58 | 0000000000862.21 | 0000000000000.00 | 0000000000000.00 | 0000000000081.91 | 0000000000017.74 | 0000000000013.65 | 0000000000027.30 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000003601.48 |                                                                                                                                                                                                                                                             
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (252)
+VALIDADO:  56 | 0250866000073 | RJ | ETV |     | 000000001 | 0000000041912.58 | 0000000041912.58 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 | 0000000000000.00 |                                                                                                                                                                                                                                                             
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (16) | (252)
+
+STATUS DOS CAMPOS:
+  ✅ NFE56-TP-REG
+  ✅ NFE56-NUM-FATURA
+  ✅ NFE56-SIGLA-UF-EMISSAO
+  ✅ NFE56-SIGLA-EMP
+  ❌ NFE56-SERIE-NF
+  ✅ NFE56-NUM-NF
+  ✅ NFE56-TOT-VLR-ITEM
+  ✅ NFE56-TOT-VLR-BC
+  ✅ NFE56-TOT-VLR-ICMS
+  ✅ NFE56-TOT-VLR-ICMS-DESON
+  ✅ NFE56-TOT-VLR-FCP
+  ✅ NFE56-TOT-VLR-COFINS
+  ✅ NFE56-TOT-VLR-PIS
+  ✅ NFE56-TOT-VLR-FUNTEL
+  ✅ NFE56-TOT-VLR-FUST
+  ✅ NFE56-TOT-VLR-RET-PIS
+  ✅ NFE56-TOT-VLR-RET-COFINS
+  ✅ NFE56-TOT-VLR-RET-CSSL
+  ✅ NFE56-TOT-VLR-RET-IRRF
+  ✅ NFE56-TOT-VLR-DESCONTO
+  ✅ NFE56-TOT-VLR-OUTROS
+  ✅ NFE56-TOT-VLR-NFCOM
+  ✅ NFE56-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE56-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 60
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 20
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 60
+================================================================================
+ARQUIVO BASE:          600250820000166RJCLO57 0000000092025082025-08-102025-06-222025-07-21846900000577539000060027508200001669202508102                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+ARQUIVO A SER VALIDADO: 600250866000073RJETV   0000000012025082025-09-252025-08-012025-08-3023792.37304  92373.009874  06000.204302  1  0000                    0237223736                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      60 | 0250820000166 | RJ | CLO | 57  | 000000009 | 202508 | 2025-08-10 | 2025-06-22 | 2025-07-21 | 846900000577539000060027508200001669202508102    |                      |       |           
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (6) | (10) | (10) | (10) | (48) | (20) | (5) | (10)
+VALIDADO:  60 | 0250866000073 | RJ | ETV |     | 000000001 | 202508 | 2025-09-25 | 2025-08-01 | 2025-08-30 | 23792.37304  92373.009874  06000.204302  1  0000 |                      | 02372 | 23736     
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (6) | (10) | (10) | (10) | (48) | (20) | (5) | (10)
+
+STATUS DOS CAMPOS:
+  ✅ NFE60-TP-REG
+  ✅ NFE60-NUM-FATURA
+  ✅ NFE60-SIGLA-UF-EMISSAO
+  ✅ NFE60-SIGLA-EMP
+  ❌ NFE60-SERIE-NF
+  ✅ NFE60-NUM-NF
+  ✅ NFE60-FAT-AAAMM-REFER
+  ✅ NFE60-FAT-DT-VENCTO
+  ✅ NFE60-FAT-DT-USO-INI
+  ✅ NFE60-FAT-DT-USO-FIM
+  ✅ NFE60-FAT-COD-BARRAS
+  ✅ NFE60-FAT-COD-DEB-AUTO
+  ✅ NFE60-FAT-NUM-BANCO
+  ✅ NFE60-FAT-NUM-AGENCIA
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE60-SERIE-NF' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 62
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 21
+   Total de diferenças: 2
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 62
+================================================================================
+ARQUIVO BASE:          620250820000166RJCLO57 000000009AV PRESIDENTE ANTONIO CARLOS                                51        7                                                           CENTRO                                                      3304557RIO DE JANEIRO                                              20020909RJ1058                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+ARQUIVO A SER VALIDADO: 620250866000073RJETV   000000001ESTDO GUERENGUE                                             25        LOJA A ETR.BANDEIR. 1000                                    TAQUARA                                                     3304557RIO DE JANEIRO                                              22713003RJ9999                                                            00                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      62 | 0250820000166 | RJ | CLO | 57  | 000000009 | AV PRESIDENTE ANTONIO CARLOS                                 | 51         | 7                                                            | CENTRO                                                       | 3304557 | RIO DE JANEIRO                                               | 20020909 | RJ | 1058 |                                                              |              |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+VALIDADO:  62 | 0250866000073 | RJ | ETV |     | 000000001 | ESTDO GUERENGUE                                              | 25         | LOJA A ETR.BANDEIR. 1000                                     | TAQUARA                                                      | 3304557 | RIO DE JANEIRO                                               | 22713003 | RJ | 9999 |                                                              | 00           |                                                              |                                                                                                          
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (60) | (10) | (60) | (60) | (7) | (60) | (8) | (2) | (4) | (60) | (12) | (60) | (105)
+
+STATUS DOS CAMPOS:
+  ✅ NFE62-TP-REG
+  ✅ NFE62-NUM-FATURA
+  ✅ NFE62-SIGLA-UF-EMISSAO
+  ✅ NFE62-SIGLA-EMP
+  ❌ NFE62-SERIE-NF
+  ✅ NFE62-NUM-NF
+  ✅ NFE62-END-FAT-LOGRAD
+  ✅ NFE62-END-FAT-NUMERO
+  ✅ NFE62-END-FAT-COMPL
+  ✅ NFE62-END-FAT-BAIRRO
+  ✅ NFE62-END-FAT-IBGE
+  ✅ NFE62-END-FAT-MUNICIPIO
+  ✅ NFE62-END-FAT-CEP
+  ✅ NFE62-END-FAT-UF
+  ✅ NFE62-END-FAT-PAIS
+  ❌ NFE62-END-FAT-NOME-PAIS
+  ✅ NFE62-END-FAT-FONE
+  ✅ NFE62-END-FAT-EMAIL
+  ✅ NFE62-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE62-SERIE-NF' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 64
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 22
+   Total de diferenças: 2
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 64
+================================================================================
+ARQUIVO BASE:          640250820000166RJCLO57 000000009                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+ARQUIVO A SER VALIDADO: 640250866000073RJETV   000000001                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      64 | 0250820000166 | RJ | CLO | 57  | 000000009 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |         
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (500) | (8)
+VALIDADO:  64 | 0250866000073 | RJ | ETV |     | 000000001 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |         
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (500) | (8)
+
+STATUS DOS CAMPOS:
+  ✅ NFE64-TP-REG
+  ✅ NFE64-NUM-FATURA
+  ✅ NFE64-SIGLA-UF-EMISSAO
+  ✅ NFE64-SIGLA-EMP
+  ❌ NFE64-SERIE-NF
+  ✅ NFE64-NUM-NF
+  ❌ NFE64-PIX-URL-QRCODE
+  ✅ NFE64-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE64-SERIE-NF' está vazio no arquivo validado
+  2. Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
+================================================================================
+
+🔸 TIPO DE REGISTRO: 90
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 23
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 90
+================================================================================
+ARQUIVO BASE:          900250820000166RJCLO57 0000000090641122508200FTC       20251027141554000000000001                                                                                                                                                                                                                                                                                                                2025083300000009FTC57                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+ARQUIVO A SER VALIDADO: 900250866000073RJETV   0000000010000002508660FTC       20251024153958000000000001000000000000000000000000000000000000                                                                                                                                                                                                                                                                           200000G90pq3bt5GwGQDAy28000                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      90 | 0250820000166 | RJ | CLO | 57  | 000000009 | 064112 | 2508200 | FTC        | 20251027141554 | 0000000000 | 01 |                |        |                  |              |                                                                                                                                                                                                                                                                 |   | 2025083300000009FTC57      |                                                                                                                                  
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (6) | (7) | (10) | (14) | (10) | (2) | (14) | (6) | (16) | (12) | (255) | (1) | (26) | (129)
+VALIDADO:  90 | 0250866000073 | RJ | ETV |     | 000000001 | 000000 | 2508660 | FTC        | 20251024153958 | 0000000000 | 01 | 00000000000000 | 000000 | 0000000000000000 |              |                                                                                                                                                                                                                                                                 | 2 | 00000G90pq3bt5GwGQDAy28000 |                                                                                                                                  
+CONTAGEM:  (2) | (13) | (2) | (3) | (3) | (9) | (6) | (7) | (10) | (14) | (10) | (2) | (14) | (6) | (16) | (12) | (255) | (1) | (26) | (129)
+
+STATUS DOS CAMPOS:
+  ✅ NFE90-TP-REG
+  ✅ NFE90-NUM-FATURA
+  ✅ NFE90-SIGLA-UF-EMISSAO
+  ✅ NFE90-SIGLA-EMP
+  ❌ NFE90-SERIE-NF
+  ✅ NFE90-NUM-NF
+  ✅ NFE90-COD-ESTABELECIMENTO
+  ✅ NFE90-CICLO
+  ✅ NFE90-SISTEMA
+  ✅ NFE90-DT-HR-GERACAO
+  ✅ NFE90-NUM-INTERNO
+  ✅ NFE90-QTDE-ENVIO
+  ✅ NFE90-DT-HR-EVENTO
+  ✅ NFE90-TP-EVENTO
+  ✅ NFE90-NUM-PROTOCOLO
+  ✅ NFE90-DESCR-EVENTO
+  ✅ NFE90-JUSTIFICATIVA-EVENTO
+  ✅ NFE90-COMBO
+  ✅ NFE90-TRANSACTION-ID
+  ✅ NFE90-FILLER
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo obrigatório 'NFE90-SERIE-NF' está vazio no arquivo validado
+================================================================================

@@ -1,0 +1,100 @@
+🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS
+================================================================================
+
+📊 ESTATÍSTICAS GERAIS:
+   Total de linhas comparadas: 5721
+   Linhas idênticas: 5676
+   Linhas com diferenças: 45
+   Taxa de identidade: 99.21%
+
+❌ ENCONTRADAS 45 LINHAS COM DIFERENÇAS:
+
+🔸 TIPO DE REGISTRO: 01
+   Total de linhas com diferenças: 17
+
+📍 EXEMPLO 1 - LINHA 2
+   Total de diferenças: 2
+BASE:      01||025082000016|6||RJ||CLO||57 |0000|00|0|09||33|2|6|2||0000000| |202|5|1|0261415|4|8||1| |3304557|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+VALIDADO:  01||025088510000|2||SP||TLM||AT1|0000|00|0|01||35|2|6|2||0000000| |202|5|1|0271114|2|1||1| |3550308|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+
+📍 EXEMPLO 2 - LINHA 43
+   Total de diferenças: 2
+BASE:      01||025082000016|6||RJ||CLO||57 |0000|00|0|09||33|2|6|2||0000000| |202|5|1|0261415|4|8||1| |3304557|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+VALIDADO:  01||025088510000|5||RJ||TLM||60 |0000|00|0|02||33|2|6|2||0000000| |202|5|1|0271114|2|1||1| |3304557|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+
+📍 EXEMPLO 3 - LINHA 1368
+   Total de diferenças: 2
+BASE:      01||025082000016|6||RJ||CLO||57 |0000|00|0|09||33|2|6|2||0000000| |202|5|1|0261415|4|8||1| |3304557|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+VALIDADO:  01||025088510000|5||SP||TLM||60 |0000|00|0|02||35|2|6|2||0000000| |202|5|1|0271114|2|1||1| |3550308|0|0|000|0|0|0|000000000000  || | | |              |                                                                                                                                                                                                                                          |                      |                                                                                                                                                          |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+
+   ... e mais 14 linhas com diferenças do tipo 01
+
+🔸 TIPO DE REGISTRO: 62
+   Total de linhas com diferenças: 14
+
+📍 EXEMPLO 1 - LINHA 40
+   Total de diferenças: 1
+BASE:      62||025082000016|6||RJ||CLO||57 |0000|00009|AV PRESIDENTE ANTONIO CARLOS                          |      |51 |       |7                                                   |        |CENTRO                                             |       |  |3304557|RIO DE JANEIRO                                   |        |  | |20|020909|RJ|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+VALIDADO:  62||025088510000|2||SP||TLM||AT1|0000|00001|R  DOS INGLESES                                       |      |600|       |5O ANDAR                                            |        |BELA VISTA                                         |       |  |3550308|SAO PAULO                                        |        |  | |01|329904|SP|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+
+📍 EXEMPLO 2 - LINHA 1364
+   Total de diferenças: 1
+BASE:      62||025082000016|6||RJ||CLO||57 |0000|00009|AV PRESIDENTE ANTONIO CARLOS                          |      |51 |       |7                                                   |        |CENTRO                                             |       |  |3304557|RIO DE JANEIRO                                   |        |  | |20|020909|RJ|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+VALIDADO:  62||025088510000|5||RJ||TLM||60 |0000|00002|R  MENA BARRETO                                       |      |42 |       |                                                    |        |BOTAFOGO                                           |       |  |3304557|RIO DE JANEIRO                                   |        |  | |22|271100|RJ|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+
+📍 EXEMPLO 3 - LINHA 1479
+   Total de diferenças: 1
+BASE:      62||025082000016|6||RJ||CLO||57 |0000|00009|AV PRESIDENTE ANTONIO CARLOS                          |      |51 |       |7                                                   |        |CENTRO                                             |       |  |3304557|RIO DE JANEIRO                                   |        |  | |20|020909|RJ|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+VALIDADO:  62||025088510000|6||MG||TLM||62 |0000|00004|R  MENA BARRETO                                       |      |42 |       |                                                    |        |BOTAFOGO                                           |       |  |3304557|RIO DE JANEIRO                                   |        |  | |22|271100|RJ|1058|                                             |            |   |            |                                           |                 |                                                                                       |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+
+   ... e mais 11 linhas com diferenças do tipo 62
+
+🔸 TIPO DE REGISTRO: 64
+   Total de linhas com diferenças: 14
+
+📍 EXEMPLO 1 - LINHA 41
+   Total de diferenças: 1
+BASE:      64||025082000016|6||RJ||CLO||57 |0000|00009|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+VALIDADO:  64||025088510000|2||SP||TLM||AT1|0000|00001|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
+
+📍 EXEMPLO 2 - LINHA 1365
+   Total de diferenças: 1
+BASE:      64||025082000016|6||RJ||CLO||57 |0000|00009|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+VALIDADO:  64||025088510000|5||RJ||TLM||60 |0000|00002|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
+
+📍 EXEMPLO 3 - LINHA 1480
+   Total de diferenças: 1
+BASE:      64||025082000016|6||RJ||CLO||57 |0000|00009|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+VALIDADO:  64||025088510000|6||MG||TLM||62 |0000|00004|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |      | |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
+
+   ... e mais 11 linhas com diferenças do tipo 64

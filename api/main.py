@@ -24,6 +24,7 @@ from src.layout_normalizer import (
 )
 from src.file_validator import ValidadorArquivo
 from src.multi_record_validator import MultiRecordValidator
+from src.structural_comparator import ComparadorEstruturalArquivos
 from src.report_generator import GeradorRelatorio
 from src.models import TipoCampo, Layout
 
@@ -31,7 +32,9 @@ from .models import (
     LayoutResponse, CampoLayoutResponse, TipoCampoAPI,
     ResultadoValidacaoResponse, ErroValidacaoResponse,
     EstatisticasResponse, ValidacaoCompleta,
-    StatusResponse, ErrorResponse, RegistroPreviewResponse
+    StatusResponse, ErrorResponse, RegistroPreviewResponse,
+    DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
+    ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta
 )
 
 app = FastAPI(
@@ -122,6 +125,41 @@ def gerar_estatisticas(resultado) -> EstatisticasResponse:
         total_erros=len(resultado.erros),
         tipos_erro=dict(tipos_erro),
         campos_com_erro=dict(campos_com_erro)
+    )
+
+
+def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparacaoEstruturalResponse:
+    """Converte resultado de comparação estrutural para response da API"""
+    diferencas_response = []
+
+    for diferenca_linha in resultado.diferencas_por_linha:
+        campos_response = []
+        for campo_diff in diferenca_linha.diferencas_campos:
+            campos_response.append(DiferencaEstruturalCampoResponse(
+                nome_campo=campo_diff.nome_campo,
+                posicao_inicio=campo_diff.posicao_inicio,
+                posicao_fim=campo_diff.posicao_fim,
+                valor_base=campo_diff.valor_base,
+                valor_validado=campo_diff.valor_validado,
+                tipo_diferenca=campo_diff.tipo_diferenca,
+                descricao=campo_diff.descricao
+            ))
+
+        diferencas_response.append(DiferencaEstruturalLinhaResponse(
+            numero_linha=diferenca_linha.numero_linha,
+            tipo_registro=diferenca_linha.tipo_registro,
+            arquivo_base_linha=diferenca_linha.arquivo_base_linha,
+            arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
+            diferencas_campos=campos_response,
+            total_diferencas=diferenca_linha.total_diferencas
+        ))
+
+    return ResultadoComparacaoEstruturalResponse(
+        total_linhas_comparadas=resultado.total_linhas_comparadas,
+        linhas_com_diferencas=resultado.linhas_com_diferencas,
+        linhas_identicas=resultado.linhas_identicas,
+        diferencas_por_linha=diferencas_response,
+        taxa_identidade=resultado.taxa_identidade
     )
 
 
@@ -714,6 +752,113 @@ async def deletar_relatorio(timestamp: str):
             deleted += 1
 
     return {"message": f"{deleted} arquivos deletados"}
+
+
+@app.post("/api/comparar-estrutural")
+async def comparar_arquivos_estrutural(
+    layout_file: UploadFile = File(...),
+    arquivo_base: UploadFile = File(...),
+    arquivo_validado: UploadFile = File(...),
+    sheet_name: Optional[int] = Form(None)
+):
+    """Realiza comparação estrutural entre dois arquivos baseado em um layout
+
+    Args:
+        layout_file: Arquivo Excel com layout
+        arquivo_base: Arquivo TXT de referência (base)
+        arquivo_validado: Arquivo TXT a ser comparado
+        sheet_name: Índice da aba (0=primeira, 1=segunda, etc.). Se None, usa primeira aba.
+    """
+    if not layout_file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Layout deve ser Excel (.xlsx ou .xls)")
+
+    if not arquivo_base.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Arquivo base deve ser TXT")
+
+    if not arquivo_validado.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Arquivo a ser validado deve ser TXT")
+
+    temp_layout = None
+    temp_base = None
+    temp_validado = None
+
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # Salvar arquivos temporários
+        temp_layout = UPLOAD_DIR / f"layout_{timestamp}_{layout_file.filename}"
+        with open(temp_layout, "wb") as buffer:
+            content = await layout_file.read()
+            buffer.write(content)
+
+        temp_base = UPLOAD_DIR / f"base_{timestamp}_{arquivo_base.filename}"
+        with open(temp_base, "wb") as buffer:
+            content = await arquivo_base.read()
+            buffer.write(content)
+
+        temp_validado = UPLOAD_DIR / f"validado_{timestamp}_{arquivo_validado.filename}"
+        with open(temp_validado, "wb") as buffer:
+            content = await arquivo_validado.read()
+            buffer.write(content)
+
+        # Carregar layout
+        sheet_index = sheet_name if sheet_name is not None else 0
+
+    # Observação: permitir layouts multi-registro na comparação estrutural.
+    # O comparador já filtra campos por tipo de registro corretamente.
+
+        # Carregar layout usando parser padrão
+        parser = LayoutParser()
+        layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
+
+        # Executar comparação estrutural
+        comparador = ComparadorEstruturalArquivos(layout, show_all_lines=True)
+        resultado_comparacao = comparador.comparar_arquivos(str(temp_base), str(temp_validado))
+
+        # Gerar relatório textual
+        relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
+
+        # Salvar relatório para download posterior
+        nome_arquivo_relatorio = f"comparacao_estrutural_{timestamp}.txt"
+        caminho_relatorio = REPORTS_DIR / nome_arquivo_relatorio
+
+        with open(caminho_relatorio, 'w', encoding='utf-8') as f:
+            f.write(relatorio_texto)
+
+        # Converter para responses
+        layout_response = converter_layout_para_response(layout)
+        resultado_response = converter_resultado_comparacao_para_response(resultado_comparacao)
+
+        return ComparacaoEstruturalCompleta(
+            layout=layout_response,
+            resultado_comparacao=resultado_response,
+            relatorio_texto=relatorio_texto,
+            timestamp=timestamp
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro durante comparação estrutural: {str(e)}")
+
+    finally:
+        # Limpar arquivos temporários
+        for temp_file in [temp_layout, temp_base, temp_validado]:
+            if temp_file and temp_file.exists():
+                os.remove(temp_file)
+
+
+@app.get("/api/download-comparacao/{timestamp}")
+async def download_comparacao_estrutural(timestamp: str):
+    """Download de relatório de comparação estrutural"""
+    arquivo_path = REPORTS_DIR / f"comparacao_estrutural_{timestamp}.txt"
+
+    if not arquivo_path.exists():
+        raise HTTPException(status_code=404, detail="Relatório de comparação não encontrado")
+
+    return FileResponse(
+        path=str(arquivo_path),
+        filename=f"comparacao_estrutural_{timestamp}.txt",
+        media_type="text/plain"
+    )
 
 
 if __name__ == "__main__":

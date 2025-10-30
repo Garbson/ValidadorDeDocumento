@@ -272,8 +272,11 @@ def main(layout, arquivo, arquivo_base, relatorio, max_erros, silencioso, info_l
             if comparar_estrutural and not is_multi_registro:
                 task = progress.add_task("🔍 Comparando arquivos estruturalmente...", total=None)
 
-                comparador = ComparadorEstruturalArquivos(layout_obj)
-                resultado_comparacao = comparador.comparar_arquivos(arquivo_base, arquivo)
+                comparador = ComparadorEstruturalArquivos(layout_obj, show_all_lines=True)
+                
+                # Executa comparação e gera relatório
+                resultado_comparacao = comparador.comparar_arquivos(arquivo_base, arquivo_a_validar)
+                relatorio_completo = comparador.gerar_relatorio_completo(resultado_comparacao)
 
                 progress.update(task, completed=True)
 

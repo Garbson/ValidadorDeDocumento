@@ -1,0 +1,36 @@
+🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS
+================================================================================
+
+📊 ESTATÍSTICAS GERAIS:
+   Total de linhas comparadas: 2
+   Linhas idênticas: 1
+   Linhas com diferenças: 1
+   Taxa de identidade: 50.00%
+
+❌ ENCONTRADAS 1 LINHAS COM DIFERENÇAS:
+
+🔸 TIPO DE REGISTRO: 02
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 2
+   Total de diferenças: 1
+================================================================================
+COMPARAÇÃO ESTRUTURAL - TIPO DE REGISTRO: 02
+================================================================================
+ARQUIVO BASE:          02XYZ  123
+ARQUIVO A SER VALIDADO: 02XYZ   12
+--------------------------------------------------------------------------------
+CAMPOS SEPARADOS POR | COM CONTAGEM DE CARACTERES:
+BASE:      02 | XYZ   | 123
+CONTAGEM:  (2) | (5) | (3)
+VALIDADO:  02 | XYZ   |  12
+CONTAGEM:  (2) | (5) | (3)
+
+STATUS DOS CAMPOS:
+  ✅ TIPO_REGISTRO
+  ✅ CAMPO_COM_ESPACO
+  ❌ NUMERO_COM_ESPACO
+
+DIFERENÇAS ENCONTRADAS:
+  1. Campo 'NUMERO_COM_ESPACO' tem formato numérico diferente: base='123', validado=' 12'
+================================================================================

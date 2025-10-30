@@ -1,0 +1,44 @@
+🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS
+================================================================================
+
+📊 ESTATÍSTICAS GERAIS:
+   Total de linhas comparadas: 17
+   Linhas idênticas: 14
+   Linhas com diferenças: 3
+   Taxa de identidade: 82.35%
+
+❌ ENCONTRADAS 3 LINHAS COM DIFERENÇAS:
+
+🔸 TIPO DE REGISTRO: 01 (Nota 1)
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 1
+   Total de diferenças: 2
+BASE:      |
+VALIDADO:  |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 62 (Nota 1)
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 15
+   Total de diferenças: 1
+BASE:      |
+VALIDADO:  |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 64 (Nota 1)
+   Total de linhas com diferenças: 1
+
+📍 EXEMPLO 1 - LINHA 16
+   Total de diferenças: 1
+BASE:      |
+VALIDADO:  |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
