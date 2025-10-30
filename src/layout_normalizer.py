@@ -215,23 +215,64 @@ def normalize_dataframe(df: pd.DataFrame, mapping: Dict[str, Optional[str]]) -> 
     # Se não houver Posicao_Inicio válido mas houver Tamanho, gerar cumulativo
     if 'Posicao_Inicio' in norm_df and 'Tamanho' in norm_df:
         if norm_df['Posicao_Inicio'].isna().all() or (norm_df['Posicao_Inicio'] <= 0).all():
-            start = 1
-            posicoes = []
-            for tam in norm_df['Tamanho']:
-                try:
-                    t = int(tam) if pd.notna(tam) else None
-                except (ValueError, TypeError):
-                    t = None
-                if t is None or t <= 0:
-                    posicoes.append(None)
-                else:
-                    posicoes.append(start)
-                    start += t
+            # Detectar se é arquivo multiregistro (campos com NFE[XX]-)
+            is_multirecord = False
+            if 'Campo' in norm_df:
+                multirecord_pattern = norm_df['Campo'].astype(str).str.contains(r'NFE\d+-', na=False)
+                is_multirecord = multirecord_pattern.any()
+
+            if is_multirecord:
+                # Para multiregistro: resetar posições por tipo de registro
+                posicoes = []
+                tipos_processados = {}
+
+                for idx, row in norm_df.iterrows():
+                    campo_nome = str(row.get('Campo', ''))
+                    try:
+                        tam = int(row['Tamanho']) if pd.notna(row['Tamanho']) else None
+                    except (ValueError, TypeError):
+                        tam = None
+
+                    if tam is None or tam <= 0:
+                        posicoes.append(None)
+                        continue
+
+                    # Extrair tipo de registro (ex: NFE01- -> tipo 01)
+                    import re
+                    match = re.match(r'NFE(\d+)-', campo_nome)
+                    if match:
+                        tipo_registro = match.group(1)
+
+                        # Se é o primeiro campo deste tipo, resetar posição para 1
+                        if tipo_registro not in tipos_processados:
+                            tipos_processados[tipo_registro] = 1
+
+                        posicoes.append(tipos_processados[tipo_registro])
+                        tipos_processados[tipo_registro] += tam
+                    else:
+                        # Campo sem padrão NFE[XX]-, usar posição sequencial global
+                        posicoes.append(1)
+
+                warnings.append('Posicao_Inicio gerada para arquivo multiregistro (posições resetadas por tipo).')
+            else:
+                # Para arquivo normal: usar cumulativo simples
+                start = 1
+                posicoes = []
+                for tam in norm_df['Tamanho']:
+                    try:
+                        t = int(tam) if pd.notna(tam) else None
+                    except (ValueError, TypeError):
+                        t = None
+                    if t is None or t <= 0:
+                        posicoes.append(None)
+                    else:
+                        posicoes.append(start)
+                        start += t
+
+                warnings.append('Posicao_Inicio gerada automaticamente pelo cumulativo de Tamanho.')
 
             # Criar Series com o mesmo índice do DataFrame
             norm_df['Posicao_Inicio'] = pd.Series(posicoes, index=norm_df.index)
-            # Aviso de geração automática
-            warnings.append('Posicao_Inicio gerada automaticamente pelo cumulativo de Tamanho.')
 
     # Remover linhas vazias
     if 'Campo' in norm_df:

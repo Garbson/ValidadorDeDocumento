@@ -161,39 +161,25 @@
 
     <!-- Layout Preview -->
     <div v-if="layoutPreview && previewLayout" class="card max-w-6xl mx-auto">
-      <div class="card-header flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div class="card-header">
         <h3 class="text-lg font-semibold flex items-center">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
-          Preview do Layout
+          Preview do Layout: {{ layoutPreview.nome }}
         </h3>
-        <div class="flex items-center flex-wrap gap-2 text-sm">
-          <!-- Paginação de Campos no Preview do Layout -->
-          <div class="flex items-center gap-2">
-            <button
-              class="btn-secondary px-2 py-1"
-              @click="paginaAnteriorCampos"
-              :disabled="paginaAtualCampos === 1"
-              title="Página anterior"
-            >
-              «P
-            </button>
-            <span class="text-xs text-gray-600">
-              Campos:
-              <strong>{{ paginaAtualCampos }}/{{ totalPaginasCampos }}</strong>
-              <span v-if="allVisibleCampos.length > 0">({{ allVisibleCampos.length }} total)</span>
-            </span>
-            <button
-              class="btn-secondary px-2 py-1"
-              @click="proximaPaginaCampos"
-              :disabled="paginaAtualCampos >= totalPaginasCampos"
-              title="Próxima página"
-            >
-              P»
-            </button>
-          </div>
-        </div>
       </div>
       <div class="card-body">
+        <!-- Paginação por Tipo de Registro para Layout -->
+        <div v-if="layoutTipos.length > 1" class="mb-3 flex items-center gap-2 text-sm">
+          <button class="btn-secondary px-2 py-1" @click="layoutTipoFirst" :disabled="layoutTipoIndex === 0">«</button>
+          <button class="btn-secondary px-2 py-1" @click="layoutTipoPrev" :disabled="layoutTipoIndex === 0">‹</button>
+          <div class="flex items-center gap-2">
+            <span>Registro:</span>
+            <span class="font-mono px-2 py-0.5 rounded bg-gray-100">{{ layoutTipoAtual }}</span>
+            <span class="text-gray-500">( {{ layoutTipoIndex + 1 }} / {{ layoutTipos.length }} )</span>
+          </div>
+          <button class="btn-secondary px-2 py-1" @click="layoutTipoNext" :disabled="layoutTipoIndex === layoutTipos.length - 1">›</button>
+          <button class="btn-secondary px-2 py-1" @click="layoutTipoLast" :disabled="layoutTipoIndex === layoutTipos.length - 1">»</button>
+        </div>
         <div class="overflow-x-auto">
           <table class="table">
             <thead class="table-header">
@@ -207,7 +193,7 @@
               </tr>
             </thead>
             <tbody class="table-body">
-              <tr v-for="campo in visibleCampos" :key="campo.nome">
+              <tr v-for="campo in layoutCamposFiltrados" :key="campo.nome">
                 <td class="table-cell font-medium">{{ campo.nome }}</td>
                 <td class="table-cell">
                   {{ campo.posicao_inicio }}-{{ campo.posicao_fim }}
@@ -238,7 +224,7 @@
 
     <!-- Preview Paginado de Registros -->
     <div
-      v-if="layoutPreview && previewLayout && fileLines.length"
+      v-if="layoutPreview && fileLines.length"
       class="card max-w-6xl mx-auto"
     >
       <div
@@ -249,30 +235,6 @@
           Registros do Arquivo (Preview)
         </h3>
         <div class="flex items-center flex-wrap gap-2 text-sm">
-          <!-- Paginação de Campos -->
-          <div class="flex items-center gap-2 mr-4">
-            <button
-              class="btn-secondary px-2 py-1"
-              @click="paginaAnteriorCampos"
-              :disabled="paginaAtualCampos === 1"
-              title="Página anterior"
-            >
-              «P
-            </button>
-            <span class="text-xs text-gray-600">
-              Campos:
-              <strong>{{ paginaAtualCampos }}/{{ totalPaginasCampos }}</strong>
-              <span v-if="allVisibleCampos.length > 0">({{ allVisibleCampos.length }} total)</span>
-            </span>
-            <button
-              class="btn-secondary px-2 py-1"
-              @click="proximaPaginaCampos"
-              :disabled="paginaAtualCampos >= totalPaginasCampos"
-              title="Próxima página"
-            >
-              P»
-            </button>
-          </div>
           <button
             class="btn-secondary px-2 py-1"
             @click="firstRecord"
@@ -288,7 +250,7 @@
             ‹
           </button>
           <div class="flex items-center gap-1">
-            <span>Linha</span>
+              <span>Registro</span>
             <input
               type="number"
               class="input w-24"
@@ -313,22 +275,46 @@
           >
             »
           </button>
-          <span class="ml-2 text-gray-500" v-if="truncated"
-            >(Mostrando primeiras {{ fileLines.length }} linhas de
-            {{ fullLineCount }} - arquivo truncado)</span
+            <span class="ml-2 text-gray-500" v-if="truncated"
+              >(Mostrando primeiros {{ fileLines.length }} registros de
+              {{ fullLineCount }} - arquivo truncado)</span>
+        </div>
+      </div>
+      
+      <!-- Botões para navegação entre tipos de registro -->
+      <div v-if="false" class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-medium text-gray-700">Tipo de Registro:</span>
+          <button
+            v-for="tipo in tiposRegistro"
+            :key="tipo"
+            @click="selecionarTipoRegistro(tipo)"
+            :class="[
+              'px-3 py-1 rounded text-sm font-medium transition-colors',
+              tipoRegistroSelecionado === tipo
+                ? 'bg-primary-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+            ]"
           >
+            Tipo {{ tipo }}
+          </button>
+          <button
+            @click="selecionarTipoRegistro(null)"
+            :class="[
+              'px-3 py-1 rounded text-sm font-medium transition-colors',
+              tipoRegistroSelecionado === null
+                ? 'bg-primary-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+            ]"
+          >
+            Todos
+          </button>
         </div>
       </div>
       <div class="card-body">
         <div class="mb-3 text-xs text-gray-500">
-          Comprimento da linha atual: {{ currentRawLine.length }} /
-          Tamanho esperado layout: {{ layoutPreview.tamanho_linha }} |
-          Tipo detectado da linha: <strong>{{ currentLineKey || '-' }}</strong> |
-          Mostrando campos {{ (paginaAtualCampos - 1) * camposPorPagina + 1 }}-{{ Math.min(paginaAtualCampos * camposPorPagina, allVisibleCampos.length) }} de {{ allVisibleCampos.length }}<br>
-          <strong>Valores:</strong>
-          {{ currentFields.filter(f => f.valor && f.valor.trim()).length }} preenchidos,
-          {{ currentFields.filter(f => !f.valor || !f.valor.trim()).length }} vazios
-          (apenas campos tipo {{ currentLineKey?.slice(0, 2) || '??' }} têm valores)
+          Comprimento da linha atual: {{ currentRawLine.length }} / Tamanho
+          esperado layout: {{ layoutPreview.tamanho_linha }}
         </div>
         <div class="overflow-x-auto">
           <table class="table">
@@ -378,8 +364,9 @@
         </div>
         <p class="mt-4 text-xs text-gray-500">
           Valores com tamanho divergente destacados. Espaços mostrados como '·'.<br>
-          <strong>Dica:</strong> Use os botões «P / P» para navegar entre todas as {{ totalPaginasCampos }} páginas de campos ({{ camposPorPagina }} campos por página).<br>
-          <strong>Comportamento:</strong> Mostra TODOS os campos de TODOS os tipos, mas apenas os campos do tipo da linha atual têm valores preenchidos.
+          <strong v-if="tiposRegistro.length > 1">Multi-Registro:</strong> 
+          <span v-if="tiposRegistro.length > 1">Use os botões de tipo de registro acima para filtrar campos específicos ou visualizar todos.</span>
+          <span v-else>Navegue entre as linhas usando os controles de paginação.</span>
         </p>
       </div>
     </div>
@@ -387,11 +374,19 @@
     <!-- Validation Results -->
     <div v-if="validationStore.hasValidation">
       <div class="mb-4 p-4 bg-green-100 text-green-800 rounded">
-        🎉 CONDIÇÃO ATENDIDA: Dados de validação carregados!
+        🎉 CONDIÇÃO ATENDIDA: Dados de validação carregados! hasValidation =
+        {{ validationStore.hasValidation }}
       </div>
       <ValidationResults />
     </div>
 
+    <!-- Debug do estado -->
+    <div class="mt-4 p-4 bg-gray-100 text-sm rounded">
+      <strong>Debug Estado:</strong><br />
+      hasValidation: {{ validationStore.hasValidation }}<br />
+      isLoading: {{ validationStore.isLoading }}<br />
+      currentValidation existe: {{ !!validationStore.currentValidation }}
+    </div>
   </div>
 </template>
 
@@ -405,26 +400,21 @@ import {
   FileSpreadsheet,
   Upload,
 } from "lucide-vue-next";
-import { computed, ref, watch, onMounted } from "vue";
-import { useTempStore } from '@/stores/temp'
+import { computed, ref, watch } from "vue";
 
 const validationStore = useValidationStore();
-
-// Mostrar painel de debug apenas em modo desenvolvimento
-const isDev = !!import.meta.env.DEV;
 
 // Reactive data
 const layoutFile = ref(null);
 const dataFile = ref(null);
 const maxErrors = ref(100); // Valor padrão balanceado para performance
-const previewLayout = ref(false);
+const previewLayout = ref(true);
 const layoutPreview = ref(null);
-const preloadedLayoutData = ref(null);
 const layoutLoading = ref(false);
 const showMapper = ref(false);
 const mappingConfirmed = ref(false);
 const mappingData = ref(null);
-const organizarLayout = ref(null); // legado: não mais usado para renderização
+const organizarLayout = ref(null);
 
 // Refs para os inputs
 const layoutFileInput = ref(null);
@@ -433,7 +423,7 @@ const armazenaLayout = ref(null);
 
 // Handle file changes
 const handleLayoutFileChange = async (event) => {
-  const file = event?.target?.files?.[0] || event?.dataTransfer?.files?.[0];
+  const file = event.target.files[0];
   if (!file) return;
 
   // Manter o arquivo selecionado
@@ -450,29 +440,32 @@ const handleLayoutFileChange = async (event) => {
       armazenaLayout.value = await validationStore.validateLayout(file);
       // mantenha o objeto completo no layoutPreview
       layoutPreview.value = armazenaLayout.value;
-  // organizarLayout (legado) não é mais necessário; filtragem é feita por grupo
+      // Inicializar com o primeiro tipo de registro ou mostrar todos
+      const tipos = new Set();
+      layoutPreview.value?.campos?.forEach(campo => {
+        const match = campo.nome.match(/^NFE(\d+)-/);
+        if (match) tipos.add(match[1]);
+      });
+      
+  // Ajustar layout automaticamente ao registro atual
+  syncLayoutToCurrentLine();
+      
       console.log("Layout preview carregado:", layoutPreview.value);
+      console.log("Tipos detectados:", Array.from(tipos));
     } catch (_) {
       layoutPreview.value = null;
     } finally {
       layoutLoading.value = false;
     }
   }
+
+  // NÃO limpar o input - manter arquivo selecionado para validação
 };
 
-// Handle data file (TXT) change
-const handleDataFileChange = async (event) => {
-  const file = event?.target?.files?.[0] || event?.dataTransfer?.files?.[0];
-  if (!file) return;
-
-  dataFile.value = file;
-  // Recarrega o preview paginado de registros
-  try {
-    await loadFileLines();
-  } catch (e) {
-    console.error('Falha ao carregar linhas do arquivo de dados:', e);
-    fileLines.value = [];
-    fullLineCount.value = 0;
+const handleDataFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    dataFile.value = file;
   }
 };
 
@@ -526,7 +519,15 @@ const onMappingConfirmed = async (payload) => {
   if (payload && payload.layout && payload.layout.campos) {
     // mantenha o objeto completo
     layoutPreview.value = payload.layout;
-  // filtragem é dinâmica pelos grupos
+    // Detectar tipos e selecionar o primeiro
+    const tipos = new Set();
+    layoutPreview.value.campos.forEach(campo => {
+      const match = campo.nome.match(/^NFE(\d+)-/);
+      if (match) tipos.add(match[1]);
+    });
+    
+  // Ajustar layout automaticamente ao registro atual
+  syncLayoutToCurrentLine();
   }
 };
 
@@ -541,14 +542,20 @@ watch(previewLayout, (newValue) => {
     validationStore
       .validateLayout(layoutFile.value)
       .then((result) => {
-        console.log(
-          "Recarregando preview do layout após reabilitar previewLayout"
-        );
-        console.log(
-          "Recarregando preview do layout após reabilitar previewLayout"
-        );
+        console.log("Recarregando preview do layout após reabilitar previewLayout");
         armazenaLayout.value = result;
         layoutPreview.value = armazenaLayout.value;
+        
+        // Detectar tipos e selecionar o primeiro
+        const tipos = new Set();
+        layoutPreview.value?.campos?.forEach(campo => {
+          const match = campo.nome.match(/^NFE(\d+)-/);
+          if (match) tipos.add(match[1]);
+        });
+        
+  // Ajustar layout automaticamente ao registro atual
+  syncLayoutToCurrentLine();
+        
         console.log("Layout preview recarregado:", layoutPreview.value);
       })
       .catch(() => {
@@ -566,84 +573,6 @@ watch(previewLayout, (newValue) => {
 validationStore.clearError();
 // Montagem concluída
 
-// Ao montar, verificar se o Mapeamento deixou algo no temp store (arquivo ou filename)
-onMounted(async () => {
-  try {
-    const temp = useTempStore()
-      if (temp.layoutFile) {
-      const lf = temp.layoutFile
-      layoutFile.value = lf
-      try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) { /* ignore */ }
-      if (temp.layoutData) {
-        // only set visible preview if user asked for preview; otherwise keep data cached
-        if (previewLayout.value) layoutPreview.value = temp.layoutData
-        else preloadedLayoutData.value = temp.layoutData
-      }
-      temp.clear()
-      return
-    }
-
-    if (temp.layoutFilename && !temp.layoutFile) {
-      const filename = temp.layoutFilename
-      let downloadUrl = `/api/layout-export/download/${filename}`
-      try {
-        let resp = await fetch(downloadUrl)
-        if (!resp.ok) {
-          // tentar backend direto
-          const backendUrl = `http://localhost:8000${downloadUrl}`
-          resp = await fetch(backendUrl)
-          if (!resp.ok) throw new Error('Falha ao baixar layout: ' + resp.status)
-          downloadUrl = backendUrl
-        }
-        const blob = await resp.blob()
-        const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-        layoutFile.value = file
-        try { const dt = new DataTransfer(); dt.items.add(file); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
-        if (temp.layoutData) {
-          if (previewLayout.value) layoutPreview.value = temp.layoutData
-          else preloadedLayoutData.value = temp.layoutData
-        }
-        temp.clear()
-        return
-      } catch (err) {
-        console.warn('Não foi possível baixar layout indicado pelo Mapeamento:', err)
-        // continuar fallback para history.state
-      }
-    }
-
-    // fallback: verificar history.state (compatibilidade antiga)
-    const st = window.history.state || {}
-    if (st.layoutFile) {
-      const lf = st.layoutFile
-      if (lf instanceof File) {
-        layoutFile.value = lf
-        try { const dt = new DataTransfer(); dt.items.add(lf); if (layoutFileInput.value) layoutFileInput.value.files = dt.files } catch (e) {}
-        if (st.layoutData) {
-          if (previewLayout.value) layoutPreview.value = st.layoutData
-          else preloadedLayoutData.value = st.layoutData
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Erro ao processar layout pré-carregado:', err)
-  }
-})
-
-// Se o usuário habilitar o preview e já tivermos layout pré-carregado em memória, aplicar
-watch(previewLayout, (newValue) => {
-  if (!newValue) {
-    layoutPreview.value = null;
-    return;
-  }
-  // If user enabled preview and we have cached preloaded data, use it
-  if (preloadedLayoutData.value) {
-    layoutPreview.value = preloadedLayoutData.value;
-    preloadedLayoutData.value = null;
-    return;
-  }
-  // Otherwise existing watch below will handle reloading from file when necessary
-})
-
 // Preview paginado de registros
 const fileLines = ref([]);
 const fullLineCount = ref(0);
@@ -651,6 +580,69 @@ const currentLineIndex = ref(0);
 const jumpLine = ref(1);
 const MAX_PREVIEW_LINES = 500;
 const truncated = ref(false);
+
+// Dados de preview parseados (vindos do backend para multi-registro)
+const previewRegistros = ref([]);
+const tiposRegistroEncontrados = ref([]);
+
+// Layout preview: paginação por tipo de registro
+const layoutTipos = computed(() => {
+  if (!layoutPreview.value?.campos) return [];
+  const setTipos = new Set();
+  layoutPreview.value.campos.forEach(c => {
+    const m = String(c.nome).match(/^NFE(\d+)-/);
+    if (m) setTipos.add(m[1]);
+  });
+  return Array.from(setTipos).sort();
+});
+const layoutTipoIndex = ref(0);
+const layoutTipoAtual = computed(() => layoutTipos.value[layoutTipoIndex.value] || null);
+const layoutCamposFiltrados = computed(() => {
+  if (!layoutPreview.value?.campos) return [];
+  if (!layoutTipoAtual.value) return layoutPreview.value.campos;
+  return layoutPreview.value.campos.filter(c => String(c.nome).startsWith(`NFE${layoutTipoAtual.value}-`) || String(c.nome).includes(` NFE${layoutTipoAtual.value}-`));
+});
+const layoutTipoFirst = () => { layoutTipoIndex.value = 0; };
+const layoutTipoPrev = () => { if (layoutTipoIndex.value > 0) layoutTipoIndex.value--; };
+const layoutTipoNext = () => { if (layoutTipoIndex.value < layoutTipos.value.length - 1) layoutTipoIndex.value++; };
+const layoutTipoLast = () => { layoutTipoIndex.value = Math.max(0, layoutTipos.value.length - 1); };
+
+// Ajustar layoutTipoIndex ao carregar um novo layout
+watch(layoutPreview, () => {
+  layoutTipoIndex.value = 0;
+});
+
+// Detectar tipos de registro disponíveis (somente informativo)
+const tiposRegistro = computed(() => {
+  if (tiposRegistroEncontrados.value && tiposRegistroEncontrados.value.length > 0) {
+    return tiposRegistroEncontrados.value;
+  }
+  if (!layoutPreview.value?.campos) return [];
+  const tipos = new Set();
+  layoutPreview.value.campos.forEach(campo => {
+    const match = campo.nome.match(/^NFE(\d+)-/);
+    if (match) tipos.add(match[1]);
+  });
+  return Array.from(tipos).sort();
+});
+
+// Sincroniza o layout exibido com o tipo do registro atual
+const syncLayoutToCurrentLine = () => {
+  if (!layoutPreview.value) return;
+  let tipo = null;
+  if (previewRegistros.value && previewRegistros.value.length > 0) {
+    const reg = previewRegistros.value[currentLineIndex.value];
+    tipo = reg?.tipo_registro || null;
+  } else {
+    const raw = currentRawLine.value || '';
+    if (raw.length >= 2) tipo = raw.slice(0, 2);
+  }
+  if (tipo) {
+    organizarLayout.value = (layoutPreview.value?.campos || []).filter(c => c.nome.startsWith(`NFE${tipo}-`));
+  } else {
+    organizarLayout.value = layoutPreview.value?.campos || [];
+  }
+};
 
 const loadFileLines = async () => {
   fileLines.value = [];
@@ -674,122 +666,119 @@ watch(dataFile, () => {
   loadFileLines();
 });
 watch(layoutPreview, () => {
-  /* re-render fields */
+  syncLayoutToCurrentLine();
+});
+
+// Watch para quando a validação for concluída
+watch(() => validationStore.currentValidation, (newValidation) => {
+  if (newValidation) {
+    // Atualizar preview de registros se disponível
+    if (newValidation.preview_registros) {
+      previewRegistros.value = newValidation.preview_registros;
+    }
+    
+    // Atualizar tipos de registro encontrados
+    if (newValidation.tipos_registro_encontrados) {
+      tiposRegistroEncontrados.value = newValidation.tipos_registro_encontrados;
+      
+  // Sincronizar com o registro atual
+  syncLayoutToCurrentLine();
+    }
+  }
 });
 
 const currentRawLine = computed(
   () => fileLines.value[currentLineIndex.value] || ""
 );
 
-// Utilidades para agrupamento
-const normalizeName = (s) => String(s || "").trim().toUpperCase();
-const prefix5 = (s) => normalizeName(s).slice(0, 5);
-// Prefixo da linha atual (sem trim do conteúdo total para não afetar posições; apenas detecção do tipo)
-const currentLineKey = computed(() => (currentRawLine.value || "").slice(0, 5).toUpperCase());
-
-// Lista completa de campos (ou vazia)
-const allCampos = computed(() => layoutPreview.value?.campos ?? []);
-
-// Função removida - não mais necessária com paginação
-
-// Resetar para a primeira página quando mudar o layout
-watch(allCampos, () => {
-  paginaAtualCampos.value = 1;
-});
-
-// Todos os campos sem filtro (será paginado)
-const allVisibleCampos = computed(() => {
-  return allCampos.value;
-});
-
-// Paginação de campos
-const camposPorPagina = ref(50); // Mostrar 50 campos por página
-const paginaAtualCampos = ref(1);
-
-const totalPaginasCampos = computed(() => {
-  return Math.ceil(allVisibleCampos.value.length / camposPorPagina.value);
-});
-
-const visibleCampos = computed(() => {
-  const inicio = (paginaAtualCampos.value - 1) * camposPorPagina.value;
-  const fim = inicio + camposPorPagina.value;
-  return allVisibleCampos.value.slice(inicio, fim);
-});
-
-// Funções de navegação da paginação
-const proximaPaginaCampos = () => {
-  if (paginaAtualCampos.value < totalPaginasCampos.value) {
-    paginaAtualCampos.value++;
-  }
-};
-
-const paginaAnteriorCampos = () => {
-  if (paginaAtualCampos.value > 1) {
-    paginaAtualCampos.value--;
-  }
-};
-
-// Função de navegação direta removida - usando apenas botões anterior/próximo
-
-// Navegação removida - agora usamos paginação de campos
-
 const parseLine = (raw) => {
   if (!layoutPreview.value || !raw) return [];
-  const campos = visibleCampos.value;
-
-  // Detectar tipo de registro da linha atual
-  const lineType = raw.slice(0, 2); // Primeiros 2 chars
-  const tipoPrefix = `NFE${lineType}-`;
-
-  // Sanear linha: remover CR final e garantir comprimento mínimo com padding
-  let line = raw;
-  if (line.endsWith("\r")) line = line.slice(0, -1);
-  // Tabs não devem deslocar colunas; se existirem, trate como espaços
-  line = line.replace(/\t/g, " ");
-  const expected = layoutPreview.value?.tamanho_linha || line.length;
-  if (line.length < expected) {
-    line = line.padEnd(expected, " ");
-  }
-
-  return campos.map((c) => {
-    let valor = "";
-    let erro = null;
-
-    // LÓGICA PRINCIPAL: só extrair valor se o campo pertence ao tipo da linha
-    if (c.nome.startsWith(tipoPrefix)) {
-      // Campo pertence ao tipo da linha atual - extrair valor
-      const startIdx = Math.max(0, (c.posicao_inicio || 1) - 1);
-      const endExclusive = c.posicao_fim
-        ? c.posicao_fim
-        : startIdx + (c.tamanho || 0);
-      valor = line.slice(startIdx, endExclusive);
-
-      // Validar apenas campos que têm valor
-      const trimmed = valor.trim();
-      const tipo = (c.tipo || "").toUpperCase();
-      const overflow = c.tamanho ? valor.length > c.tamanho : false;
-      const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
-      const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(valor);
-      const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9 ]/.test(valor);
-
-      if (c.obrigatorio && trimmed.length === 0) {
-        erro = "Vazio obrigatório";
-      } else if (invalidNumero) {
-        erro = "Caracter inválido (NUMERO)";
-      } else if (invalidData) {
-        erro = "Data inválida (AAAAmmdd)";
-      } else if (invalidDecimal) {
-        erro = "Decimal inválido (somente dígitos)";
-      } else if (overflow) {
-        erro = `Excede (${valor.length}/${c.tamanho})`;
-      }
+  
+  // Se temos preview de registros do backend, usar eles
+  if (previewRegistros.value && previewRegistros.value.length > 0) {
+    const registro = previewRegistros.value[currentLineIndex.value];
+    if (registro && registro.campos) {
+      const tipoRegistro = registro.tipo_registro;
+      // Converter campos do objeto para array no formato esperado
+      return Object.entries(registro.campos).map(([nomeCampo, valorCampo]) => {
+        // Encontrar informações do campo no layout (com ou sem prefixo [Tipo X])
+        let campoInfo = layoutPreview.value.campos.find(c => c.nome === nomeCampo);
+        if (!campoInfo) {
+          campoInfo = layoutPreview.value.campos.find(c => c.nome.endsWith(nomeCampo) || c.nome.includes(` ${nomeCampo}`));
+        }
+        
+        const valor = valorCampo || '';
+        const tamanho = campoInfo?.tamanho || valor.length;
+        const tipo = (campoInfo?.tipo || 'TEXTO').toUpperCase();
+        const obrigatorio = campoInfo?.obrigatorio || false;
+        
+        // Validação básica
+        const trimmed = valor.trim();
+        const overflow = valor.length > tamanho;
+        const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
+        const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(trimmed);
+        const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9., ]/.test(valor);
+        
+        let erro = null;
+        if (obrigatorio && trimmed.length === 0) {
+          erro = "Vazio obrigatório";
+        } else if (invalidNumero) {
+          erro = "Caracter inválido (NUMERO)";
+        } else if (invalidData) {
+          erro = "Data inválida (AAAAmmdd)";
+        } else if (invalidDecimal) {
+          erro = "Decimal inválido";
+        } else if (overflow) {
+          erro = `Excede (${valor.length}/${tamanho})`;
+        }
+        
+        return {
+          nome: nomeCampo,
+          pos_inicio: campoInfo?.posicao_inicio || 0,
+          pos_fim: campoInfo?.posicao_fim || (campoInfo?.posicao_inicio || 0) + tamanho,
+          tamanho: tamanho,
+          valor: valor,
+          display: (valor || "").replace(/ /g, "·") || "(vazio)",
+          erro: erro
+        };
+      });
     }
-    // Caso contrário, campo fica vazio (é de outro tipo)
-
+  }
+  
+  // Método antigo: parsear manualmente da linha raw
+  const campos =
+    (organizarLayout.value && organizarLayout.value.length
+      ? organizarLayout.value
+      : layoutPreview.value?.campos) || [];
+  return campos.map((c) => {
+    const startIdx = c.posicao_inicio - 1;
+    const endIdx = c.posicao_fim
+      ? c.posicao_fim
+      : c.posicao_inicio - 1 + c.tamanho;
+    let valor = raw.slice(startIdx, endIdx);
+    const trimmed = valor.trim();
+    const tipo = (c.tipo || "").toUpperCase();
+    // Apenas erro se exceder o tamanho; valores menores (preenchimento parcial) são permitidos
+    const overflow = valor.length > c.tamanho;
+    const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
+    const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(valor);
+    const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9 ]/.test(valor);
+    let erro = null;
+    if (c.obrigatorio && trimmed.length === 0) {
+      erro = "Vazio obrigatório";
+    } else if (invalidNumero) {
+      erro = "Caracter inválido (NUMERO)";
+    } else if (invalidData) {
+      erro = "Data inválida (AAAAmmdd)";
+    } else if (invalidDecimal) {
+      erro = "Decimal inválido (somente dígitos)";
+    } else if (overflow) {
+      erro = `Excede (${valor.length}/${c.tamanho})`;
+    }
     return {
       nome: c.nome,
       pos_inicio: c.posicao_inicio,
-      pos_fim: c.posicao_fim || (c.posicao_inicio + c.tamanho - 1),
+      pos_fim: c.posicao_fim || endIdx,
       tamanho: c.tamanho,
       valor,
       display: (valor || "").replace(/ /g, "·") || "(vazio)",
@@ -805,21 +794,25 @@ const nextRecord = () => {
   if (currentLineIndex.value < totalLines.value - 1) {
     currentLineIndex.value++;
     jumpLine.value = currentLineIndex.value + 1;
+    syncLayoutToCurrentLine();
   }
 };
 const prevRecord = () => {
   if (currentLineIndex.value > 0) {
     currentLineIndex.value--;
     jumpLine.value = currentLineIndex.value + 1;
+    syncLayoutToCurrentLine();
   }
 };
 const firstRecord = () => {
   currentLineIndex.value = 0;
   jumpLine.value = 1;
+  syncLayoutToCurrentLine();
 };
 const lastRecord = () => {
   currentLineIndex.value = totalLines.value - 1;
   jumpLine.value = totalLines.value;
+  syncLayoutToCurrentLine();
 };
 const jumpToLine = () => {
   if (!jumpLine.value) return;
@@ -828,5 +821,6 @@ const jumpToLine = () => {
   if (idx > totalLines.value - 1) idx = totalLines.value - 1;
   currentLineIndex.value = idx;
   jumpLine.value = idx + 1;
+  syncLayoutToCurrentLine();
 };
 </script>

@@ -1,0 +1,21 @@
+
+=== RELATÓRIO DE VALIDAÇÃO ===
+Layout: Multi-Registro (47 tipos)
+Data/Hora: 29/10/2025 16:55:51
+
+=== ESTATÍSTICAS ===
+Total de linhas: 519
+Linhas válidas: 444
+Linhas com erro: 75
+Taxa de sucesso: 85.55%
+
+=== TIPOS DE ERROS ===
+CAMPO_OBRIGATORIO: 101 ocorrências
+
+=== ERROS POR CAMPO ===
+NFE01-DV-CHV-NFCOM: 26 erros
+NFE01-NUM-SITE: 26 erros
+NFE62-END-FAT-NOME-PAIS: 21 erros
+NFE64-PIX-URL-QRCODE: 21 erros
+NFE02-NOME-EMIT: 6 erros
+NFE00-VERSAO-LAYOUT: 1 erros

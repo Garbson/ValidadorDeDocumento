@@ -53,11 +53,20 @@ class EstatisticasResponse(BaseModel):
     campos_com_erro: Dict[str, int]
 
 
+class RegistroPreviewResponse(BaseModel):
+    """Preview de um registro parseado com seus campos"""
+    linha: int
+    tipo_registro: str
+    campos: Dict[str, str]  # nome_campo -> valor
+
+
 class ValidacaoCompleta(BaseModel):
     layout: LayoutResponse
     resultado: ResultadoValidacaoResponse
     estatisticas: EstatisticasResponse
     timestamp: str
+    preview_registros: Optional[List[RegistroPreviewResponse]] = None  # Preview dos primeiros registros
+    tipos_registro_encontrados: Optional[List[str]] = None  # Tipos encontrados no arquivo
 
 
 class StatusResponse(BaseModel):

@@ -25,13 +25,13 @@ from src.layout_normalizer import (
 from src.file_validator import ValidadorArquivo
 from src.multi_record_validator import MultiRecordValidator
 from src.report_generator import GeradorRelatorio
-from src.models import TipoCampo
+from src.models import TipoCampo, Layout
 
 from .models import (
     LayoutResponse, CampoLayoutResponse, TipoCampoAPI,
     ResultadoValidacaoResponse, ErroValidacaoResponse,
     EstatisticasResponse, ValidacaoCompleta,
-    StatusResponse, ErrorResponse
+    StatusResponse, ErrorResponse, RegistroPreviewResponse
 )
 
 app = FastAPI(
@@ -172,7 +172,7 @@ async def validar_layout(
 
         # Tentar carregar como multi-registro primeiro
         try:
-            sheet_index = sheet_name if sheet_name is not None else 1  # Default para aba 1
+            sheet_index = sheet_name if sheet_name is not None else 0  # Default para aba 0 (primeira aba)
             multi_validator = MultiRecordValidator(str(temp_layout), sheet_index)
 
             # Criar layout combinado com TODOS os campos de TODOS os tipos
@@ -491,19 +491,120 @@ async def validar_arquivo_completo(
             content = await data_file.read()
             buffer.write(content)
 
-        # Usar MultiRecordValidator para suportar todos os tipos de registro
-        sheet_index = sheet_name if sheet_name is not None else 1  # Default para aba 1 (layout detalhado)
-        validador = MultiRecordValidator(str(temp_layout), sheet_index)
-        resultado = validador.validar_arquivo(str(temp_data), max_erros)
+        # Detectar se é layout normalizado ou multi-registro
+        sheet_index = sheet_name if sheet_name is not None else 0  # Default para aba 0 (primeira aba)
+        
+        # Variáveis para preview de registros
+        preview_registros_data = []
+        tipos_encontrados = []
 
-        # Para compatibilidade, criar um layout fictício baseado no primeiro tipo disponível
-        if validador.layouts_por_tipo:
-            primeiro_tipo = sorted(validador.layouts_por_tipo.keys())[0]
-            layout = validador.layouts_por_tipo[primeiro_tipo]
+        def is_normalized_layout(filename):
+            """Detecta se é um layout normalizado pelo nome do arquivo"""
+            return 'layout_normalizado' in filename.lower()
+
+        def is_multi_record_layout(layout_path, sheet_idx):
+            """Detecta se é um layout multi-registro"""
+            try:
+                import pandas as pd
+                df = pd.read_excel(layout_path, sheet_name=sheet_idx, header=1)
+                df_clean = df[df['Campo'].notna() & (df['Campo'] != 'Campo')].copy()
+
+                # Verificar se há campos com padrão NFE##-
+                tipos_encontrados = set()
+                for _, row in df_clean.iterrows():
+                    campo_nome = str(row['Campo'])
+                    if 'NFE' in campo_nome and '-' in campo_nome:
+                        tipo = campo_nome.split('-')[0].replace('NFE', '')
+                        if tipo.isdigit():
+                            tipos_encontrados.add(tipo)
+
+                return len(tipos_encontrados) > 1
+            except:
+                return False
+
+        def detect_data_file_structure(data_path):
+            """Detecta se o arquivo de dados tem estrutura multi-registro (linha por linha)"""
+            try:
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    tipos_encontrados = set()
+                    for i, linha in enumerate(f):
+                        if i >= 20:  # Verificar apenas primeiras 20 linhas
+                            break
+                        linha = linha.strip()
+                        if len(linha) >= 2:
+                            tipo = linha[:2]
+                            if tipo.isdigit():
+                                tipos_encontrados.add(tipo)
+                    return len(tipos_encontrados) > 1
+            except:
+                return False
+
+        # LÓGICA CORRIGIDA: Detectar estrutura do arquivo de dados primeiro
+        data_is_multi_record = detect_data_file_structure(str(temp_data))
+        layout_is_normalized = is_normalized_layout(layout_file.filename)
+        layout_is_multi_record = is_multi_record_layout(str(temp_layout), sheet_index)
+
+        if data_is_multi_record:
+            # Arquivo de dados tem múltiplos tipos - SEMPRE usar MultiRecordValidator
+            if layout_is_normalized:
+                # Layout normalizado + arquivo multi-registro = ERRO DE CONCEITO!
+                # Precisa usar o layout original multi-registro
+                raise HTTPException(
+                    status_code=400,
+                    detail="ERRO: Layout normalizado não pode ser usado com arquivo multi-registro. Use o layout Excel original."
+                )
+            else:
+                # Usar MultiRecordValidator com layout original
+                validador = MultiRecordValidator(str(temp_layout), sheet_index)
+                resultado = validador.validar_arquivo(str(temp_data), max_erros)
+                
+                # Gerar preview de registros parseados
+                preview_registros_data, tipos_encontrados = validador.parsear_linhas_preview(str(temp_data), max_linhas=20)
+
+                # Criar layout combinado com TODOS os campos de TODOS os tipos para preview
+                if validador.layouts_por_tipo:
+                    # Combinar todos os campos de todos os tipos
+                    from src.models import CampoLayout
+                    todos_campos = []
+
+                    for tipo in sorted(validador.layouts_por_tipo.keys()):
+                        layout_tipo = validador.layouts_por_tipo[tipo]
+                        for campo in layout_tipo.campos:
+                            # Prefixar com tipo para identificação no preview
+                            campo_preview = CampoLayout(
+                                nome=f"[Tipo {tipo}] {campo.nome}",
+                                posicao_inicio=campo.posicao_inicio,
+                                tamanho=campo.tamanho,
+                                tipo=campo.tipo,
+                                obrigatorio=campo.obrigatorio,
+                                formato=campo.formato
+                            )
+                            todos_campos.append(campo_preview)
+
+                    # Criar layout combinado para preview
+                    layout = Layout(
+                        nome=f"Multi-Registro ({len(validador.layouts_por_tipo)} tipos)",
+                        campos=todos_campos,
+                        tamanho_linha=540
+                    )
+                else:
+                    # Fallback para o método antigo se não conseguir carregar tipos
+                    parser = LayoutParser()
+                    layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
         else:
-            # Fallback para o método antigo se não conseguir carregar tipos
-            parser = LayoutParser()
-            layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
+            # Arquivo tem estrutura simples/concatenada
+            if layout_is_normalized:
+                # Layout normalizado + arquivo simples = OK
+                parser = LayoutParser()
+                layout = parser.parse_excel(str(temp_layout), sheet_name=0)  # Layouts normalizados usam aba 0
+                validador = ValidadorArquivo(layout)
+                resultado = validador.validar_arquivo(str(temp_data), max_erros)
+            else:
+                # Layout original + arquivo simples = usar validador padrão
+                parser = LayoutParser()
+                layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
+                validador = ValidadorArquivo(layout)
+                resultado = validador.validar_arquivo(str(temp_data), max_erros)
 
         # Converter para responses
         layout_response = converter_layout_para_response(layout)
@@ -514,11 +615,29 @@ async def validar_arquivo_completo(
         gerador = GeradorRelatorio(resultado, layout)
         relatorio_paths = gerador.gerar_relatorio_completo(str(REPORTS_DIR))
 
+        # Preparar dados de preview de registros se for multi-registro
+        preview_registros = None
+        tipos_registro = None
+        
+        if data_is_multi_record and not layout_is_normalized:
+            # Converter preview para response
+            preview_registros = [
+                RegistroPreviewResponse(
+                    linha=reg['linha'],
+                    tipo_registro=reg['tipo_registro'],
+                    campos=reg['campos']
+                )
+                for reg in preview_registros_data
+            ]
+            tipos_registro = tipos_encontrados
+
         validacao_completa = ValidacaoCompleta(
             layout=layout_response,
             resultado=resultado_response,
             estatisticas=estatisticas_response,
-            timestamp=timestamp
+            timestamp=timestamp,
+            preview_registros=preview_registros,
+            tipos_registro_encontrados=tipos_registro
         )
 
         return validacao_completa

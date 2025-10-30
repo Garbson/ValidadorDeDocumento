@@ -1,3 +1,4 @@
+
 <template>
   <div class="space-y-6">
     <div class="text-center">
@@ -112,11 +113,11 @@
 
 <script setup>
 import LayoutMapper from '@/components/LayoutMapper.vue'
+import { useTempStore } from '@/stores/temp'
 import { useValidationStore } from '@/stores/validation'
 import { FileSpreadsheet, Upload } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTempStore } from '@/stores/temp'
 
 const router = useRouter()
 const validationStore = useValidationStore()

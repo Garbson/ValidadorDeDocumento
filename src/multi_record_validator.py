@@ -18,7 +18,7 @@ except ImportError:
 class MultiRecordValidator:
     """Validador que suporta múltiplos tipos de registro"""
 
-    def __init__(self, excel_path: str, sheet_name: int = 1):
+    def __init__(self, excel_path: str, sheet_name: int = 0):
         self.excel_path = excel_path
         self.sheet_name = sheet_name
         self.layouts_por_tipo: Dict[str, Layout] = {}
@@ -27,7 +27,7 @@ class MultiRecordValidator:
 
     def _carregar_layouts(self):
         """Carrega layouts para todos os tipos de registro"""
-        df = pd.read_excel(self.excel_path, sheet_name=self.sheet_name, header=1)
+        df = pd.read_excel(self.excel_path, sheet_name=self.sheet_name, header=0)
         df_clean = df[df['Campo'].notna() & (df['Campo'] != 'Campo')].copy()
 
         # Identificar todos os tipos de registro
@@ -56,15 +56,20 @@ class MultiRecordValidator:
         """Cria arquivo de layout para um tipo específico"""
         campos_tipo = df_clean[df_clean['Campo'].str.contains(f'NFE{tipo}-', na=False)]
 
+        # Ordenar por posição original para manter a ordem correta
+        campos_tipo = campos_tipo.sort_values('Posicao_Inicio')
+
         campos_convertidos = []
+        posicao_atual = 1  # RESETAR posições para cada tipo começar em 1
+
         for _, row in campos_tipo.iterrows():
             campo_nome = str(row['Campo'])
-            posicao_inicio = int(row['De'])
-            tamanho = int(row['Tam'])
+            tamanho = int(row['Tamanho'])
             tipo_campo = str(row['Tipo']).upper()
-            obrigatorio = str(row['Preenc\nSovos']).upper() in ['OBRIG', 'OBRIGATORIO']
+            obrigatorio = str(row['Obrigatorio']).upper() in ['S', 'SIM', 'OBRIG', 'OBRIGATORIO']
+            formato = row.get('Formato', None)
 
-            # Converter tipos
+            # Converter tipos se necessário
             if tipo_campo == 'NUM':
                 tipo_campo = 'NUMERO'
             elif tipo_campo == 'ALFA':
@@ -72,12 +77,15 @@ class MultiRecordValidator:
 
             campos_convertidos.append({
                 'Campo': campo_nome,
-                'Posicao_Inicio': posicao_inicio,
+                'Posicao_Inicio': posicao_atual,  # Usar posição resetada
                 'Tamanho': tamanho,
                 'Tipo': tipo_campo,
                 'Obrigatorio': 'S' if obrigatorio else 'N',
-                'Formato': None
+                'Formato': formato if pd.notna(formato) else None
             })
+
+            # Avançar posição para próximo campo
+            posicao_atual += tamanho
 
         # Salvar layout temporário
         layout_path = f'layout_tipo_{tipo}.xlsx'
@@ -169,3 +177,78 @@ class MultiRecordValidator:
             erros=todos_erros,
             taxa_sucesso=0.0  # Será calculado no __post_init__
         )
+
+    def parsear_linhas_preview(self, caminho_arquivo: str, max_linhas: int = 20) -> Tuple[List[Dict], List[str]]:
+        """
+        Parseia as primeiras linhas do arquivo e retorna preview organizado por tipo
+        
+        Returns:
+            Tuple com (lista de registros parseados, lista de tipos encontrados)
+        """
+        registros_preview = []
+        tipos_encontrados = set()
+        
+        try:
+            with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    if numero_linha > max_linhas:
+                        break
+                    
+                    linha = linha.rstrip('\n\r')
+                    
+                    # Detectar tipo
+                    tipo_registro = self.detectar_tipo_registro(linha)
+                    tipos_encontrados.add(tipo_registro)
+                    
+                    # Parsear campos se temos layout para esse tipo
+                    campos_parseados = {}
+                    if tipo_registro in self.layouts_por_tipo:
+                        layout = self.layouts_por_tipo[tipo_registro]
+                        
+                        # Padding se necessário
+                        if len(linha) < layout.tamanho_linha:
+                            linha = linha.ljust(layout.tamanho_linha)
+                        
+                        # Extrair cada campo
+                        for campo in layout.campos:
+                            inicio = campo.posicao_inicio - 1
+                            fim = campo.posicao_fim
+                            valor = linha[inicio:fim] if inicio < len(linha) else ''
+                            campos_parseados[campo.nome] = valor.strip()
+                    
+                    registros_preview.append({
+                        'linha': numero_linha,
+                        'tipo_registro': tipo_registro,
+                        'campos': campos_parseados
+                    })
+        
+        except UnicodeDecodeError:
+            # Tentar com latin-1
+            with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    if numero_linha > max_linhas:
+                        break
+                    
+                    linha = linha.rstrip('\n\r')
+                    tipo_registro = self.detectar_tipo_registro(linha)
+                    tipos_encontrados.add(tipo_registro)
+                    
+                    campos_parseados = {}
+                    if tipo_registro in self.layouts_por_tipo:
+                        layout = self.layouts_por_tipo[tipo_registro]
+                        if len(linha) < layout.tamanho_linha:
+                            linha = linha.ljust(layout.tamanho_linha)
+                        
+                        for campo in layout.campos:
+                            inicio = campo.posicao_inicio - 1
+                            fim = campo.posicao_fim
+                            valor = linha[inicio:fim] if inicio < len(linha) else ''
+                            campos_parseados[campo.nome] = valor.strip()
+                    
+                    registros_preview.append({
+                        'linha': numero_linha,
+                        'tipo_registro': tipo_registro,
+                        'campos': campos_parseados
+                    })
+        
+        return registros_preview, sorted(list(tipos_encontrados))

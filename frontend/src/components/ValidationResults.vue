@@ -111,6 +111,56 @@
       </div>
     </div>
 
+    <!-- Layout Preview -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="text-lg font-semibold flex items-center">
+          <FileText class="w-5 h-5 mr-2" />
+          Layout Detectado: {{ validationStore.currentValidation.layout.nome }}
+          <span class="ml-2 text-sm text-gray-500">({{ validationStore.currentValidation.layout.campos.length }} campos)</span>
+        </h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="overflow-x-auto max-h-96">
+          <table class="table">
+            <thead class="table-header sticky top-0 bg-gray-50">
+              <tr>
+                <th class="table-header-cell">Campo</th>
+                <th class="table-header-cell">Posição</th>
+                <th class="table-header-cell">Tamanho</th>
+                <th class="table-header-cell">Tipo</th>
+                <th class="table-header-cell">Obrigatório</th>
+                <th class="table-header-cell">Formato</th>
+              </tr>
+            </thead>
+            <tbody class="table-body">
+              <tr v-for="campo in validationStore.currentValidation.layout.campos"
+                  :key="campo.nome"
+                  class="hover:bg-gray-50">
+                <td class="table-cell font-medium">
+                  <span v-if="campo.nome.includes('[Tipo')"
+                        :class="`text-xs px-2 py-1 rounded mr-2 ${getTipoBadgeColor(campo.nome)}`">
+                    {{ campo.nome.match(/\[Tipo (\w+)\]/)?.[1] || '??' }}
+                  </span>
+                  {{ campo.nome.replace(/\[Tipo \w+\]\s*/, '') }}
+                </td>
+                <td class="table-cell font-mono text-sm">{{ campo.posicao_inicio }}-{{ campo.posicao_fim }}</td>
+                <td class="table-cell font-mono text-sm">{{ campo.tamanho }}</td>
+                <td class="table-cell">
+                  <span :class="getTipoCampoClass(campo.tipo)">{{ campo.tipo }}</span>
+                </td>
+                <td class="table-cell">
+                  <span v-if="campo.obrigatorio" class="text-red-600 font-semibold">✓ Sim</span>
+                  <span v-else class="text-gray-400">Não</span>
+                </td>
+                <td class="table-cell text-sm">{{ campo.formato || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Detalhes dos Erros -->
     <ErrorsTable
       v-if="validationStore.hasErrors"
@@ -146,6 +196,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Download,
+  FileText,
   RefreshCw,
   XCircle,
 } from "lucide-vue-next";
@@ -198,5 +249,32 @@ const getStatusDescription = (rate) => {
   if (rate >= 80)
     return "O arquivo tem boa qualidade, mas requer algumas correções.";
   return "O arquivo apresenta muitos erros e necessita revisão completa.";
+};
+
+const getTipoBadgeColor = (nomeComTipo) => {
+  const tipo = nomeComTipo.match(/\[Tipo (\w+)\]/)?.[1];
+  const colors = {
+    '00': 'bg-blue-100 text-blue-800',
+    '01': 'bg-green-100 text-green-800',
+    '02': 'bg-yellow-100 text-yellow-800',
+    '04': 'bg-red-100 text-red-800',
+    '06': 'bg-purple-100 text-purple-800',
+    '08': 'bg-pink-100 text-pink-800',
+    '10': 'bg-indigo-100 text-indigo-800',
+    '20': 'bg-orange-100 text-orange-800',
+    '22': 'bg-teal-100 text-teal-800',
+    '90': 'bg-gray-100 text-gray-800',
+  };
+  return colors[tipo] || 'bg-gray-100 text-gray-800';
+};
+
+const getTipoCampoClass = (tipo) => {
+  const classes = {
+    'TEXTO': 'badge badge-info',
+    'NUMERO': 'badge badge-success',
+    'DATA': 'badge badge-warning',
+    'DECIMAL': 'badge badge-error'
+  };
+  return classes[tipo] || 'badge badge-info';
 };
 </script>

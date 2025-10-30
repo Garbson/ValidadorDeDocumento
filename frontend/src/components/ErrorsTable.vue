@@ -23,7 +23,7 @@
               <option :value="25">25</option>
               <option :value="50">50</option>
               <option :value="100">100</option>
-              <option :value="filteredErrors.length">Todos</option>
+              <option :value="9999">Todos</option>
             </select>
           </div>
         </div>
@@ -172,20 +172,24 @@ const filteredErrors = computed(() => {
 })
 
 const totalPages = computed(() => {
+  if (itemsPerPage.value >= 9999) return 1
   return Math.ceil(filteredErrors.value.length / itemsPerPage.value)
 })
 
 const paginatedErrors = computed(() => {
+  if (itemsPerPage.value >= 9999) return filteredErrors.value
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredErrors.value.slice(start, end)
 })
 
 const startItem = computed(() => {
+  if (itemsPerPage.value >= 9999) return 1
   return (currentPage.value - 1) * itemsPerPage.value + 1
 })
 
 const endItem = computed(() => {
+  if (itemsPerPage.value >= 9999) return filteredErrors.value.length
   return Math.min(currentPage.value * itemsPerPage.value, filteredErrors.value.length)
 })
 

@@ -143,7 +143,41 @@ class LayoutParser:
             raise ValueError(f"Erro ao processar Excel: {str(e)}")
 
     def _validar_sobreposicoes(self, campos: List[CampoLayout]) -> None:
-        """Valida se há sobreposições entre campos"""
+        """Valida se há sobreposições entre campos
+
+        Para arquivos multiregistro (campos com padrão NFE[XX]-), verifica sobreposições
+        apenas dentro do mesmo tipo de registro, pois cada tipo representa linhas separadas.
+        """
+        import re
+
+        # Detectar se é arquivo multiregistro
+        is_multirecord = any(re.match(r'NFE\d+-', campo.nome) for campo in campos)
+
+        if is_multirecord:
+            # Para multiregistro: agrupar campos por tipo de registro
+            campos_por_tipo = {}
+            for campo in campos:
+                match = re.match(r'NFE(\d+)-', campo.nome)
+                if match:
+                    tipo_registro = match.group(1)
+                    if tipo_registro not in campos_por_tipo:
+                        campos_por_tipo[tipo_registro] = []
+                    campos_por_tipo[tipo_registro].append(campo)
+                else:
+                    # Campos sem padrão NFE[XX]- são tratados como tipo "00" por padrão
+                    if "00" not in campos_por_tipo:
+                        campos_por_tipo["00"] = []
+                    campos_por_tipo["00"].append(campo)
+
+            # Validar sobreposições dentro de cada tipo de registro
+            for tipo_registro, campos_do_tipo in campos_por_tipo.items():
+                self._validar_sobreposicoes_simples(campos_do_tipo, f"tipo {tipo_registro}")
+        else:
+            # Para arquivo normal: validar sobreposições globalmente
+            self._validar_sobreposicoes_simples(campos)
+
+    def _validar_sobreposicoes_simples(self, campos: List[CampoLayout], contexto: str = "") -> None:
+        """Valida sobreposições em uma lista de campos"""
         campos_ordenados = sorted(campos, key=lambda c: c.posicao_inicio)
 
         for i in range(len(campos_ordenados) - 1):
@@ -151,8 +185,9 @@ class LayoutParser:
             campo_proximo = campos_ordenados[i + 1]
 
             if campo_atual.posicao_fim >= campo_proximo.posicao_inicio:
+                contexto_msg = f" ({contexto})" if contexto else ""
                 raise ValueError(
                     f"Sobreposição detectada entre campos '{campo_atual.nome}' "
                     f"(posições {campo_atual.posicao_inicio}-{campo_atual.posicao_fim}) e "
-                    f"'{campo_proximo.nome}' (posições {campo_proximo.posicao_inicio}-{campo_proximo.posicao_fim})"
+                    f"'{campo_proximo.nome}' (posições {campo_proximo.posicao_inicio}-{campo_proximo.posicao_fim}){contexto_msg}"
                 )
