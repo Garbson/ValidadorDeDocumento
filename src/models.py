@@ -65,6 +65,7 @@ class DiferencaEstruturalCampo:
     valor_validado: str
     tipo_diferenca: str  # 'TAMANHO', 'FORMATO', 'CAMPO_VAZIO', 'CONTEUDO'
     descricao: str
+    sequencia_campo: int = 0  # Sequência do campo (1, 2, 3, etc.)
 
 
 @dataclass
@@ -76,6 +77,7 @@ class DiferencaEstruturalLinha:
     arquivo_validado_linha: str
     diferencas_campos: List[DiferencaEstruturalCampo]
     total_diferencas: int
+    linha_numeracao: str = ""  # Linha com numeração dos campos
 
 
 @dataclass

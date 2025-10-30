@@ -143,31 +143,28 @@ class LayoutParser:
             raise ValueError(f"Erro ao processar Excel: {str(e)}")
 
     def _validar_sobreposicoes(self, campos: List[CampoLayout]) -> None:
-        """Valida se há sobreposições entre campos
+        """Valida se há sobreposições entre campos.
 
-        Para arquivos multiregistro (campos com padrão NFE[XX]-), verifica sobreposições
-        apenas dentro do mesmo tipo de registro, pois cada tipo representa linhas separadas.
+        Para arquivos multiregistro (campos com padrão NFE[XX]- ou NFCOM[XX]-),
+        verifica sobreposições apenas dentro do mesmo tipo de registro, pois cada
+        tipo representa linhas separadas.
         """
         import re
 
-        # Detectar se é arquivo multiregistro
-        is_multirecord = any(re.match(r'NFE\d+-', campo.nome) for campo in campos)
+        # Detectar se é arquivo multiregistro (aceita NFE##- e NFCOM##-)
+        is_multirecord = any(re.match(r'(?:NFE|NFCOM)\d+-', campo.nome) for campo in campos)
 
         if is_multirecord:
             # Para multiregistro: agrupar campos por tipo de registro
-            campos_por_tipo = {}
+            campos_por_tipo: Dict[str, List[CampoLayout]] = {}
             for campo in campos:
-                match = re.match(r'NFE(\d+)-', campo.nome)
+                match = re.match(r'(?:NFE|NFCOM)(\d+)-', campo.nome)
                 if match:
                     tipo_registro = match.group(1)
-                    if tipo_registro not in campos_por_tipo:
-                        campos_por_tipo[tipo_registro] = []
-                    campos_por_tipo[tipo_registro].append(campo)
+                    campos_por_tipo.setdefault(tipo_registro, []).append(campo)
                 else:
-                    # Campos sem padrão NFE[XX]- são tratados como tipo "00" por padrão
-                    if "00" not in campos_por_tipo:
-                        campos_por_tipo["00"] = []
-                    campos_por_tipo["00"].append(campo)
+                    # Campos sem padrão são tratados como tipo "00" por padrão
+                    campos_por_tipo.setdefault("00", []).append(campo)
 
             # Validar sobreposições dentro de cada tipo de registro
             for tipo_registro, campos_do_tipo in campos_por_tipo.items():

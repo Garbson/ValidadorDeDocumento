@@ -16,14 +16,31 @@ except ImportError:
 class ComparadorEstruturalArquivos:
     """Comparador estrutural que analisa diferenças entre arquivo base e arquivo a ser validado"""
 
-    def __init__(self, layout: Layout):
-        self.layout = layout
+    def __init__(self, layout: Layout, show_all_lines: bool = True):
+        """Inicializa o comparador.
 
-    def extrair_campos_linha(self, linha: str) -> Dict[str, str]:
-        """Extrai os campos de uma linha baseado no layout"""
+        Args:
+            layout: Layout a ser utilizado para extração/validação estrutural.
+            show_all_lines: Quando True, inclui também linhas sem diferenças (idênticas)
+                no resultado e no relatório; quando False, mantém o comportamento antigo
+                mostrando apenas linhas com diferenças.
+        """
+        self.layout = layout
+        self.show_all_lines = show_all_lines
+
+    def extrair_campos_linha(self, linha: str, tipo_registro: Optional[str] = None) -> Dict[str, str]:
+        """Extrai os campos de uma linha baseado no layout, filtrado por tipo de registro se especificado"""
         campos_extraidos = {}
 
-        for campo in self.layout.campos:
+        # Filtrar campos pelo tipo de registro se especificado
+        campos_para_extrair = self.layout.campos
+        if tipo_registro:
+            campos_para_extrair = [
+                campo for campo in self.layout.campos
+                if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
+            ]
+
+        for campo in campos_para_extrair:
             # Ajustar índices (layout usa 1-indexed, Python usa 0-indexed)
             inicio = campo.posicao_inicio - 1
             fim = campo.posicao_fim
@@ -38,39 +55,52 @@ class ComparadorEstruturalArquivos:
 
         return campos_extraidos
 
+    def _campo_pertence_ao_tipo(self, nome_campo: str, tipo_registro: str) -> bool:
+        """Verifica se um campo pertence a um tipo de registro específico"""
+        # Padrão: NFE{tipo}-CAMPO ou NFCOM{tipo}-CAMPO; ou campos sem prefixo específico
+        if f"NFE{tipo_registro}-" in nome_campo or f"NFCOM{tipo_registro}-" in nome_campo:
+            return True
+
+        # Para layouts simples sem prefixo, considera todos os campos
+        if not (nome_campo.startswith("NFE") or nome_campo.startswith("NFCOM")):
+            return True
+
+        return False
+
     def detectar_tipo_registro(self, linha: str) -> str:
-        """Detecta o tipo de registro baseado nos primeiros caracteres da linha"""
-        if not linha:
+        """Detecta o tipo de registro baseado nos primeiros 2 caracteres da linha"""
+        if not linha or len(linha) < 2:
             return "LINHA_VAZIA"
 
-        # Verificar se existe um campo específico para tipo de registro
-        for campo in self.layout.campos:
-            if 'tipo' in campo.nome.lower() or 'registro' in campo.nome.lower():
-                inicio = campo.posicao_inicio - 1
-                fim = campo.posicao_fim
-                tipo_valor = linha[inicio:fim] if fim <= len(linha) else linha[inicio:]
-                return f"TIPO_{tipo_valor.strip()}"
+        # Sempre usar os primeiros 2 caracteres como tipo de registro
+        tipo = linha[:2]
+        return tipo
 
-        # Fallback: usar os primeiros 2-3 caracteres
-        return f"TIPO_{linha[:3].strip()}"
-
-    def comparar_campos_linha(self, linha_base: str, linha_validado: str, numero_linha: int) -> List[DiferencaEstruturalCampo]:
-        """Compara os campos de duas linhas e retorna as diferenças encontradas"""
+    def comparar_campos_linha(self, linha_base: str, linha_validado: str, numero_linha: int, tipo_registro: str) -> List[DiferencaEstruturalCampo]:
+        """Compara os campos de duas linhas e retorna as diferenças encontradas, filtrado por tipo de registro"""
         diferencas = []
 
-        campos_base = self.extrair_campos_linha(linha_base)
-        campos_validado = self.extrair_campos_linha(linha_validado)
+        # Extrair campos filtrados pelo tipo de registro
+        campos_base = self.extrair_campos_linha(linha_base, tipo_registro)
+        campos_validado = self.extrair_campos_linha(linha_validado, tipo_registro)
 
-        for campo in self.layout.campos:
+        # Obter apenas os campos deste tipo de registro
+        campos_do_tipo = [
+            campo for campo in self.layout.campos
+            if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
+        ]
+
+        for sequencia, campo in enumerate(campos_do_tipo, 1):
             valor_base = campos_base.get(campo.nome, '')
             valor_validado = campos_validado.get(campo.nome, '')
 
-            # Verificar se os valores são diferentes
-            if valor_base != valor_validado:
-                tipo_diferenca, descricao = self._analisar_tipo_diferenca(
-                    campo, valor_base, valor_validado
-                )
+            # Analisar diferenças estruturais (formato, obrigatoriedade, tamanho)
+            tipo_diferenca, descricao = self._analisar_tipo_diferenca(
+                campo, valor_base, valor_validado
+            )
 
+            # Só adicionar se houver problema estrutural real
+            if tipo_diferenca and descricao:
                 diferenca = DiferencaEstruturalCampo(
                     nome_campo=campo.nome,
                     posicao_inicio=campo.posicao_inicio,
@@ -78,38 +108,50 @@ class ComparadorEstruturalArquivos:
                     valor_base=valor_base,
                     valor_validado=valor_validado,
                     tipo_diferenca=tipo_diferenca,
-                    descricao=descricao
+                    descricao=descricao,
+                    sequencia_campo=sequencia
                 )
                 diferencas.append(diferenca)
 
         return diferencas
 
     def _analisar_tipo_diferenca(self, campo, valor_base: str, valor_validado: str) -> Tuple[str, str]:
-        """Analisa o tipo de diferença entre dois valores de campo"""
+        """Analisa diferenças estruturais (formato, obrigatoriedade, tamanho) entre campos"""
 
-        # Verificar campo vazio que deveria ter conteúdo
-        if valor_base.strip() and not valor_validado.strip():
-            return "CAMPO_VAZIO", f"Campo '{campo.nome}' está vazio no arquivo validado mas contém '{valor_base.strip()}' no arquivo base"
+        # Considerar vazio apenas se for string vazia ou só espaços
+        base_eh_vazio = not valor_base or valor_base.isspace()
+        validado_eh_vazio = not valor_validado or valor_validado.isspace()
 
-        # Verificar campo com conteúdo que deveria estar vazio
-        if not valor_base.strip() and valor_validado.strip():
-            return "CAMPO_EXTRA", f"Campo '{campo.nome}' contém '{valor_validado.strip()}' no arquivo validado mas está vazio no arquivo base"
+        # 1. VERIFICAR OBRIGATORIEDADE
+        if campo.obrigatorio and validado_eh_vazio:
+            return "CAMPO_OBRIGATORIO", f"Campo obrigatório '{campo.nome}' está vazio no arquivo validado"
 
-        # Verificar diferença de tamanho
-        if len(valor_base) != len(valor_validado):
-            return "TAMANHO", f"Campo '{campo.nome}' tem tamanho diferente: base={len(valor_base)} chars, validado={len(valor_validado)} chars"
+        # 2. VERIFICAR TAMANHO (apenas se ambos não estiverem vazios)
+        if not base_eh_vazio and not validado_eh_vazio:
+            if len(valor_base) != len(valor_validado):
+                return "TAMANHO", f"Campo '{campo.nome}' tem tamanho diferente: base={len(valor_base)} chars, validado={len(valor_validado)} chars"
 
-        # Verificar formato baseado no tipo do campo
-        if campo.tipo == TipoCampo.NUMERO:
-            if valor_base.isdigit() != valor_validado.isdigit():
-                return "FORMATO", f"Campo '{campo.nome}' tem formato numérico diferente: base='{valor_base}', validado='{valor_validado}'"
+        # 3. VERIFICAR FORMATO (apenas se o campo validado não estiver vazio)
+        if not validado_eh_vazio:
+            if campo.tipo == TipoCampo.NUMERO:
+                # Campo numérico deve conter apenas dígitos (pode ter espaços à esquerda/direita)
+                valor_limpo = valor_validado.strip()
+                if valor_limpo and not valor_limpo.isdigit():
+                    return "FORMATO_NUMERO", f"Campo numérico '{campo.nome}' contém caracteres não numéricos: '{valor_validado}'"
 
-        elif campo.tipo == TipoCampo.DATA:
-            if self._validar_formato_data(valor_base, campo.formato) != self._validar_formato_data(valor_validado, campo.formato):
-                return "FORMATO", f"Campo '{campo.nome}' tem formato de data diferente: base='{valor_base}', validado='{valor_validado}'"
+            elif campo.tipo == TipoCampo.DATA:
+                # Campo data deve estar em formato válido
+                if not self._validar_formato_data(valor_validado, campo.formato):
+                    return "FORMATO_DATA", f"Campo data '{campo.nome}' não está no formato correto: '{valor_validado}'"
 
-        # Diferença de conteúdo geral
-        return "CONTEUDO", f"Campo '{campo.nome}' tem conteúdo diferente: base='{valor_base}', validado='{valor_validado}'"
+            elif campo.tipo == TipoCampo.DECIMAL:
+                # Campo decimal deve conter apenas dígitos
+                valor_limpo = valor_validado.strip()
+                if valor_limpo and not valor_limpo.isdigit():
+                    return "FORMATO_DECIMAL", f"Campo decimal '{campo.nome}' contém caracteres não numéricos: '{valor_validado}'"
+
+        # Se chegou até aqui, não há diferenças estruturais relevantes
+        return None, None
 
     def _validar_formato_data(self, valor: str, formato: Optional[str]) -> bool:
         """Valida se o valor está em formato de data válido"""
@@ -123,70 +165,267 @@ class ComparadorEstruturalArquivos:
 
         return valor_limpo.isdigit()
 
-    def gerar_representacao_visual(self, linha_base: str, linha_validado: str, diferencas: List[DiferencaEstruturalCampo]) -> str:
-        """Gera representação visual das diferenças usando separador |"""
+    def agrupar_registros_por_tipo(self, caminho_arquivo: str) -> Dict[str, List[Tuple[int, str]]]:
+        """Agrupa registros por tipo, ignorando tipos 00 e 99"""
+        registros_por_tipo = {}
+
+        try:
+            with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    linha = linha.rstrip('\n\r')
+
+                    if len(linha) < 2:
+                        continue
+
+                    tipo_registro = self.detectar_tipo_registro(linha)
+
+                    # Ignorar tipos 00 e 99 (header e trailer)
+                    if tipo_registro in ['00', '99']:
+                        continue
+
+                    # Padding para completar tamanho esperado
+                    if len(linha) < self.layout.tamanho_linha:
+                        linha = linha.ljust(self.layout.tamanho_linha)
+
+                    if tipo_registro not in registros_por_tipo:
+                        registros_por_tipo[tipo_registro] = []
+
+                    registros_por_tipo[tipo_registro].append((numero_linha, linha))
+
+        except UnicodeDecodeError:
+            # Tentar com encoding latin-1
+            with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    linha = linha.rstrip('\n\r')
+
+                    if len(linha) < 2:
+                        continue
+
+                    tipo_registro = self.detectar_tipo_registro(linha)
+
+                    # Ignorar tipos 00 e 99 (header e trailer)
+                    if tipo_registro in ['00', '99']:
+                        continue
+
+                    # Padding para completar tamanho esperado
+                    if len(linha) < self.layout.tamanho_linha:
+                        linha = linha.ljust(self.layout.tamanho_linha)
+
+                    if tipo_registro not in registros_por_tipo:
+                        registros_por_tipo[tipo_registro] = []
+
+                    registros_por_tipo[tipo_registro].append((numero_linha, linha))
+
+        return registros_por_tipo
+
+    def gerar_representacao_visual_com_contagem(self, linha_base: str, linha_validado: str, diferencas: List[DiferencaEstruturalCampo], tipo_registro: str) -> str:
+        """Gera representação visual das diferenças usando separador | de forma compacta"""
+        # Se já vierem formatadas com barras, reutilizar diretamente
+        if '|' in linha_base and '|' in linha_validado:
+            linha_base_formatada = linha_base
+            linha_validado_formatada = linha_validado
+        else:
+            # Separação por campos usando | (filtrado por tipo)
+            campos_base = self.extrair_campos_linha(linha_base, tipo_registro)
+            campos_validado = self.extrair_campos_linha(linha_validado, tipo_registro)
+
+            # Obter apenas os campos deste tipo de registro
+            campos_do_tipo = [
+                campo for campo in self.layout.campos
+                if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
+            ]
+
+            linha_base_separada = []
+            linha_validado_separada = []
+
+            for campo in campos_do_tipo:
+                valor_base = campos_base.get(campo.nome, '')
+                valor_validado = campos_validado.get(campo.nome, '')
+                linha_base_separada.append(valor_base)
+                linha_validado_separada.append(valor_validado)
+
+            # Formatação com barras (uma linha cada, sem quebrar)
+            linha_base_formatada = "|".join(linha_base_separada) + "|"
+            linha_validado_formatada = "|".join(linha_validado_separada) + "|"
 
         representacao = []
-        representacao.append("=" * 80)
-        representacao.append("COMPARAÇÃO ESTRUTURAL CAMPO POR CAMPO")
-        representacao.append("=" * 80)
+        representacao.append("BASE:      " + linha_base_formatada)
+        representacao.append("VALIDADO:  " + linha_validado_formatada)
 
-        # Cabeçalho
-        representacao.append("ARQUIVO BASE:          " + linha_base)
-        representacao.append("ARQUIVO A SER VALIDADO: " + linha_validado)
-        representacao.append("-" * 80)
-
-        # Separação por campos usando |
-        campos_base = self.extrair_campos_linha(linha_base)
-        campos_validado = self.extrair_campos_linha(linha_validado)
-
-        linha_base_separada = []
-        linha_validado_separada = []
-        status_campos = []
-
-        for campo in self.layout.campos:
-            valor_base = campos_base.get(campo.nome, '')
-            valor_validado = campos_validado.get(campo.nome, '')
-
-            # Determinar status do campo
-            diferenca_encontrada = None
-            for diff in diferencas:
-                if diff.nome_campo == campo.nome:
-                    diferenca_encontrada = diff
-                    break
-
-            if diferenca_encontrada:
-                status = "❌"
-                linha_base_separada.append(f"{valor_base}")
-                linha_validado_separada.append(f"{valor_validado}")
-                status_campos.append(f"{status} {campo.nome}")
-            else:
-                status = "✅"
-                linha_base_separada.append(f"{valor_base}")
-                linha_validado_separada.append(f"{valor_validado}")
-                status_campos.append(f"{status} {campo.nome}")
-
-        # Mostrar separação visual
-        representacao.append("CAMPOS SEPARADOS POR |:")
-        representacao.append("BASE:      " + " | ".join(linha_base_separada))
-        representacao.append("VALIDADO:  " + " | ".join(linha_validado_separada))
-        representacao.append("")
-
-        # Status dos campos
-        representacao.append("STATUS DOS CAMPOS:")
-        for status in status_campos:
-            representacao.append(f"  {status}")
-
-        # Detalhes das diferenças
+        # Problemas estruturais (resumido)
         if diferencas:
             representacao.append("")
-            representacao.append("DIFERENÇAS ENCONTRADAS:")
-            for i, diff in enumerate(diferencas, 1):
-                representacao.append(f"  {i}. {diff.descricao}")
-
-        representacao.append("=" * 80)
+            representacao.append(f"Problemas estruturais encontrados: {len(diferencas)}")
+            for diff in diferencas:
+                representacao.append(f"  - {diff.descricao}")
 
         return "\n".join(representacao)
+
+    def _gerar_linha_com_barras(self, linha: str, tipo_registro: str) -> str:
+        """Gera representação da linha com campos separados por barras, preservando espaços"""
+        # Filtrar apenas os campos que pertencem ao tipo de registro
+        campos_do_tipo = [
+            campo for campo in self.layout.campos
+            if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
+        ]
+
+        valores_campos = []
+        for campo in campos_do_tipo:
+            # Extrair valor diretamente da linha preservando espaços exatos
+            inicio = campo.posicao_inicio - 1  # Converter para 0-indexed
+            fim = campo.posicao_fim
+
+            # Extrair valor (cuidando com linhas muito curtas)
+            if inicio < len(linha):
+                valor = linha[inicio:fim] if fim <= len(linha) else linha[inicio:]
+                # Garantir que o campo tem o tamanho exato (pad com espaços se necessário)
+                tamanho_esperado = campo.posicao_fim - campo.posicao_inicio + 1
+                valor = valor.ljust(tamanho_esperado)
+            else:
+                # Se a linha é muito curta, preencher com espaços
+                tamanho_esperado = campo.posicao_fim - campo.posicao_inicio + 1
+                valor = ' ' * tamanho_esperado
+
+            valores_campos.append(valor)
+
+        # Retornar com barras separadoras (incluindo no início e fim)
+        return "|".join(valores_campos) + "|"
+
+    def _gerar_linha_com_barras_e_numeracao(self, linha: str, tipo_registro: str) -> Tuple[str, str]:
+        """Gera representação da linha com campos separados por barras e linha de numeração"""
+        # Filtrar apenas os campos que pertencem ao tipo de registro
+        campos_do_tipo = [
+            campo for campo in self.layout.campos
+            if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
+        ]
+
+        valores_campos = []
+        numeros_campos = []
+
+        for sequencia, campo in enumerate(campos_do_tipo, 1):
+            # Extrair valor diretamente da linha preservando espaços exatos
+            inicio = campo.posicao_inicio - 1  # Converter para 0-indexed
+            fim = campo.posicao_fim
+
+            # Extrair valor (cuidando com linhas muito curtas)
+            if inicio < len(linha):
+                valor = linha[inicio:fim] if fim <= len(linha) else linha[inicio:]
+                # Garantir que o campo tem o tamanho exato (pad com espaços se necessário)
+                tamanho_esperado = campo.posicao_fim - campo.posicao_inicio + 1
+                valor = valor.ljust(tamanho_esperado)
+            else:
+                # Se a linha é muito curta, preencher com espaços
+                tamanho_esperado = campo.posicao_fim - campo.posicao_inicio + 1
+                valor = ' ' * tamanho_esperado
+
+            valores_campos.append(valor)
+
+            # Criar numeração centralizada no campo
+            numero_str = str(sequencia).zfill(2)  # 01, 02, 03, etc.
+            tamanho_campo = len(valor)
+            # Centralizar o número no tamanho do campo
+            numero_formatado = numero_str.center(tamanho_campo)
+            numeros_campos.append(numero_formatado)
+
+        # Retornar linha com dados e linha com numeração
+        linha_dados = "|".join(valores_campos) + "|"
+        linha_numeracao = "|".join(numeros_campos) + "|"
+
+        return linha_dados, linha_numeracao
+
+    # Nota: método gerar_representacao_visual removido (substituído por gerar_representacao_visual_com_contagem)
+
+    def comparar_arquivos_por_tipo_generator(self, caminho_base: str, caminho_validado: str) -> Generator[DiferencaEstruturalLinha, None, None]:
+        """Percorre o arquivo validado NA ORDEM e compara cada linha com a primeira ocorrência do mesmo tipo no arquivo base."""
+
+        if not Path(caminho_base).exists():
+            raise FileNotFoundError(f"Arquivo base não encontrado: {caminho_base}")
+
+        if not Path(caminho_validado).exists():
+            raise FileNotFoundError(f"Arquivo a ser validado não encontrado: {caminho_validado}")
+
+        # 1) Construir referência por tipo a partir do arquivo base (primeira ocorrência)
+        referencias_base: Dict[str, Tuple[int, str]] = {}
+
+        def add_ref(numero_linha: int, linha: str):
+            if len(linha) < 2:
+                return
+            tipo = self.detectar_tipo_registro(linha)
+            if tipo in ['00', '99']:
+                return
+            if len(linha) < self.layout.tamanho_linha:
+                linha_padded = linha.ljust(self.layout.tamanho_linha)
+            else:
+                linha_padded = linha
+            if tipo not in referencias_base:
+                referencias_base[tipo] = (numero_linha, linha_padded)
+
+        try:
+            with open(caminho_base, 'r', encoding='utf-8') as fbase:
+                for n, linha in enumerate(fbase, 1):
+                    add_ref(n, linha.rstrip('\n\r'))
+        except UnicodeDecodeError:
+            with open(caminho_base, 'r', encoding='latin-1') as fbase:
+                for n, linha in enumerate(fbase, 1):
+                    add_ref(n, linha.rstrip('\n\r'))
+
+        # 2) Percorrer o arquivo validado NA ORDEM e comparar com a referência do mesmo tipo
+        try:
+            with open(caminho_validado, 'r', encoding='utf-8') as fval:
+                for numero_linha_validado, linha_validado in enumerate(fval, 1):
+                    linha_validado = linha_validado.rstrip('\n\r')
+                    if len(linha_validado) < 2:
+                        continue
+                    tipo_registro = self.detectar_tipo_registro(linha_validado)
+                    if tipo_registro in ['00', '99']:
+                        continue
+                    if len(linha_validado) < self.layout.tamanho_linha:
+                        linha_validado = linha_validado.ljust(self.layout.tamanho_linha)
+
+                    # Buscar linha base de referência para este tipo
+                    linha_base = referencias_base.get(tipo_registro, (0, ' ' * self.layout.tamanho_linha))[1]
+
+                    # Comparar campos filtrando por tipo
+                    diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha_validado, tipo_registro)
+
+                    # Geração visual com barras e numeração
+                    linha_base_formatada, linha_numeracao = self._gerar_linha_com_barras_e_numeracao(linha_base, tipo_registro)
+                    linha_validado_formatada, _ = self._gerar_linha_com_barras_e_numeracao(linha_validado, tipo_registro)
+
+                    yield DiferencaEstruturalLinha(
+                        numero_linha=numero_linha_validado,
+                        tipo_registro=tipo_registro,
+                        arquivo_base_linha=linha_base_formatada,
+                        arquivo_validado_linha=linha_validado_formatada,
+                        diferencas_campos=diferencas_campos,
+                        total_diferencas=len(diferencas_campos),
+                        linha_numeracao=linha_numeracao
+                    )
+        except UnicodeDecodeError:
+            with open(caminho_validado, 'r', encoding='latin-1') as fval:
+                for numero_linha_validado, linha_validado in enumerate(fval, 1):
+                    linha_validado = linha_validado.rstrip('\n\r')
+                    if len(linha_validado) < 2:
+                        continue
+                    tipo_registro = self.detectar_tipo_registro(linha_validado)
+                    if tipo_registro in ['00', '99']:
+                        continue
+                    if len(linha_validado) < self.layout.tamanho_linha:
+                        linha_validado = linha_validado.ljust(self.layout.tamanho_linha)
+                    linha_base = referencias_base.get(tipo_registro, (0, ' ' * self.layout.tamanho_linha))[1]
+                    diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha_validado, tipo_registro)
+                    linha_base_formatada, linha_numeracao = self._gerar_linha_com_barras_e_numeracao(linha_base, tipo_registro)
+                    linha_validado_formatada, _ = self._gerar_linha_com_barras_e_numeracao(linha_validado, tipo_registro)
+                    yield DiferencaEstruturalLinha(
+                        numero_linha=numero_linha_validado,
+                        tipo_registro=tipo_registro,
+                        arquivo_base_linha=linha_base_formatada,
+                        arquivo_validado_linha=linha_validado_formatada,
+                        diferencas_campos=diferencas_campos,
+                        total_diferencas=len(diferencas_campos),
+                        linha_numeracao=linha_numeracao
+                    )
+
 
     def comparar_arquivos_generator(self, caminho_base: str, caminho_validado: str) -> Generator[DiferencaEstruturalLinha, None, None]:
         """Generator que compara arquivos linha por linha"""
@@ -217,7 +456,7 @@ class ComparadorEstruturalArquivos:
                     tipo_registro = self.detectar_tipo_registro(linha_base)
 
                     # Comparar campos da linha
-                    diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha)
+                    diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha, tipo_registro)
 
                     # Criar resultado da linha
                     diferenca_linha = DiferencaEstruturalLinha(
@@ -248,7 +487,7 @@ class ComparadorEstruturalArquivos:
                             linha_validado = linha_validado.ljust(self.layout.tamanho_linha)
 
                         tipo_registro = self.detectar_tipo_registro(linha_base)
-                        diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha)
+                        diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha, tipo_registro)
 
                         diferenca_linha = DiferencaEstruturalLinha(
                             numero_linha=numero_linha,
@@ -265,17 +504,20 @@ class ComparadorEstruturalArquivos:
                 raise ValueError(f"Erro ao ler arquivos: {str(e)}")
 
     def comparar_arquivos(self, caminho_base: str, caminho_validado: str) -> ResultadoComparacaoEstrutural:
-        """Compara dois arquivos estruturalmente e retorna resultado completo"""
+        """Compara dois arquivos estruturalmente agrupados por tipo de registro"""
 
         total_linhas = 0
         linhas_com_diferencas = 0
         todas_diferencas = []
 
-        for diferenca_linha in self.comparar_arquivos_generator(caminho_base, caminho_validado):
+        for diferenca_linha in self.comparar_arquivos_por_tipo_generator(caminho_base, caminho_validado):
             total_linhas += 1
 
+            # Incluir sempre quando show_all_lines=True; caso contrário, apenas quando houver diferenças
             if diferenca_linha.total_diferencas > 0:
                 linhas_com_diferencas += 1
+                todas_diferencas.append(diferenca_linha)
+            elif self.show_all_lines:
                 todas_diferencas.append(diferenca_linha)
 
         linhas_identicas = total_linhas - linhas_com_diferencas
@@ -304,27 +546,42 @@ class ComparadorEstruturalArquivos:
         relatorio.append(f"   Taxa de identidade: {resultado.taxa_identidade:.2f}%")
         relatorio.append("")
 
-        if resultado.linhas_com_diferencas == 0:
-            relatorio.append("✅ ARQUIVOS ESTRUTURALMENTE IDÊNTICOS!")
-            relatorio.append("   Todos os campos coincidem perfeitamente.")
-        else:
-            relatorio.append(f"❌ ENCONTRADAS {resultado.linhas_com_diferencas} LINHAS COM DIFERENÇAS:")
+        # Agrupar por tipo e mostrar exemplos (mesmo quando não há diferenças)
+        relatorio.append("")
+        relatorio.append("📁 DETALHES POR TIPO DE REGISTRO:")
+        relatorio.append("")
+
+        diferencas_por_tipo = {}
+        for diferenca_linha in resultado.diferencas_por_linha:
+            tipo = diferenca_linha.tipo_registro
+            if tipo not in diferencas_por_tipo:
+                diferencas_por_tipo[tipo] = []
+            diferencas_por_tipo[tipo].append(diferenca_linha)
+
+        for tipo_registro, linhas_tipo in sorted(diferencas_por_tipo.items()):
+            total_tipo = len(linhas_tipo)
+            com_diff = sum(1 for d in linhas_tipo if d.total_diferencas > 0)
+            identicas = total_tipo - com_diff
+            relatorio.append(f"🔸 TIPO DE REGISTRO: {tipo_registro}")
+            relatorio.append(f"   Linhas (comparadas): {total_tipo} | Com diferenças: {com_diff} | Idênticas: {identicas}")
             relatorio.append("")
 
-            for diferenca_linha in resultado.diferencas_por_linha[:10]:  # Limitar a 10 linhas para não ficar muito longo
-                relatorio.append(f"📍 LINHA {diferenca_linha.numero_linha} - {diferenca_linha.tipo_registro}")
+            # Mostrar até 3 exemplos deste tipo (inclui idênticas se existirem)
+            for i, diferenca_linha in enumerate(linhas_tipo[:3]):
+                relatorio.append(f"📍 EXEMPLO {i+1} - LINHA {diferenca_linha.numero_linha}")
                 relatorio.append(f"   Total de diferenças: {diferenca_linha.total_diferencas}")
 
-                # Mostrar representação visual
-                representacao_visual = self.gerar_representacao_visual(
+                representacao_visual = self.gerar_representacao_visual_com_contagem(
                     diferenca_linha.arquivo_base_linha,
                     diferenca_linha.arquivo_validado_linha,
-                    diferenca_linha.diferencas_campos
+                    diferenca_linha.diferencas_campos,
+                    tipo_registro
                 )
                 relatorio.append(representacao_visual)
                 relatorio.append("")
 
-            if len(resultado.diferencas_por_linha) > 10:
-                relatorio.append(f"... e mais {len(resultado.diferencas_por_linha) - 10} linhas com diferenças.")
+            if len(linhas_tipo) > 3:
+                relatorio.append(f"   ... e mais {len(linhas_tipo) - 3} linhas do tipo {tipo_registro}")
+                relatorio.append("")
 
         return "\n".join(relatorio)

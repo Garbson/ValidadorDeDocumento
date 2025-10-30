@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Validator from '../views/Validator.vue'
+import Comparacao from '../views/Comparacao.vue'
 import Reports from '../views/Reports.vue'
 import Layout from '../views/Layout.vue'
 import Mapeamento from '../views/Mapeamento.vue'
@@ -15,6 +16,11 @@ const routes = [
     path: '/validador',
     name: 'Validator',
     component: Validator
+  },
+  {
+    path: '/comparacao',
+    name: 'Comparacao',
+    component: Comparacao
   },
   {
     path: '/layout',

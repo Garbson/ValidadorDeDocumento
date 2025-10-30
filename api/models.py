@@ -77,3 +77,37 @@ class StatusResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: str
+
+
+class DiferencaEstruturalCampoResponse(BaseModel):
+    nome_campo: str
+    posicao_inicio: int
+    posicao_fim: int
+    valor_base: str
+    valor_validado: str
+    tipo_diferenca: str
+    descricao: str
+
+
+class DiferencaEstruturalLinhaResponse(BaseModel):
+    numero_linha: int
+    tipo_registro: str
+    arquivo_base_linha: str
+    arquivo_validado_linha: str
+    diferencas_campos: List[DiferencaEstruturalCampoResponse]
+    total_diferencas: int
+
+
+class ResultadoComparacaoEstruturalResponse(BaseModel):
+    total_linhas_comparadas: int
+    linhas_com_diferencas: int
+    linhas_identicas: int
+    diferencas_por_linha: List[DiferencaEstruturalLinhaResponse]
+    taxa_identidade: float
+
+
+class ComparacaoEstruturalCompleta(BaseModel):
+    layout: LayoutResponse
+    resultado_comparacao: ResultadoComparacaoEstruturalResponse
+    relatorio_texto: str
+    timestamp: str
