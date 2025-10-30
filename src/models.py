@@ -56,6 +56,46 @@ class ResultadoValidacao:
 
 
 @dataclass
+class DiferencaEstruturalCampo:
+    """Representa uma diferença encontrada em um campo específico"""
+    nome_campo: str
+    posicao_inicio: int
+    posicao_fim: int
+    valor_base: str
+    valor_validado: str
+    tipo_diferenca: str  # 'TAMANHO', 'FORMATO', 'CAMPO_VAZIO', 'CONTEUDO'
+    descricao: str
+
+
+@dataclass
+class DiferencaEstruturalLinha:
+    """Representa as diferenças encontradas em uma linha"""
+    numero_linha: int
+    tipo_registro: str
+    arquivo_base_linha: str
+    arquivo_validado_linha: str
+    diferencas_campos: List[DiferencaEstruturalCampo]
+    total_diferencas: int
+
+
+@dataclass
+class ResultadoComparacaoEstrutural:
+    """Resultado completo da comparação estrutural"""
+    total_linhas_comparadas: int
+    linhas_com_diferencas: int
+    linhas_identicas: int
+    diferencas_por_linha: List[DiferencaEstruturalLinha]
+    taxa_identidade: float
+
+    def __post_init__(self):
+        """Calcula taxa de identidade"""
+        if self.total_linhas_comparadas > 0:
+            self.taxa_identidade = (self.linhas_identicas / self.total_linhas_comparadas) * 100
+        else:
+            self.taxa_identidade = 0.0
+
+
+@dataclass
 class Layout:
     """Representa o layout completo"""
     nome: str

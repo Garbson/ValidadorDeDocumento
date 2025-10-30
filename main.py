@@ -16,6 +16,7 @@ from rich.text import Text
 from src.layout_parser import LayoutParser
 from src.file_validator import ValidadorArquivo
 from src.multi_record_validator import MultiRecordValidator
+from src.structural_comparator import ComparadorEstruturalArquivos
 from src.report_generator import GeradorRelatorio
 import pandas as pd
 
@@ -183,18 +184,25 @@ def mostrar_resultado_validacao(resultado):
 @click.command()
 @click.option('--layout', '-l', required=True, help='Caminho para o arquivo Excel com o layout')
 @click.option('--arquivo', '-a', required=True, help='Caminho para o arquivo TXT a ser validado')
+@click.option('--arquivo-base', '-b', help='Caminho para arquivo TXT base (referência) para comparação estrutural')
 @click.option('--relatorio', '-r', default='relatorios', help='Diretório para salvar relatórios (padrão: relatorios)')
 @click.option('--max-erros', '-m', type=int, help='Limite máximo de erros a processar')
 @click.option('--silencioso', '-s', is_flag=True, help='Modo silencioso (apenas resultado final)')
 @click.option('--info-layout', is_flag=True, help='Mostrar apenas informações do layout')
-def main(layout, arquivo, relatorio, max_erros, silencioso, info_layout):
+@click.option('--comparar-estrutural', is_flag=True, help='Realizar comparação estrutural com arquivo base')
+def main(layout, arquivo, arquivo_base, relatorio, max_erros, silencioso, info_layout, comparar_estrutural):
     """
     Validador de Documentos Sequenciais
 
     Valida arquivos TXT baseado em layouts definidos em Excel.
 
-    Exemplo de uso:
+    Exemplos de uso:
+
+    Validação normal:
     python main.py -l layout.xlsx -a dados.txt
+
+    Comparação estrutural:
+    python main.py -l layout.xlsx -a dados.txt -b dados_base.txt --comparar-estrutural
     """
 
     if not silencioso:
@@ -207,6 +215,15 @@ def main(layout, arquivo, relatorio, max_erros, silencioso, info_layout):
         elif info_layout and not Path(layout).exists():
             console.print(f"[bold red]❌ Arquivo de layout não encontrado: {layout}[/bold red]")
             sys.exit(1)
+
+        # Validação adicional para comparação estrutural
+        if comparar_estrutural:
+            if not arquivo_base:
+                console.print(f"[bold red]❌ Para comparação estrutural é necessário especificar --arquivo-base[/bold red]")
+                sys.exit(1)
+            if not Path(arquivo_base).exists():
+                console.print(f"[bold red]❌ Arquivo base não encontrado: {arquivo_base}[/bold red]")
+                sys.exit(1)
 
         # Detectar se é layout multi-registro
         is_multi_registro = detectar_layout_multi_registro(layout)
@@ -251,6 +268,44 @@ def main(layout, arquivo, relatorio, max_erros, silencioso, info_layout):
             console=console if not silencioso else Console(file=open('/dev/null', 'w'))
         ) as progress:
 
+            # Se for comparação estrutural, executar apenas isso
+            if comparar_estrutural and not is_multi_registro:
+                task = progress.add_task("🔍 Comparando arquivos estruturalmente...", total=None)
+
+                comparador = ComparadorEstruturalArquivos(layout_obj)
+                resultado_comparacao = comparador.comparar_arquivos(arquivo_base, arquivo)
+
+                progress.update(task, completed=True)
+
+                # Mostrar resultado da comparação
+                if not silencioso:
+                    console.print("\n🔍 RESULTADO DA COMPARAÇÃO ESTRUTURAL")
+                    relatorio_completo = comparador.gerar_relatorio_completo(resultado_comparacao)
+                    console.print(relatorio_completo)
+
+                # Salvar relatório de comparação
+                nome_arquivo_comparacao = f"comparacao_estrutural_{Path(arquivo).stem}_{Path(arquivo_base).stem}.txt"
+                caminho_relatorio = Path(relatorio) / nome_arquivo_comparacao
+                caminho_relatorio.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(caminho_relatorio, 'w', encoding='utf-8') as f:
+                    f.write(relatorio_completo)
+
+                console.print(f"\n[bold green]✅ Comparação estrutural concluída![/bold green]")
+                console.print(f"[bold]Relatório salvo em:[/bold] {caminho_relatorio}")
+
+                # Código de saída baseado na taxa de identidade
+                if resultado_comparacao.taxa_identidade >= 95:
+                    console.print(f"\n[bold green]🎉 Arquivos quase idênticos! Taxa de identidade: {resultado_comparacao.taxa_identidade:.2f}%[/bold green]")
+                    sys.exit(0)
+                elif resultado_comparacao.taxa_identidade >= 80:
+                    console.print(f"\n[bold yellow]⚠️  Algumas diferenças encontradas. Taxa de identidade: {resultado_comparacao.taxa_identidade:.2f}%[/bold yellow]")
+                    sys.exit(1)
+                else:
+                    console.print(f"\n[bold red]❌ Muitas diferenças estruturais! Taxa de identidade: {resultado_comparacao.taxa_identidade:.2f}%[/bold red]")
+                    sys.exit(2)
+
+            # Validação normal
             task = progress.add_task("🔍 Validando arquivo...", total=None)
 
             resultado = validador.validar_arquivo(arquivo, max_erros)

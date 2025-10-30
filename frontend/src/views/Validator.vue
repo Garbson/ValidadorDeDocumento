@@ -169,16 +169,47 @@
       </div>
       <div class="card-body">
         <!-- Paginação por Tipo de Registro para Layout -->
-        <div v-if="layoutTipos.length > 1" class="mb-3 flex items-center gap-2 text-sm">
-          <button class="btn-secondary px-2 py-1" @click="layoutTipoFirst" :disabled="layoutTipoIndex === 0">«</button>
-          <button class="btn-secondary px-2 py-1" @click="layoutTipoPrev" :disabled="layoutTipoIndex === 0">‹</button>
+        <div
+          v-if="layoutTipos.length > 1"
+          class="mb-3 flex items-center gap-2 text-sm"
+        >
+          <button
+            class="btn-secondary px-2 py-1"
+            @click="layoutTipoFirst"
+            :disabled="layoutTipoIndex === 0"
+          >
+            «
+          </button>
+          <button
+            class="btn-secondary px-2 py-1"
+            @click="layoutTipoPrev"
+            :disabled="layoutTipoIndex === 0"
+          >
+            ‹
+          </button>
           <div class="flex items-center gap-2">
             <span>Registro:</span>
-            <span class="font-mono px-2 py-0.5 rounded bg-gray-100">{{ layoutTipoAtual }}</span>
-            <span class="text-gray-500">( {{ layoutTipoIndex + 1 }} / {{ layoutTipos.length }} )</span>
+            <span class="font-mono px-2 py-0.5 rounded bg-gray-100">{{
+              layoutTipoAtual
+            }}</span>
+            <span class="text-gray-500"
+              >( {{ layoutTipoIndex + 1 }} / {{ layoutTipos.length }} )</span
+            >
           </div>
-          <button class="btn-secondary px-2 py-1" @click="layoutTipoNext" :disabled="layoutTipoIndex === layoutTipos.length - 1">›</button>
-          <button class="btn-secondary px-2 py-1" @click="layoutTipoLast" :disabled="layoutTipoIndex === layoutTipos.length - 1">»</button>
+          <button
+            class="btn-secondary px-2 py-1"
+            @click="layoutTipoNext"
+            :disabled="layoutTipoIndex === layoutTipos.length - 1"
+          >
+            ›
+          </button>
+          <button
+            class="btn-secondary px-2 py-1"
+            @click="layoutTipoLast"
+            :disabled="layoutTipoIndex === layoutTipos.length - 1"
+          >
+            »
+          </button>
         </div>
         <div class="overflow-x-auto">
           <table class="table">
@@ -250,7 +281,7 @@
             ‹
           </button>
           <div class="flex items-center gap-1">
-              <span>Registro</span>
+            <span>Registro</span>
             <input
               type="number"
               class="input w-24"
@@ -275,16 +306,19 @@
           >
             »
           </button>
-            <span class="ml-2 text-gray-500" v-if="truncated"
-              >(Mostrando primeiros {{ fileLines.length }} registros de
-              {{ fullLineCount }} - arquivo truncado)</span>
+          <span class="ml-2 text-gray-500" v-if="truncated"
+            >(Mostrando primeiros {{ fileLines.length }} registros de
+            {{ fullLineCount }} - arquivo truncado)</span
+          >
         </div>
       </div>
-      
+
       <!-- Botões para navegação entre tipos de registro -->
       <div v-if="false" class="px-6 py-3 bg-gray-50 border-b border-gray-200">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-sm font-medium text-gray-700">Tipo de Registro:</span>
+          <span class="text-sm font-medium text-gray-700"
+            >Tipo de Registro:</span
+          >
           <button
             v-for="tipo in tiposRegistro"
             :key="tipo"
@@ -293,7 +327,7 @@
               'px-3 py-1 rounded text-sm font-medium transition-colors',
               tipoRegistroSelecionado === tipo
                 ? 'bg-primary-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100',
             ]"
           >
             Tipo {{ tipo }}
@@ -304,7 +338,7 @@
               'px-3 py-1 rounded text-sm font-medium transition-colors',
               tipoRegistroSelecionado === null
                 ? 'bg-primary-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100',
             ]"
           >
             Todos
@@ -335,12 +369,16 @@
                 :class="{
                   'bg-error-50': f.erro,
                   'bg-gray-50': !f.valor || !f.valor.trim(),
-                  'bg-green-50': f.valor && f.valor.trim() && !f.erro
+                  'bg-green-50': f.valor && f.valor.trim() && !f.erro,
                 }"
               >
                 <td class="table-cell text-xs">{{ currentLineIndex + 1 }}</td>
                 <td class="table-cell font-medium">
-                  <span v-if="f.valor && f.valor.trim()" class="text-blue-600 font-bold">{{ f.nome }}</span>
+                  <span
+                    v-if="f.valor && f.valor.trim()"
+                    class="text-blue-600 font-bold"
+                    >{{ f.nome }}</span
+                  >
                   <span v-else class="text-gray-400">{{ f.nome }}</span>
                 </td>
                 <td class="table-cell text-xs">
@@ -363,10 +401,16 @@
           </table>
         </div>
         <p class="mt-4 text-xs text-gray-500">
-          Valores com tamanho divergente destacados. Espaços mostrados como '·'.<br>
-          <strong v-if="tiposRegistro.length > 1">Multi-Registro:</strong> 
-          <span v-if="tiposRegistro.length > 1">Use os botões de tipo de registro acima para filtrar campos específicos ou visualizar todos.</span>
-          <span v-else>Navegue entre as linhas usando os controles de paginação.</span>
+          Valores com tamanho divergente destacados. Espaços mostrados como
+          '·'.<br />
+          <strong v-if="tiposRegistro.length > 1">Multi-Registro:</strong>
+          <span v-if="tiposRegistro.length > 1"
+            >Use os botões de tipo de registro acima para filtrar campos
+            específicos ou visualizar todos.</span
+          >
+          <span v-else
+            >Navegue entre as linhas usando os controles de paginação.</span
+          >
         </p>
       </div>
     </div>
@@ -442,14 +486,14 @@ const handleLayoutFileChange = async (event) => {
       layoutPreview.value = armazenaLayout.value;
       // Inicializar com o primeiro tipo de registro ou mostrar todos
       const tipos = new Set();
-      layoutPreview.value?.campos?.forEach(campo => {
+      layoutPreview.value?.campos?.forEach((campo) => {
         const match = campo.nome.match(/^NFE(\d+)-/);
         if (match) tipos.add(match[1]);
       });
-      
-  // Ajustar layout automaticamente ao registro atual
-  syncLayoutToCurrentLine();
-      
+
+      // Ajustar layout automaticamente ao registro atual
+      syncLayoutToCurrentLine();
+
       console.log("Layout preview carregado:", layoutPreview.value);
       console.log("Tipos detectados:", Array.from(tipos));
     } catch (_) {
@@ -521,13 +565,13 @@ const onMappingConfirmed = async (payload) => {
     layoutPreview.value = payload.layout;
     // Detectar tipos e selecionar o primeiro
     const tipos = new Set();
-    layoutPreview.value.campos.forEach(campo => {
+    layoutPreview.value.campos.forEach((campo) => {
       const match = campo.nome.match(/^NFE(\d+)-/);
       if (match) tipos.add(match[1]);
     });
-    
-  // Ajustar layout automaticamente ao registro atual
-  syncLayoutToCurrentLine();
+
+    // Ajustar layout automaticamente ao registro atual
+    syncLayoutToCurrentLine();
   }
 };
 
@@ -542,20 +586,22 @@ watch(previewLayout, (newValue) => {
     validationStore
       .validateLayout(layoutFile.value)
       .then((result) => {
-        console.log("Recarregando preview do layout após reabilitar previewLayout");
+        console.log(
+          "Recarregando preview do layout após reabilitar previewLayout"
+        );
         armazenaLayout.value = result;
         layoutPreview.value = armazenaLayout.value;
-        
+
         // Detectar tipos e selecionar o primeiro
         const tipos = new Set();
-        layoutPreview.value?.campos?.forEach(campo => {
+        layoutPreview.value?.campos?.forEach((campo) => {
           const match = campo.nome.match(/^NFE(\d+)-/);
           if (match) tipos.add(match[1]);
         });
-        
-  // Ajustar layout automaticamente ao registro atual
-  syncLayoutToCurrentLine();
-        
+
+        // Ajustar layout automaticamente ao registro atual
+        syncLayoutToCurrentLine();
+
         console.log("Layout preview recarregado:", layoutPreview.value);
       })
       .catch(() => {
@@ -589,23 +635,38 @@ const tiposRegistroEncontrados = ref([]);
 const layoutTipos = computed(() => {
   if (!layoutPreview.value?.campos) return [];
   const setTipos = new Set();
-  layoutPreview.value.campos.forEach(c => {
+  layoutPreview.value.campos.forEach((c) => {
     const m = String(c.nome).match(/^NFE(\d+)-/);
     if (m) setTipos.add(m[1]);
   });
   return Array.from(setTipos).sort();
 });
 const layoutTipoIndex = ref(0);
-const layoutTipoAtual = computed(() => layoutTipos.value[layoutTipoIndex.value] || null);
+const layoutTipoAtual = computed(
+  () => layoutTipos.value[layoutTipoIndex.value] || null
+);
 const layoutCamposFiltrados = computed(() => {
   if (!layoutPreview.value?.campos) return [];
   if (!layoutTipoAtual.value) return layoutPreview.value.campos;
-  return layoutPreview.value.campos.filter(c => String(c.nome).startsWith(`NFE${layoutTipoAtual.value}-`) || String(c.nome).includes(` NFE${layoutTipoAtual.value}-`));
+  return layoutPreview.value.campos.filter(
+    (c) =>
+      String(c.nome).startsWith(`NFE${layoutTipoAtual.value}-`) ||
+      String(c.nome).includes(` NFE${layoutTipoAtual.value}-`)
+  );
 });
-const layoutTipoFirst = () => { layoutTipoIndex.value = 0; };
-const layoutTipoPrev = () => { if (layoutTipoIndex.value > 0) layoutTipoIndex.value--; };
-const layoutTipoNext = () => { if (layoutTipoIndex.value < layoutTipos.value.length - 1) layoutTipoIndex.value++; };
-const layoutTipoLast = () => { layoutTipoIndex.value = Math.max(0, layoutTipos.value.length - 1); };
+const layoutTipoFirst = () => {
+  layoutTipoIndex.value = 0;
+};
+const layoutTipoPrev = () => {
+  if (layoutTipoIndex.value > 0) layoutTipoIndex.value--;
+};
+const layoutTipoNext = () => {
+  if (layoutTipoIndex.value < layoutTipos.value.length - 1)
+    layoutTipoIndex.value++;
+};
+const layoutTipoLast = () => {
+  layoutTipoIndex.value = Math.max(0, layoutTipos.value.length - 1);
+};
 
 // Ajustar layoutTipoIndex ao carregar um novo layout
 watch(layoutPreview, () => {
@@ -614,12 +675,15 @@ watch(layoutPreview, () => {
 
 // Detectar tipos de registro disponíveis (somente informativo)
 const tiposRegistro = computed(() => {
-  if (tiposRegistroEncontrados.value && tiposRegistroEncontrados.value.length > 0) {
+  if (
+    tiposRegistroEncontrados.value &&
+    tiposRegistroEncontrados.value.length > 0
+  ) {
     return tiposRegistroEncontrados.value;
   }
   if (!layoutPreview.value?.campos) return [];
   const tipos = new Set();
-  layoutPreview.value.campos.forEach(campo => {
+  layoutPreview.value.campos.forEach((campo) => {
     const match = campo.nome.match(/^NFE(\d+)-/);
     if (match) tipos.add(match[1]);
   });
@@ -634,11 +698,13 @@ const syncLayoutToCurrentLine = () => {
     const reg = previewRegistros.value[currentLineIndex.value];
     tipo = reg?.tipo_registro || null;
   } else {
-    const raw = currentRawLine.value || '';
+    const raw = currentRawLine.value || "";
     if (raw.length >= 2) tipo = raw.slice(0, 2);
   }
   if (tipo) {
-    organizarLayout.value = (layoutPreview.value?.campos || []).filter(c => c.nome.startsWith(`NFE${tipo}-`));
+    organizarLayout.value = (layoutPreview.value?.campos || []).filter((c) =>
+      c.nome.startsWith(`NFE${tipo}-`)
+    );
   } else {
     organizarLayout.value = layoutPreview.value?.campos || [];
   }
@@ -670,22 +736,26 @@ watch(layoutPreview, () => {
 });
 
 // Watch para quando a validação for concluída
-watch(() => validationStore.currentValidation, (newValidation) => {
-  if (newValidation) {
-    // Atualizar preview de registros se disponível
-    if (newValidation.preview_registros) {
-      previewRegistros.value = newValidation.preview_registros;
-    }
-    
-    // Atualizar tipos de registro encontrados
-    if (newValidation.tipos_registro_encontrados) {
-      tiposRegistroEncontrados.value = newValidation.tipos_registro_encontrados;
-      
-  // Sincronizar com o registro atual
-  syncLayoutToCurrentLine();
+watch(
+  () => validationStore.currentValidation,
+  (newValidation) => {
+    if (newValidation) {
+      // Atualizar preview de registros se disponível
+      if (newValidation.preview_registros) {
+        previewRegistros.value = newValidation.preview_registros;
+      }
+
+      // Atualizar tipos de registro encontrados
+      if (newValidation.tipos_registro_encontrados) {
+        tiposRegistroEncontrados.value =
+          newValidation.tipos_registro_encontrados;
+
+        // Sincronizar com o registro atual
+        syncLayoutToCurrentLine();
+      }
     }
   }
-});
+);
 
 const currentRawLine = computed(
   () => fileLines.value[currentLineIndex.value] || ""
@@ -693,7 +763,7 @@ const currentRawLine = computed(
 
 const parseLine = (raw) => {
   if (!layoutPreview.value || !raw) return [];
-  
+
   // Se temos preview de registros do backend, usar eles
   if (previewRegistros.value && previewRegistros.value.length > 0) {
     const registro = previewRegistros.value[currentLineIndex.value];
@@ -702,23 +772,31 @@ const parseLine = (raw) => {
       // Converter campos do objeto para array no formato esperado
       return Object.entries(registro.campos).map(([nomeCampo, valorCampo]) => {
         // Encontrar informações do campo no layout (com ou sem prefixo [Tipo X])
-        let campoInfo = layoutPreview.value.campos.find(c => c.nome === nomeCampo);
+        let campoInfo = layoutPreview.value.campos.find(
+          (c) => c.nome === nomeCampo
+        );
         if (!campoInfo) {
-          campoInfo = layoutPreview.value.campos.find(c => c.nome.endsWith(nomeCampo) || c.nome.includes(` ${nomeCampo}`));
+          campoInfo = layoutPreview.value.campos.find(
+            (c) =>
+              c.nome.endsWith(nomeCampo) || c.nome.includes(` ${nomeCampo}`)
+          );
         }
-        
-        const valor = valorCampo || '';
+
+        const valor = valorCampo || "";
         const tamanho = campoInfo?.tamanho || valor.length;
-        const tipo = (campoInfo?.tipo || 'TEXTO').toUpperCase();
+        const tipo = (campoInfo?.tipo || "TEXTO").toUpperCase();
         const obrigatorio = campoInfo?.obrigatorio || false;
-        
+
         // Validação básica
         const trimmed = valor.trim();
         const overflow = valor.length > tamanho;
-        const invalidNumero = tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
-        const invalidData = tipo === "DATA" && valor && !/^\d{8}$/.test(trimmed);
-        const invalidDecimal = tipo === "DECIMAL" && valor && /[^0-9., ]/.test(valor);
-        
+        const invalidNumero =
+          tipo === "NUMERO" && valor && /[^0-9 ]/.test(valor);
+        const invalidData =
+          tipo === "DATA" && valor && !/^\d{8}$/.test(trimmed);
+        const invalidDecimal =
+          tipo === "DECIMAL" && valor && /[^0-9., ]/.test(valor);
+
         let erro = null;
         if (obrigatorio && trimmed.length === 0) {
           erro = "Vazio obrigatório";
@@ -731,20 +809,22 @@ const parseLine = (raw) => {
         } else if (overflow) {
           erro = `Excede (${valor.length}/${tamanho})`;
         }
-        
+
         return {
           nome: nomeCampo,
           pos_inicio: campoInfo?.posicao_inicio || 0,
-          pos_fim: campoInfo?.posicao_fim || (campoInfo?.posicao_inicio || 0) + tamanho,
+          pos_fim:
+            campoInfo?.posicao_fim ||
+            (campoInfo?.posicao_inicio || 0) + tamanho,
           tamanho: tamanho,
           valor: valor,
           display: (valor || "").replace(/ /g, "·") || "(vazio)",
-          erro: erro
+          erro: erro,
         };
       });
     }
   }
-  
+
   // Método antigo: parsear manualmente da linha raw
   const campos =
     (organizarLayout.value && organizarLayout.value.length
