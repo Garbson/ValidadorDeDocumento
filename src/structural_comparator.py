@@ -1,4 +1,4 @@
-from typing import List, Generator, Tuple, Optional, Dict
+from typing import List, Generator, Tuple, Optional, Dict, Any
 from pathlib import Path
 
 try:
@@ -370,6 +370,43 @@ class ComparadorEstruturalArquivos:
                     add_ref(n, linha.rstrip('\n\r'))
 
         # 2) Percorrer o arquivo validado NA ORDEM e comparar com a referência do mesmo tipo
+        #    Além disso, acumular totais por fatura (entre registros '01' e próximo '01')
+        #    e validar no registro 56 os totais calculados.
+
+        def _only_digits_to_int(s: str) -> int:
+            try:
+                digits = ''.join(ch for ch in (s or '') if ch.isdigit())
+                return int(digits) if digits else 0
+            except Exception:
+                return 0
+
+        # Mapeamento: campo total do 56 -> lista de fontes (tipo, campo origem)
+        totals_map = {
+            'NFE56-TOT-VLR-PIS':        [{'tipo': '38', 'campo': 'NFE38-PIS-VLR'}],
+            'NFE56-TOT-VLR-COFINS':     [{'tipo': '40', 'campo': 'NFE40-COFINS-VLR'}],
+            'NFE56-TOT-VLR-FUST':       [{'tipo': '42', 'campo': 'NFE42-FUST-VLR'}],
+            'NFE56-TOT-VLR-FUNTEL':     [{'tipo': '44', 'campo': 'NFE44-FUNTEL-VLR'}],
+            'NFE56-TOT-VLR-ICMS':       [{'tipo': '30', 'campo': 'NFE30-ICM90-VLR'}],
+            'NFE56-TOT-VLR-BC':         [{'tipo': '30', 'campo': 'NFE30-ICM90-VLR-BC'}],
+        }
+
+        # Índice por tipo para somar rapidamente
+        sources_by_tipo: Dict[str, List[Tuple[str, str]]] = {}
+        for target, fontes in totals_map.items():
+            for f in fontes:
+                sources_by_tipo.setdefault(f['tipo'], []).append((target, f['campo']))
+
+        # Acumuladores por fatura
+        accum_totals: Dict[str, int] = {k: 0 for k in totals_map.keys()}
+        # Componentes: lista de contribuições por total (para depuração/relatório)
+        components: Dict[str, List[Dict[str, Any]]] = {k: [] for k in totals_map.keys()}
+
+        def reset_accumulators():
+            for k in accum_totals.keys():
+                accum_totals[k] = 0
+            for k in components.keys():
+                components[k].clear()
+
         try:
             with open(caminho_validado, 'r', encoding='utf-8') as fval:
                 for numero_linha_validado, linha_validado in enumerate(fval, 1):
@@ -379,6 +416,9 @@ class ComparadorEstruturalArquivos:
                     tipo_registro = self.detectar_tipo_registro(linha_validado)
                     if tipo_registro in ['00', '99']:
                         continue
+                    # Nova fatura: reset acumuladores
+                    if tipo_registro == '01':
+                        reset_accumulators()
                     if len(linha_validado) < self.layout.tamanho_linha:
                         linha_validado = linha_validado.ljust(self.layout.tamanho_linha)
 
@@ -387,6 +427,63 @@ class ComparadorEstruturalArquivos:
 
                     # Comparar campos filtrando por tipo
                     diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha_validado, tipo_registro)
+
+                    # Acúmulo/validação de totais por fatura
+                    try:
+                        # Acumular fontes do tipo atual
+                        if tipo_registro in sources_by_tipo:
+                            campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
+                            for target, campo_src in sources_by_tipo[tipo_registro]:
+                                val = _only_digits_to_int(campos_tipo.get(campo_src, ''))
+                                accum_totals[target] += val
+                                if val:
+                                    components[target].append({
+                                        'tipo': tipo_registro,
+                                        'campo': campo_src,
+                                        'valor': val,
+                                        'linha': numero_linha_validado
+                                    })
+
+                        # Validar no totalizador 56
+                        if tipo_registro == '56':
+                            campos_56 = self.extrair_campos_linha(linha_validado, '56')
+                            for target_field in totals_map.keys():
+                                tot_str = campos_56.get(target_field, '')
+                                tot_val = _only_digits_to_int(tot_str)
+                                if tot_val != accum_totals.get(target_field, 0):
+                                    # Formatar valores considerando as duas últimas casas como decimais
+                                    tot_val_fmt = (f"{tot_val/100:.2f}").replace('.', ',')
+                                    calc_val = accum_totals.get(target_field, 0)
+                                    calc_val_fmt = (f"{calc_val/100:.2f}").replace('.', ',')
+                                    # Metadados do campo 56
+                                    campo_meta = self.layout.get_campo(target_field)
+                                    pos_ini = campo_meta.posicao_inicio if campo_meta else 1
+                                    pos_fim = campo_meta.posicao_fim if campo_meta else len(tot_str)
+                                    # Sequência do campo dentro do tipo 56
+                                    seq = 0
+                                    try:
+                                        campos_do_tipo = [c for c in self.layout.campos if self._campo_pertence_ao_tipo(c.nome, '56')]
+                                        for i, c in enumerate(campos_do_tipo, 1):
+                                            if c.nome == target_field:
+                                                seq = i
+                                                break
+                                    except Exception:
+                                        seq = 0
+                                    tipo_diff_label = f"TOTAL_{target_field.replace('NFE56-TOT-VLR-','')}"
+                                    diferencas_campos.append(
+                                        DiferencaEstruturalCampo(
+                                            nome_campo=target_field,
+                                            posicao_inicio=pos_ini,
+                                            posicao_fim=pos_fim,
+                                            valor_base=linha_base[pos_ini-1:pos_fim] if 0 < pos_ini <= len(linha_base) else '',
+                                            valor_validado=tot_str,
+                                            tipo_diferenca=tipo_diff_label,
+                                            descricao=f"{target_field}='{tot_val_fmt}' difere da soma calculada='{calc_val_fmt}' na fatura",
+                                            sequencia_campo=seq
+                                        )
+                                    )
+                    except Exception:
+                        pass
 
                     # Geração visual com barras e numeração
                     linha_base_formatada, linha_numeracao = self._gerar_linha_com_barras_e_numeracao(linha_base, tipo_registro)
@@ -399,7 +496,9 @@ class ComparadorEstruturalArquivos:
                         arquivo_validado_linha=linha_validado_formatada,
                         diferencas_campos=diferencas_campos,
                         total_diferencas=len(diferencas_campos),
-                        linha_numeracao=linha_numeracao
+                        linha_numeracao=linha_numeracao,
+                        totais_acumulados=(accum_totals.copy() if tipo_registro == '56' else None),
+                        componentes_totais=([{'total': k, 'componentes': components[k].copy()} for k in components.keys()] if tipo_registro == '56' else None)
                     )
         except UnicodeDecodeError:
             with open(caminho_validado, 'r', encoding='latin-1') as fval:
@@ -410,10 +509,62 @@ class ComparadorEstruturalArquivos:
                     tipo_registro = self.detectar_tipo_registro(linha_validado)
                     if tipo_registro in ['00', '99']:
                         continue
+                    if tipo_registro == '01':
+                        reset_accumulators()
                     if len(linha_validado) < self.layout.tamanho_linha:
                         linha_validado = linha_validado.ljust(self.layout.tamanho_linha)
                     linha_base = referencias_base.get(tipo_registro, (0, ' ' * self.layout.tamanho_linha))[1]
                     diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha_validado, tipo_registro)
+                    try:
+                        if tipo_registro in sources_by_tipo:
+                            campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
+                            for target, campo_src in sources_by_tipo[tipo_registro]:
+                                val = _only_digits_to_int(campos_tipo.get(campo_src, ''))
+                                accum_totals[target] += val
+                                if val:
+                                    components[target].append({
+                                        'tipo': tipo_registro,
+                                        'campo': campo_src,
+                                        'valor': val,
+                                        'linha': numero_linha_validado
+                                    })
+                        if tipo_registro == '56':
+                            campos_56 = self.extrair_campos_linha(linha_validado, '56')
+                            for target_field in totals_map.keys():
+                                tot_str = campos_56.get(target_field, '')
+                                tot_val = _only_digits_to_int(tot_str)
+                                if tot_val != accum_totals.get(target_field, 0):
+                                    # Formatar valores considerando as duas últimas casas como decimais
+                                    tot_val_fmt = (f"{tot_val/100:.2f}").replace('.', ',')
+                                    calc_val = accum_totals.get(target_field, 0)
+                                    calc_val_fmt = (f"{calc_val/100:.2f}").replace('.', ',')
+                                    campo_meta = self.layout.get_campo(target_field)
+                                    pos_ini = campo_meta.posicao_inicio if campo_meta else 1
+                                    pos_fim = campo_meta.posicao_fim if campo_meta else len(tot_str)
+                                    seq = 0
+                                    try:
+                                        campos_do_tipo = [c for c in self.layout.campos if self._campo_pertence_ao_tipo(c.nome, '56')]
+                                        for i, c in enumerate(campos_do_tipo, 1):
+                                            if c.nome == target_field:
+                                                seq = i
+                                                break
+                                    except Exception:
+                                        seq = 0
+                                    tipo_diff_label = f"TOTAL_{target_field.replace('NFE56-TOT-VLR-','')}"
+                                    diferencas_campos.append(
+                                        DiferencaEstruturalCampo(
+                                            nome_campo=target_field,
+                                            posicao_inicio=pos_ini,
+                                            posicao_fim=pos_fim,
+                                            valor_base=linha_base[pos_ini-1:pos_fim] if 0 < pos_ini <= len(linha_base) else '',
+                                            valor_validado=tot_str,
+                                            tipo_diferenca=tipo_diff_label,
+                                            descricao=f"{target_field}='{tot_val_fmt}' difere da soma calculada='{calc_val_fmt}' na fatura",
+                                            sequencia_campo=seq
+                                        )
+                                    )
+                    except Exception:
+                        pass
                     linha_base_formatada, linha_numeracao = self._gerar_linha_com_barras_e_numeracao(linha_base, tipo_registro)
                     linha_validado_formatada, _ = self._gerar_linha_com_barras_e_numeracao(linha_validado, tipo_registro)
                     yield DiferencaEstruturalLinha(
@@ -423,7 +574,9 @@ class ComparadorEstruturalArquivos:
                         arquivo_validado_linha=linha_validado_formatada,
                         diferencas_campos=diferencas_campos,
                         total_diferencas=len(diferencas_campos),
-                        linha_numeracao=linha_numeracao
+                        linha_numeracao=linha_numeracao,
+                        totais_acumulados=(accum_totals.copy() if tipo_registro == '56' else None),
+                        componentes_totais=([{'total': k, 'componentes': components[k].copy()} for k in components.keys()] if tipo_registro == '56' else None)
                     )
 
 

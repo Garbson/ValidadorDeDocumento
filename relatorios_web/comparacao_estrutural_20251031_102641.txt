@@ -1,0 +1,207 @@
+🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS
+================================================================================
+
+📊 ESTATÍSTICAS GERAIS:
+   Total de linhas comparadas: 17
+   Linhas idênticas: 0
+   Linhas com diferenças: 17
+   Taxa de identidade: 0.00%
+
+
+📁 DETALHES POR TIPO DE REGISTRO:
+
+🔸 TIPO DE REGISTRO: 01
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 2
+   Total de diferenças: 3
+BASE:      01|0250820000166|RJ|CLO|57 |000000009|33|2|62|0000000| |20251026141548|1| |3304557|0|0|000000000000000000  | | | |              |                                                                                                                                                                                                                                                                |                                                                                                                                                                                 |
+VALIDADO:  01|0250866000073|RJ|ETV|   |000000001|33|2|62|0000000| |100           |1| |3304557|0|0|000000000000000000  | | | |              |                                                                                                                                                                                                                                                                |                                                                                                                                                                                 |
+
+Problemas estruturais encontrados: 3
+  - Campo obrigatório 'NFE01-SERIE-NF' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-DV-CHV-NFCOM' está vazio no arquivo validado
+  - Campo obrigatório 'NFE01-NUM-SITE' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 02
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 3
+   Total de diferenças: 1
+BASE:      02|0250820000166|RJ|CLO|57 |000000009|40432544006269|00000078002840|              |3|CLARO S/A                                                   |CLARO S/A                                                   |                                                                                                                                                                                                                                                                                                                                                         |
+VALIDADO:  02|0250866000073|RJ|ETV|   |000000001|09132659000176|00000078387548|              |0|RADIO E TELEVISAO MODELO PAULI                              |                                                            |                                                                                                                                                                                                                                                                                                                                                         |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE02-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 04
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 4
+   Total de diferenças: 1
+BASE:      04|0250820000166|RJ|CLO|57 |000000009|RUA MENA BARRETO                                            |00042     |                                                            |BOTAFOGO                                                    |3304557|RIO DE JANEIRO                                              |22271100|RJ|1058|BRASIL                                                      |            |                                                            |                                                                                                         |
+VALIDADO:  04|0250866000073|RJ|ETV|   |000000001|AVENIDA PRESIDENTE VARGAS 1012 10 ANDAR PARTE CENTRO        |100       |                                                            |TAQUARA                                                     |3304557|RIO DE JANEIRO                                              |20071910|RJ|1058|BRASIL                                                      |000000000   |                                                            |                                                                                                         |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE04-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 06
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 5
+   Total de diferenças: 1
+BASE:      06|0250820000166|RJ|CLO|57 |000000009|SERVICOS DE PETROLEO CONSTELLATION S A                      |1|30521090000127      |1|00000081340455|               |                                                                                                                                                                                                                                                                                                                                                                                                             |
+VALIDADO:  06|0250866000073|RJ|ETV|   |000000001|RADIO E TELEVISAO MODELO PAULISTA LTDA                      |1|04425426000148      |1|00116144842116|               |                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE06-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 08
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 6
+   Total de diferenças: 1
+BASE:      08|0250820000166|RJ|CLO|57 |000000009|PRESIDENTE ANTONIO CARLOS                                   |51        |7                                                           |CENTRO                                                      |3304557|RIO DE JANEIRO                                              |20020909|RJ|1058|BRASIL                                                      |            |                                                            |                                                                                                         |
+VALIDADO:  08|0250866000073|RJ|ETV|   |000000001|DO GUERENGUE                                                |25        |LOJA A ETR BANDEIR  1000                                    |TAQUARA                                                     |3304557|RIO DE JANEIRO                                              |22713003|RJ|1058|BRASIL                                                      |00000000000 |                                                            |                                                                                                         |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE08-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 10
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 7
+   Total de diferenças: 1
+BASE:      10|0250820000166|RJ|CLO|57 |000000009|000000000000000000000000000000|1 |6|00000000000000000000|2025-01-01|2025-12-25|1135497758  |33|                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+VALIDADO:  10|0250866000073|RJ|ETV|   |000000001|000000000000000000000000000000| 1|0|00000000000000000000|2006-09-11|2025-10-23|            |33|                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE10-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 20
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 8
+   Total de diferenças: 1
+BASE:      20|0250820000166|RJ|CLO|57 |000000009|0001|                                            |    | |VPE                                                         |VIP ESPECIAL                                                                                                            |0300102|5302|              |4|00000000001.000|0000000003592.58|0000000000000.00|0000000000000.00|0000000003592.58|          | |                                                                                                                                                           0001|
+VALIDADO:  20|0250866000073|RJ|ETV|   |000000001|0001|                                            |    |0|SEC                                                         |SERV  TVSAT - MEIO DE REDE SEAC                                                                                         |0400301|5301|09132659000176|4|00000000001.000|0000000031853.57|0000000000000.00|0000000000000.00|0000000041912.58|0000000000|0|                                                                                                                                                           0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE20-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 22
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 9
+   Total de diferenças: 1
+BASE:      22|0250820000166|RJ|CLO|57 |000000009|00|0000000003592.58|024.00|0000000000862.21|000.00|0000000000000.00|                                                                                                                                                                                                                                                                                                                                                                                                                                                          0001|
+VALIDADO:  22|0250866000073|RJ|ETV|   |000000001|00|0000000041912.58|024.00|0000000010059.01|000.00|0000000000000.00|                                                                                                                                                                                                                                                                                                                                                                                                                                                          0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE22-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 38
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 10
+   Total de diferenças: 1
+BASE:      38|0250820000166|RJ|CLO|57 |000000009|01|0000000002730.37|000.65|0000000000017.74|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001|
+VALIDADO:  38|0250866000073|RJ|ETV|   |000000001|00|0000000010059.01|000.65|0000000000207.04|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE38-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 40
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 11
+   Total de diferenças: 1
+BASE:      40|0250820000166|RJ|CLO|57 |000000009|01|0000000002730.37|003.00|0000000000081.91|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001|
+VALIDADO:  40|0250866000073|RJ|ETV|   |000000001|00|0000000000955.60|003.00|0000000000955.60|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE40-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 42
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 12
+   Total de diferenças: 1
+BASE:      42|0250820000166|RJ|CLO|57 |000000009|0000000002730.37|001.00|0000000000027.30|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001|
+VALIDADO:  42|0250866000073|RJ|ETV|   |000000001|0000000000306.90|001.00|0000000000306.90|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE42-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 44
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 13
+   Total de diferenças: 1
+BASE:      44|0250820000166|RJ|CLO|57 |000000009|0000000002730.37|000.50|0000000000013.65|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001|
+VALIDADO:  44|0250866000073|RJ|ETV|   |000000001|0000000000153.45|001.00|0000000000153.45|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0001|
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE44-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 56
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 14
+   Total de diferenças: 6
+BASE:      56|0250820000166|RJ|CLO|57 |000000009|0000000003601.48|0000000003592.58|0000000000862.21|0000000000000.00|0000000000000.00|0000000000081.91|0000000000017.74|0000000000013.65|0000000000027.30|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000003601.48|                                                                                                                                                                                                                                                            |
+VALIDADO:  56|0250866000073|RJ|ETV|   |000000001|0000000041912.58|0000000041912.58|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|0000000000000.00|                                                                                                                                                                                                                                                            |
+
+Problemas estruturais encontrados: 6
+  - Campo obrigatório 'NFE56-SERIE-NF' está vazio no arquivo validado
+  - NFE56-TOT-VLR-PIS='0' difere da soma calculada='20704' na fatura
+  - NFE56-TOT-VLR-COFINS='0' difere da soma calculada='95560' na fatura
+  - NFE56-TOT-VLR-FUST='0' difere da soma calculada='30690' na fatura
+  - NFE56-TOT-VLR-FUNTEL='0' difere da soma calculada='15345' na fatura
+  - NFE56-TOT-VLR-BC='4191258' difere da soma calculada='0' na fatura
+
+🔸 TIPO DE REGISTRO: 60
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 15
+   Total de diferenças: 1
+BASE:      60|0250820000166|RJ|CLO|57 |000000009|202508|2025-08-10|2025-06-22|2025-07-21|846900000577539000060027508200001669202508102   |                    |     |          |
+VALIDADO:  60|0250866000073|RJ|ETV|   |000000001|202508|2025-09-25|2025-08-01|2025-08-30|23792.37304  92373.009874  06000.204302  1  0000|                    |02372|23736     |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE60-SERIE-NF' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 62
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 16
+   Total de diferenças: 2
+BASE:      62|0250820000166|RJ|CLO|57 |000000009|AV PRESIDENTE ANTONIO CARLOS                                |51        |7                                                           |CENTRO                                                      |3304557|RIO DE JANEIRO                                              |20020909|RJ|1058|                                                            |            |                                                            |                                                                                                         |
+VALIDADO:  62|0250866000073|RJ|ETV|   |000000001|ESTDO GUERENGUE                                             |25        |LOJA A ETR.BANDEIR. 1000                                    |TAQUARA                                                     |3304557|RIO DE JANEIRO                                              |22713003|RJ|9999|                                                            |00          |                                                            |                                                                                                         |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE62-SERIE-NF' está vazio no arquivo validado
+  - Campo obrigatório 'NFE62-END-FAT-NOME-PAIS' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 64
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 17
+   Total de diferenças: 2
+BASE:      64|0250820000166|RJ|CLO|57 |000000009|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |        |
+VALIDADO:  64|0250866000073|RJ|ETV|   |000000001|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |        |
+
+Problemas estruturais encontrados: 2
+  - Campo obrigatório 'NFE64-SERIE-NF' está vazio no arquivo validado
+  - Campo obrigatório 'NFE64-PIX-URL-QRCODE' está vazio no arquivo validado
+
+🔸 TIPO DE REGISTRO: 90
+   Linhas (comparadas): 1 | Com diferenças: 1 | Idênticas: 0
+
+📍 EXEMPLO 1 - LINHA 18
+   Total de diferenças: 1
+BASE:      90|0250820000166|RJ|CLO|57 |000000009|064112|2508200|FTC       |20251027141554|0000000000|01|              |      |                |            |                                                                                                                                                                                                                                                               | |2025083300000009FTC57     |                                                                                                                                 |
+VALIDADO:  90|0250866000073|RJ|ETV|   |000000001|000000|2508660|FTC       |20251024153958|0000000000|01|00000000000000|000000|0000000000000000|            |                                                                                                                                                                                                                                                               |2|00000G90pq3bt5GwGQDAy28000|                                                                                                                                 |
+
+Problemas estruturais encontrados: 1
+  - Campo obrigatório 'NFE90-SERIE-NF' está vazio no arquivo validado

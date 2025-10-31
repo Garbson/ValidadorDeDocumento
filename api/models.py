@@ -96,6 +96,8 @@ class DiferencaEstruturalLinhaResponse(BaseModel):
     arquivo_validado_linha: str
     diferencas_campos: List[DiferencaEstruturalCampoResponse]
     total_diferencas: int
+    totais_acumulados: Optional[Dict[str, int]] = None
+    componentes_totais: Optional[List[Dict[str, Any]]] = None
 
 
 class ResultadoComparacaoEstruturalResponse(BaseModel):

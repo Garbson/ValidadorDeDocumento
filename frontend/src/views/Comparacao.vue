@@ -241,6 +241,30 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Totais e Componentes (apenas para tipo 56) -->
+              <div v-if="diferenca.tipo_registro === '56' && (diferenca.totais_acumulados || diferenca.componentes_totais)" class="mt-4">
+                <h5 class="font-medium text-gray-700">Totais calculados na fatura</h5>
+                <div v-if="diferenca.totais_acumulados" class="text-sm text-gray-700 mt-2">
+                  <div v-for="(val, key) in diferenca.totais_acumulados" :key="key" class="flex justify-between py-1 border-b border-gray-100">
+                    <span class="font-mono">{{ key }}</span>
+                    <span class="font-semibold">{{ formatCents(val) }}</span>
+                  </div>
+                </div>
+                <div v-if="diferenca.componentes_totais" class="text-sm text-gray-700 mt-4">
+                  <h6 class="font-medium">Componentes por total</h6>
+                  <div v-for="(grp, gi) in diferenca.componentes_totais" :key="gi" class="mt-2">
+                    <div class="font-mono text-blue-700">{{ grp.total }}</div>
+                    <div v-if="grp.componentes && grp.componentes.length" class="pl-3 mt-1 space-y-1">
+                      <div v-for="(comp, ci) in grp.componentes" :key="ci" class="flex justify-between">
+                        <span>#{{ comp.linha }} • Tipo {{ comp.tipo }} • {{ comp.campo }}</span>
+                        <span class="font-semibold">{{ formatCents(comp.valor) }}</span>
+                      </div>
+                    </div>
+                    <div v-else class="pl-3 text-gray-500">Sem componentes (0)</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -264,8 +288,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { GitCompare, Upload, Loader2, Download, RotateCcw, AlertCircle } from 'lucide-vue-next'
+import { AlertCircle, Download, GitCompare, Loader2, RotateCcw } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import api from '../services/api'
 
 // Reactive data
@@ -441,6 +465,13 @@ function sincronizarScroll(event, targetRefName, numeracaoRefName = null) {
 const layoutFileInput = ref(null)
 const baseFileInput = ref(null)
 const validationFileInput = ref(null)
+
+// Helpers
+function formatCents(value) {
+  const n = Number(value || 0)
+  const reais = n / 100
+  return reais.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 </script>
 
 <style scoped>

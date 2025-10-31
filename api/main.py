@@ -151,7 +151,9 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
             arquivo_base_linha=diferenca_linha.arquivo_base_linha,
             arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
             diferencas_campos=campos_response,
-            total_diferencas=diferenca_linha.total_diferencas
+            total_diferencas=diferenca_linha.total_diferencas,
+            totais_acumulados=diferenca_linha.totais_acumulados,
+            componentes_totais=diferenca_linha.componentes_totais
         ))
 
     return ResultadoComparacaoEstruturalResponse(

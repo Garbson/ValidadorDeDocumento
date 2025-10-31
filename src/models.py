@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from enum import Enum
 
 
@@ -78,6 +78,9 @@ class DiferencaEstruturalLinha:
     diferencas_campos: List[DiferencaEstruturalCampo]
     total_diferencas: int
     linha_numeracao: str = ""  # Linha com numeração dos campos
+    # Totais calculados por fatura (somatórios) e componentes que geraram cada total
+    totais_acumulados: Optional[Dict[str, int]] = None  # ex.: { 'NFE56-TOT-VLR-PIS': 1234, ... }
+    componentes_totais: Optional[List[Dict[str, Any]]] = None  # lista de componentes somados
 
 
 @dataclass
