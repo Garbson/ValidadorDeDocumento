@@ -78,7 +78,7 @@
         <div v-if="confirmedLayout" class="border rounded p-4 bg-gray-50 text-sm">
           <p class="font-medium mb-2">Layout Confirmado (preview campos):</p>
           <div v-if="downloadUrl" class="mb-3 flex flex-wrap items-center gap-3">
-            <a :href="downloadUrl" target="_blank" class="btn-primary">Download Layout Excel</a>
+            <button @click="downloadLayout" class="btn-primary">Download Layout Excel</button>
             <button @click="usarNoValidador" class="btn-success">Usar no Validador</button>
             <span class="text-xs text-gray-500 truncate" :title="downloadFilename">{{ downloadFilename }}</span>
           </div>
@@ -113,6 +113,7 @@
 
 <script setup>
 import LayoutMapper from '@/components/LayoutMapper.vue'
+import localStorageService from '@/services/localStorage'
 import { useTempStore } from '@/stores/temp'
 import { useValidationStore } from '@/stores/validation'
 import { FileSpreadsheet, Upload } from 'lucide-vue-next'
@@ -183,8 +184,22 @@ async function carregarMapping(){
 
 function onConfirmed(payload){
   confirmedLayout.value = payload.layout || null
-  downloadUrl.value = payload.download || null
-  downloadFilename.value = payload.filename || null
+
+  // Se temos dados do Excel, criar URL para download
+  if (payload.excel_data && payload.filename) {
+    // Criar download temporário via localStorage
+    downloadUrl.value = 'localStorage'  // Flag para indicar que está no localStorage
+    downloadFilename.value = payload.filename
+
+    // Salvar dados para uso posterior
+    window._currentLayoutData = {
+      excel_data: payload.excel_data,
+      filename: payload.filename
+    }
+  } else {
+    downloadUrl.value = payload.download || null
+    downloadFilename.value = payload.filename || null
+  }
 }
 
 async function usarNoValidador(){
@@ -199,6 +214,22 @@ async function usarNoValidador(){
   } catch (e) {
     console.error('Erro ao preparar layout para validador (fallback):', e)
     alert('Erro ao preparar layout para o Validador. Por favor, baixe manualmente e carregue o arquivo.')
+  }
+}
+
+function downloadLayout(){
+  try {
+    // Usar dados salvos temporariamente
+    if (window._currentLayoutData) {
+      const { excel_data, filename } = window._currentLayoutData
+      localStorageService.downloadExcel(excel_data, filename)
+    } else {
+      console.error('Dados do layout não encontrados')
+      alert('Erro: Dados do layout não disponíveis para download')
+    }
+  } catch (error) {
+    console.error('Erro no download do layout:', error)
+    alert('Erro ao fazer download do layout: ' + error.message)
   }
 }
 

@@ -107,6 +107,7 @@
 
 <script setup>
 import api from '@/services/api'
+import localStorageService from '@/services/localStorage'
 import { computed, reactive, ref } from 'vue'
 
 const props = defineProps({
@@ -249,7 +250,26 @@ async function confirmMapping(){
     const { data: exp } = await api.post('/layout-export', payload)
     console.log('Export retornou:', exp)
     state.message = 'Layout exportado com sucesso.'
-    emits('confirmed', { signature: response.signature, mapping: finalMapping, layout: exp.layout, download: exp.download_url, filename: exp.filename })
+
+    // Salvar dados do layout no localStorage para download
+    if (exp.excel_data) {
+      const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)
+      const layoutData = {
+        excel_data: exp.excel_data,
+        filename: exp.filename,
+        layout: exp.layout
+      }
+      // Salvar usando timestamp gerado aqui
+      localStorageService.saveLayout(timestamp, layoutData)
+    }
+
+    emits('confirmed', {
+      signature: response.signature,
+      mapping: finalMapping,
+      layout: exp.layout,
+      excel_data: exp.excel_data,
+      filename: exp.filename
+    })
   } catch(e){
     console.error('Erro ao exportar:', e)
     console.error('Resposta do servidor:', e.response?.data)

@@ -6,6 +6,8 @@ from fastapi.responses import FileResponse, JSONResponse
 import tempfile
 import os
 import sys
+import io
+import base64
 from pathlib import Path
 from datetime import datetime
 from collections import Counter
@@ -64,9 +66,6 @@ if frontend_path.exists():
 UPLOAD_DIR = Path("temp_uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# Diretório para relatórios
-REPORTS_DIR = Path("relatorios_web")
-REPORTS_DIR.mkdir(exist_ok=True)
 
 
 def converter_layout_para_response(layout) -> LayoutResponse:
@@ -369,8 +368,6 @@ class ExportLayoutRequest(BaseModel):  # type: ignore
     signature: Optional[str] = None
 
 
-LAYOUT_EXPORT_DIR = Path("data/layouts")
-LAYOUT_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _slugify(nome: str) -> str:
@@ -417,17 +414,23 @@ async def exportar_layout(req: ExportLayoutRequest):
                 'Obrigatorio': 'S' if c.obrigatorio else 'N',
                 'Formato': c.formato or ''
             })
+        # Gerar Excel em memória
         df = pd.DataFrame(rows, columns=['Campo','Posicao_Inicio','Tamanho','Tipo','Obrigatorio','Formato'])
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         slug = _slugify(req.nome)
         signature_part = f"_{req.signature}" if req.signature else ''
         filename = f"layout_normalizado_{slug}{signature_part}_{timestamp}.xlsx"
-        file_path = LAYOUT_EXPORT_DIR / filename
-        df.to_excel(file_path, index=False)
+
+        # Converter Excel para base64
+        buffer = io.BytesIO()
+        df.to_excel(buffer, index=False, engine='openpyxl')
+        buffer.seek(0)
+        excel_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
         return {
             'saved': True,
             'filename': filename,
-            'download_url': f"/api/layout-export/download/{filename}",
+            'excel_data': excel_base64,  # Dados para localStorage
             'layout': layout_response
         }
     except HTTPException:
@@ -436,12 +439,6 @@ async def exportar_layout(req: ExportLayoutRequest):
         raise HTTPException(status_code=400, detail=f"Erro ao exportar layout: {str(e)}")
 
 
-@app.get("/api/layout-export/download/{filename}")
-async def baixar_layout_exportado(filename: str):
-    file_path = LAYOUT_EXPORT_DIR / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-    return FileResponse(str(file_path), filename=filename, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 @app.get("/api/layout-mappings/{signature}")
@@ -651,9 +648,9 @@ async def validar_arquivo_completo(
         resultado_response = converter_resultado_para_response(resultado)
         estatisticas_response = gerar_estatisticas(resultado)
 
-        # Gerar relatório para download posterior
+        # Gerar dados do relatório em memória
         gerador = GeradorRelatorio(resultado, layout)
-        relatorio_paths = gerador.gerar_relatorio_completo(str(REPORTS_DIR))
+        dados_relatorio = gerador.gerar_dados_relatorio()
 
         # Preparar dados de preview de registros se for multi-registro
         preview_registros = None
@@ -676,6 +673,7 @@ async def validar_arquivo_completo(
             resultado=resultado_response,
             estatisticas=estatisticas_response,
             timestamp=timestamp,
+            dados_relatorio=dados_relatorio,
             preview_registros=preview_registros,
             tipos_registro_encontrados=tipos_registro
         )
@@ -693,67 +691,10 @@ async def validar_arquivo_completo(
             os.remove(temp_data)
 
 
-@app.get("/api/download-relatorio/{timestamp}")
-async def download_relatorio(timestamp: str, formato: str = "excel"):
-    """Download de relatório gerado"""
-    if formato not in ["excel", "texto", "csv"]:
-        raise HTTPException(status_code=400, detail="Formato deve ser: excel, texto ou csv")
-
-    # Buscar arquivo de relatório
-    if formato == "excel":
-        pattern = f"relatorio_validacao_*_{timestamp}.xlsx"
-        extensao = ".xlsx"
-    elif formato == "texto":
-        pattern = f"relatorio_validacao_*_{timestamp}.txt"
-        extensao = ".txt"
-    else:  # csv
-        pattern = f"relatorio_validacao_*_{timestamp}.csv"
-        extensao = ".csv"
-
-    import glob
-    arquivos = glob.glob(str(REPORTS_DIR / pattern))
-
-    if not arquivos:
-        raise HTTPException(status_code=404, detail="Relatório não encontrado")
-
-    arquivo_path = arquivos[0]
-    filename = f"relatorio_validacao_{timestamp}{extensao}"
-
-    return FileResponse(
-        path=arquivo_path,
-        filename=filename,
-        media_type="application/octet-stream"
-    )
 
 
-@app.get("/api/relatorios")
-async def listar_relatorios():
-    """Lista relatórios disponíveis"""
-    relatorios = []
-    for arquivo in REPORTS_DIR.glob("relatorio_validacao_*.xlsx"):
-        timestamp = arquivo.stem.split('_')[-1]
-        relatorios.append({
-            "timestamp": timestamp,
-            "arquivo": arquivo.name,
-            "data_criacao": datetime.fromtimestamp(arquivo.stat().st_mtime).isoformat()
-        })
-
-    return {"relatorios": sorted(relatorios, key=lambda x: x["data_criacao"], reverse=True)}
 
 
-@app.delete("/api/relatorios/{timestamp}")
-async def deletar_relatorio(timestamp: str):
-    """Deleta relatórios de um timestamp específico"""
-    import glob
-
-    deleted = 0
-    for pattern in [f"*_{timestamp}.xlsx", f"*_{timestamp}.txt", f"*_{timestamp}.csv"]:
-        arquivos = glob.glob(str(REPORTS_DIR / pattern))
-        for arquivo in arquivos:
-            os.remove(arquivo)
-            deleted += 1
-
-    return {"message": f"{deleted} arquivos deletados"}
 
 
 @app.post("/api/comparar-estrutural")
@@ -820,12 +761,13 @@ async def comparar_arquivos_estrutural(
         # Gerar relatório textual
         relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
 
-        # Salvar relatório para download posterior
-        nome_arquivo_relatorio = f"comparacao_estrutural_{timestamp}.txt"
-        caminho_relatorio = REPORTS_DIR / nome_arquivo_relatorio
-
-        with open(caminho_relatorio, 'w', encoding='utf-8') as f:
-            f.write(relatorio_texto)
+        # Preparar dados para localStorage
+        dados_comparacao = {
+            'timestamp': timestamp,
+            'data_comparacao': datetime.now().isoformat(),
+            'relatorio_texto': relatorio_texto,
+            'layout_nome': layout.nome
+        }
 
         # Converter para responses
         layout_response = converter_layout_para_response(layout)
@@ -835,7 +777,8 @@ async def comparar_arquivos_estrutural(
             layout=layout_response,
             resultado_comparacao=resultado_response,
             relatorio_texto=relatorio_texto,
-            timestamp=timestamp
+            timestamp=timestamp,
+            dados_comparacao=dados_comparacao
         )
 
     except Exception as e:
@@ -848,19 +791,6 @@ async def comparar_arquivos_estrutural(
                 os.remove(temp_file)
 
 
-@app.get("/api/download-comparacao/{timestamp}")
-async def download_comparacao_estrutural(timestamp: str):
-    """Download de relatório de comparação estrutural"""
-    arquivo_path = REPORTS_DIR / f"comparacao_estrutural_{timestamp}.txt"
-
-    if not arquivo_path.exists():
-        raise HTTPException(status_code=404, detail="Relatório de comparação não encontrado")
-
-    return FileResponse(
-        path=str(arquivo_path),
-        filename=f"comparacao_estrutural_{timestamp}.txt",
-        media_type="text/plain"
-    )
 
 
 if __name__ == "__main__":

@@ -65,6 +65,7 @@ class ValidacaoCompleta(BaseModel):
     resultado: ResultadoValidacaoResponse
     estatisticas: EstatisticasResponse
     timestamp: str
+    dados_relatorio: Optional[Dict] = None  # Dados do relatório para localStorage
     preview_registros: Optional[List[RegistroPreviewResponse]] = None  # Preview dos primeiros registros
     tipos_registro_encontrados: Optional[List[str]] = None  # Tipos encontrados no arquivo
 
@@ -113,3 +114,4 @@ class ComparacaoEstruturalCompleta(BaseModel):
     resultado_comparacao: ResultadoComparacaoEstruturalResponse
     relatorio_texto: str
     timestamp: str
+    dados_comparacao: Optional[Dict] = None  # Dados para localStorage

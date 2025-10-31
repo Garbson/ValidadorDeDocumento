@@ -291,6 +291,7 @@
 import { AlertCircle, Download, GitCompare, Loader2, RotateCcw } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import api from '../services/api'
+import localStorageService from '../services/localStorage'
 
 // Reactive data
 const layoutFile = ref(null)
@@ -392,6 +393,12 @@ async function handleComparison() {
   comparisonResult.value = response.data.resultado_comparacao
     reportText.value = response.data.relatorio_texto
     timestamp.value = response.data.timestamp
+
+    // Salvar no localStorage para download posterior
+    if (response.data.dados_comparacao) {
+      localStorageService.saveComparison(timestamp.value, response.data.dados_comparacao)
+    }
+
   currentFatura.value = 1
 
   } catch (err) {
@@ -407,20 +414,30 @@ async function downloadReport() {
   if (!timestamp.value) return
 
   try {
-    const response = await api.get(`/download-comparacao/${timestamp.value}`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `comparacao_estrutural_${timestamp.value}.txt`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    // Buscar dados do localStorage
+    let comparisonData = localStorageService.getComparison(timestamp.value)
+
+    // Se não estiver no localStorage, usar dados atuais
+    if (!comparisonData && reportText.value) {
+      comparisonData = {
+        relatorio_texto: reportText.value,
+        layout_nome: 'layout',
+        timestamp: timestamp.value
+      }
+    }
+
+    if (!comparisonData) {
+      throw new Error('Dados da comparação não encontrados')
+    }
+
+    // Fazer download do relatório de texto
+    const filename = `comparacao_estrutural_${timestamp.value}.txt`
+    const content = comparisonData.relatorio_texto || reportText.value || 'Relatório não disponível'
+
+    localStorageService.downloadText(content, filename)
   } catch (err) {
     console.error('Erro ao baixar relatório:', err)
-    error.value = 'Erro ao baixar relatório'
+    error.value = 'Erro ao baixar relatório: ' + err.message
   }
 }
 

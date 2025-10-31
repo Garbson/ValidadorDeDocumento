@@ -97,7 +97,7 @@ Este é um validador de documentos sequenciais (arquivos TXT) baseado em layouts
 - Dashboard com gráficos de estatísticas
 - Upload via drag-and-drop
 - Visualização de erros em tempo real
-- Download de relatórios em múltiplos formatos
+- Download de relatórios via localStorage (sem arquivos físicos)
 - Design responsivo com Tailwind CSS
 
 ## Estrutura de Arquivos
@@ -107,7 +107,6 @@ Este é um validador de documentos sequenciais (arquivos TXT) baseado em layouts
 - `iniciar.sh`: Script de desenvolvimento (backend + frontend)
 - `requirements.txt`: Dependências Python
 - `temp_uploads/`: Uploads temporários
-- `relatorios_web/`: Relatórios gerados pela interface web
 - `exemplos/`: Arquivos de exemplo para testes
 
 ## URLs da Aplicação

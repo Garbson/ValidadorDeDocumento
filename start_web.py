@@ -193,7 +193,6 @@ def main():
 
     # Criar diretórios necessários
     Path("temp_uploads").mkdir(exist_ok=True)
-    Path("relatorios_web").mkdir(exist_ok=True)
 
     print("\n🚀 Iniciando serviços...")
 
@@ -235,7 +234,7 @@ def main():
         print("  • Use Ctrl+C para parar todos os serviços")
         print("  • O frontend roda em modo de desenvolvimento com hot-reload")
         print("  • A API aceita uploads de até 100MB")
-        print("  • Relatórios são salvos em 'relatorios_web/'")
+        print("  • Relatórios são salvos no localStorage do navegador")
         print("=" * 60)
 
         # Aguardar que algum processo termine ou interrupção

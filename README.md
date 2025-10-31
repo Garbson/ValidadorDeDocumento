@@ -120,11 +120,8 @@ A aplicação inclui uma API REST completa:
 - **POST** `/api/layout-mappings` - Salvar mapeamento customizado
 - **GET** `/api/layout-mappings/{signature}` - Recuperar mapeamento salvo
 - **POST** `/api/layout-custom` - Criar layout com campos customizados
-- **POST** `/api/layout-export` - Exportar layout padronizado em Excel
-- **GET** `/api/layout-export/download/{filename}` - Download de layout exportado
-- **POST** `/api/validar-arquivo` - Validar arquivo completo
-- **GET** `/api/download-relatorio/{timestamp}` - Download de relatórios
-- **GET** `/api/relatorios` - Listar relatórios
+- **POST** `/api/layout-export` - Exportar layout padronizado (retorna dados em base64)
+- **POST** `/api/validar-arquivo` - Validar arquivo completo (dados para localStorage)
 - **GET** `/api/health` - Health check
 
 Documentação interativa: **http://localhost:8000/docs**

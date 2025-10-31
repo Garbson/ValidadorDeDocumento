@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import api from '../services/api'
+import localStorageService from '../services/localStorage'
 
 export const useValidationStore = defineStore('validation', () => {
   // Estado
@@ -121,6 +122,12 @@ export const useValidationStore = defineStore('validation', () => {
       // Salvar dados DIRETAMENTE no store principal
       currentValidation.value = response.data
       hasValidation.value = true // Definir explicitamente
+
+      // Salvar no localStorage para acesso posterior
+      if (response.data.dados_relatorio) {
+        localStorageService.saveValidation(response.data.timestamp, response.data.dados_relatorio)
+      }
+
       // Dados salvos no store principal
 
       // Adicionar ao histórico de forma assíncrona para não afetar a UI
@@ -159,28 +166,48 @@ export const useValidationStore = defineStore('validation', () => {
 
   const downloadReport = async (timestamp, format = 'excel') => {
     try {
-      const response = await api.get(`/download-relatorio/${timestamp}`, {
-        params: { formato: format },
-        responseType: 'blob'
-      })
+      // Buscar dados do localStorage
+      const validationData = localStorageService.getValidation(timestamp)
+      if (!validationData) {
+        // Se não estiver no localStorage, usar dados da validação atual
+        if (currentValidation.value?.timestamp === timestamp && currentValidation.value?.dados_relatorio) {
+          validationData = currentValidation.value.dados_relatorio
+        } else {
+          throw new Error('Dados da validação não encontrados')
+        }
+      }
 
-      // Criar URL para download
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-
-      // Definir nome do arquivo baseado no formato
+      // Gerar nome do arquivo
+      const layoutNome = validationData.layout_nome || 'layout'
       const extensions = { excel: 'xlsx', texto: 'txt', csv: 'csv' }
-      link.setAttribute('download', `relatorio_validacao_${timestamp}.${extensions[format]}`)
+      const filename = `relatorio_validacao_${layoutNome}_${timestamp}.${extensions[format]}`
 
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      // Download baseado no formato
+      if (format === 'excel') {
+        // Para Excel, precisamos gerar o arquivo a partir dos dados
+        // Por enquanto, usar o método de download de texto com resumo
+        const content = validationData.resumo_texto || 'Relatório não disponível'
+        localStorageService.downloadText(content, `relatorio_validacao_${layoutNome}_${timestamp}.txt`)
+      } else if (format === 'texto') {
+        const content = validationData.resumo_texto || 'Relatório não disponível'
+        localStorageService.downloadText(content, filename)
+      } else if (format === 'csv') {
+        // Gerar CSV simples dos erros
+        let csvContent = 'Linha,Campo,Tipo_Erro,Valor_Encontrado,Descricao\n'
+        if (validationData.erros && validationData.erros.length > 0) {
+          validationData.erros.forEach(erro => {
+            csvContent += `${erro.linha},"${erro.campo}","${erro.tipo_erro}","${erro.valor_encontrado}","${erro.descricao}"\n`
+          })
+        } else {
+          csvContent += 'Nenhum erro encontrado,,,,'
+        }
+        localStorageService.downloadCSV(csvContent, filename)
+      }
 
       return true
     } catch (err) {
-      error.value = 'Erro ao fazer download do relatório'
+      console.error('Erro no download:', err)
+      error.value = 'Erro ao fazer download do relatório: ' + err.message
       throw err
     }
   }
