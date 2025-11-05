@@ -127,7 +127,107 @@
         </div>
       </div>
 
-  <!-- Estatísticas -->
+      <!-- Resumo de Cálculos de Impostos -->
+      <div v-if="calculationResults.total.length > 0" class="space-y-4">
+
+        <!-- Resumo Geral de Cálculos -->
+        <div class="card border-blue-300 bg-blue-50">
+          <div class="card-header bg-blue-100">
+            <h3 class="text-lg font-semibold text-blue-800 flex items-center justify-between">
+              <span class="flex items-center">
+                🧮 Cálculos de Impostos Verificados
+                <span class="ml-2 px-2 py-1 text-xs bg-blue-200 text-blue-700 rounded-full">
+                  {{ calculationResults.total.length }} cálculo(s)
+                </span>
+              </span>
+              <div class="flex gap-2 text-xs">
+                <span class="px-2 py-1 bg-green-200 text-green-700 rounded-full">
+                  ✅ {{ calculationResults.correct.length }} correto(s)
+                </span>
+                <span v-if="calculationResults.errors.length > 0" class="px-2 py-1 bg-red-200 text-red-700 rounded-full">
+                  ❌ {{ calculationResults.errors.length }} erro(s)
+                </span>
+              </div>
+            </h3>
+          </div>
+        </div>
+
+        <!-- Erros de Cálculo (se houver) -->
+        <div v-if="calculationErrors.length > 0" class="card border-red-300 bg-red-50">
+          <div class="card-header bg-red-100">
+            <h3 class="text-lg font-semibold text-red-800 flex items-center">
+              ❌ Erros de Cálculo de Impostos
+              <span class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-700 rounded-full">
+                {{ calculationErrors.length }} erro(s)
+              </span>
+            </h3>
+          </div>
+          <div class="card-body">
+            <p class="text-red-700 mb-3">
+              Erros encontrados nos cálculos de impostos. Estes erros podem causar rejeição na SEFAZ.
+            </p>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <div
+                v-for="(error, index) in calculationErrors.slice(0, 10)"
+                :key="index"
+                class="p-2 bg-white rounded border border-red-200"
+              >
+                <div class="text-sm">
+                  <span class="font-semibold text-red-800">
+                    {{ error.tipo_diferenca.replace('CALCULO_ERRO_', '') }}
+                  </span>
+                  <span class="text-gray-600 ml-2">({{ extractNumNF(error.descricao) || 'Linha ' + error.linha }})</span>
+                </div>
+                <div class="text-xs text-red-900 font-mono mt-1">
+                  {{ error.descricao }}
+                </div>
+              </div>
+            </div>
+            <div v-if="calculationErrors.length > 10" class="text-sm text-red-600 mt-2">
+              ... e mais {{ calculationErrors.length - 10 }} erro(s). Veja detalhes abaixo.
+            </div>
+          </div>
+        </div>
+
+        <!-- Cálculos Corretos -->
+        <div v-if="calculationResults.correct.length > 0" class="card border-green-300 bg-green-50">
+          <div class="card-header bg-green-100">
+            <h3 class="text-lg font-semibold text-green-800 flex items-center">
+              ✅ Cálculos Corretos de Impostos
+              <span class="ml-2 px-2 py-1 text-xs bg-green-200 text-green-700 rounded-full">
+                {{ calculationResults.correct.length }} correto(s)
+              </span>
+            </h3>
+          </div>
+          <div class="card-body">
+            <p class="text-green-700 mb-3">
+              Cálculos de impostos verificados e confirmados como corretos.
+            </p>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <div
+                v-for="(calc, index) in calculationResults.correct.slice(0, 10)"
+                :key="index"
+                class="p-2 bg-white rounded border border-green-200"
+              >
+                <div class="text-sm">
+                  <span class="font-semibold text-green-800">
+                    {{ calc.tipo_diferenca.replace('CALCULO_OK_', '') }}
+                  </span>
+                  <span class="text-gray-600 ml-2">({{ extractNumNF(calc.descricao) || 'Linha ' + calc.linha }})</span>
+                </div>
+                <div class="text-xs text-green-900 font-mono mt-1">
+                  {{ calc.descricao }}
+                </div>
+              </div>
+            </div>
+            <div v-if="calculationResults.correct.length > 10" class="text-sm text-green-600 mt-2">
+              ... e mais {{ calculationResults.correct.length - 10 }} cálculo(s) correto(s). Veja detalhes abaixo.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estatísticas -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="stat-card">
           <div class="stat-value">{{ comparisonResult?.total_linhas_comparadas || 0 }}</div>
@@ -199,18 +299,24 @@
                   <span class="text-gray-600">Base:</span>
                   <div
                     :data-ref="`base-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
                     style="white-space: pre;"
                     @scroll="sincronizarScroll($event, `validado-linha-${index}`, `numeracao-linha-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
+                    @mouseleave="esconderTooltip"
+                    title="Clique para ver detalhes dos campos"
                   >{{ diferenca.arquivo_base_linha }}</div>
                 </div>
                 <div>
                   <span class="text-gray-600">Comparado:</span>
                   <div
                     :data-ref="`validado-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
                     style="white-space: pre;"
                     @scroll="sincronizarScroll($event, `base-linha-${index}`, `numeracao-linha-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
+                    @mouseleave="esconderTooltip"
+                    title="Clique para ver detalhes dos campos"
                   >{{ diferenca.arquivo_validado_linha }}</div>
                 </div>
               </div>
@@ -222,20 +328,72 @@
                   <div
                     v-for="(campo, campIndex) in diferenca.diferencas_campos"
                     :key="campIndex"
-                    class="flex justify-between items-center p-2 bg-red-50 rounded"
+                    :class="[
+                      'p-3 rounded-lg border-l-4',
+                      campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
+                        ? 'bg-orange-50 border-orange-400'
+                        : 'bg-red-50 border-red-400'
+                    ]"
                   >
-                    <div class="flex-1">
-                      <span class="font-medium">Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}</span>
-                      <span class="text-sm text-gray-600 ml-2">
-                        (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
-                      </span>
-                    </div>
-                    <div class="text-sm text-right max-w-md">
-                      <div class="text-gray-600">
-                        Base: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
+                    <div class="flex justify-between items-start">
+                      <div class="flex-1">
+                        <div class="flex items-center">
+                          <span
+                            class="font-medium cursor-help relative group"
+                            :title="`Campo: ${campo.nome_campo}\nPosição: ${campo.posicao_inicio}-${campo.posicao_fim}\nSequência: ${(campo.sequencia_campo || 0).toString().padStart(2, '0')}`"
+                          >
+                            Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
+                            <!-- Tooltip customizado -->
+                            <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                              <div>📋 Campo: {{ campo.nome_campo }}</div>
+                              <div>📍 Posição: {{ campo.posicao_inicio }}-{{ campo.posicao_fim }}</div>
+                              <div>🔢 Sequência: {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }}</div>
+                              <!-- Seta do tooltip -->
+                              <div class="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                            </div>
+                          </span>
+                          <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                                class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
+                            🧮 Calculo do imposto
+                          </span>
+                          <span v-else-if="campo.tipo_diferenca"
+                                class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
+                            {{ campo.tipo_diferenca }}
+                          </span>
+                        </div>
+                        <span class="text-sm text-gray-600">
+                          (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
+                        </span>
                       </div>
-                      <div class="text-gray-600">
-                        Comp: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                    </div>
+
+                    <!-- Descrição detalhada para cálculos de impostos -->
+                    <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                         class="mt-3 p-3 bg-orange-100 rounded">
+                      <h6 class="font-semibold text-orange-800 mb-2">📊 Detalhes do Cálculo:</h6>
+                      <div class="text-sm text-orange-900 font-mono">
+                        {{ campo.descricao }}
+                      </div>
+                    </div>
+
+                    <!-- Descrição genérica para outros tipos de diferença -->
+                    <div v-else-if="campo.descricao"
+                         class="mt-2 p-2 bg-gray-100 rounded">
+                      <div class="text-sm text-gray-700">
+                        {{ campo.descricao }}
+                      </div>
+                    </div>
+
+                    <!-- Valores comparados (apenas quando não é cálculo) -->
+                    <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')"
+                         class="mt-2 text-sm">
+                      <div class="grid grid-cols-2 gap-2">
+                        <div class="text-gray-600">
+                          Base: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
+                        </div>
+                        <div class="text-gray-600">
+                          Comp: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -284,6 +442,60 @@
         </div>
       </div>
     </div>
+
+    <!-- Tooltip Flutuante para Campos - Melhorado -->
+    <div
+      v-if="tooltipInfo.visible && tooltipInfo.campo"
+      class="fixed z-50 px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl pointer-events-none border border-gray-700"
+      :style="{
+        left: tooltipInfo.x + 'px',
+        top: tooltipInfo.y + 'px',
+        maxWidth: '320px',
+        minWidth: '280px'
+      }"
+    >
+      <div class="space-y-2">
+        <div class="font-bold text-blue-300 border-b border-gray-700 pb-1 flex items-center justify-between">
+          <span>📋 {{ tooltipInfo.campo.nome }}</span>
+          <span
+            :class="tooltipInfo.tipoLinha === 'base' ? 'bg-green-700 text-green-200' : 'bg-orange-700 text-orange-200'"
+            class="px-2 py-1 rounded text-xs font-mono"
+          >
+            {{ tooltipInfo.tipoLinha === 'base' ? '📊 BASE' : '🔍 VALIDADO' }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span class="text-gray-400">📍 Posição:</span>
+            <span class="text-white font-mono">{{ tooltipInfo.campo.posicao_inicio }}-{{ tooltipInfo.campo.posicao_fim }}</span>
+          </div>
+          <div>
+            <span class="text-gray-400">🔢 Campo:</span>
+            <span class="text-yellow-300 font-mono">{{ tooltipInfo.indice.toString().padStart(2, '0') }}</span>
+          </div>
+          <div>
+            <span class="text-gray-400">📄 Tipo:</span>
+            <span class="text-green-300">{{ tooltipInfo.campo.tipo }}</span>
+          </div>
+          <div v-if="tooltipInfo.campo.obrigatorio">
+            <span class="text-gray-400">⚠️ Status:</span>
+            <span class="text-red-300">Obrigatório</span>
+          </div>
+        </div>
+
+        <div v-if="tooltipInfo.valor.trim()" class="border-t border-gray-700 pt-2">
+          <div class="text-gray-400 text-xs mb-1">💾 Valor atual:</div>
+          <div class="bg-gray-800 p-2 rounded font-mono text-xs break-all text-cyan-300">
+            "{{ tooltipInfo.valor.trim() }}"
+          </div>
+        </div>
+
+        <div class="text-xs text-gray-500 border-t border-gray-700 pt-1">
+          🎯 Precisão melhorada - Posição {{ Math.round(tooltipInfo.posicaoExata || 0) }}px
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -302,6 +514,17 @@ const error = ref('')
 const comparisonResult = ref(null)
 const reportText = ref('')
 const timestamp = ref('')
+const layoutData = ref(null)
+
+// Tooltip state
+const tooltipInfo = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  campo: null,
+  valor: '',
+  indice: 0
+})
 
 // Pagination by Fatura (Nota fiscal: começa em tipo 01)
 const currentFatura = ref(1)
@@ -351,6 +574,42 @@ const taxaIdentidadeClass = computed(() => {
   return 'text-red-600'
 })
 
+// Computed para todos os cálculos de impostos (corretos e incorretos)
+const calculationResults = computed(() => {
+  if (!comparisonResult.value?.diferencas_por_linha) return { errors: [], correct: [], total: [] }
+
+  const errors = []
+  const correct = []
+  const total = []
+
+  comparisonResult.value.diferencas_por_linha.forEach(linha => {
+    if (linha.diferencas_campos) {
+      linha.diferencas_campos.forEach(campo => {
+        if (campo.tipo_diferenca && (campo.tipo_diferenca.startsWith('CALCULO_'))) {
+          const item = {
+            ...campo,
+            linha: linha.numero_linha,
+            tipo_registro: linha.tipo_registro
+          }
+
+          total.push(item)
+
+          if (campo.tipo_diferenca.includes('_OK_')) {
+            correct.push(item)
+          } else if (campo.tipo_diferenca.includes('_ERRO_')) {
+            errors.push(item)
+          }
+        }
+      })
+    }
+  })
+
+  return { errors, correct, total }
+})
+
+// Manter compatibilidade com código existente
+const calculationErrors = computed(() => calculationResults.value.errors)
+
 // File handlers
 function handleLayoutFileChange(event) {
   layoutFile.value = event.target.files[0]
@@ -393,6 +652,7 @@ async function handleComparison() {
   comparisonResult.value = response.data.resultado_comparacao
     reportText.value = response.data.relatorio_texto
     timestamp.value = response.data.timestamp
+    layoutData.value = response.data.layout // Salvar dados do layout
 
     // Salvar no localStorage para download posterior
     if (response.data.dados_comparacao) {
@@ -439,6 +699,169 @@ async function downloadReport() {
     console.error('Erro ao baixar relatório:', err)
     error.value = 'Erro ao baixar relatório: ' + err.message
   }
+}
+
+// Função para extrair NUM-NF da descrição
+function extractNumNF(descricao) {
+  if (!descricao) return null
+  const match = descricao.match(/NUM-NF:\s*(\d+)/)
+  return match ? `NUM-NF: ${match[1]}` : null
+}
+
+// Função para obter campos de um tipo de registro
+function getCamposDoTipo(tipoRegistro) {
+  if (!layoutData.value?.campos) return []
+
+  return layoutData.value.campos.filter(campo => {
+    const nomeCampo = campo.nome || ''
+    return nomeCampo.includes(`NFE${tipoRegistro}-`) || nomeCampo.includes(`NFCOM${tipoRegistro}-`) ||
+           (!nomeCampo.startsWith('NFE') && !nomeCampo.startsWith('NFCOM'))
+  })
+}
+
+// Função para encontrar campo pela posição do mouse na linha com precisão melhorada
+function getCampoNaPosicaoMelhorada(event, tipoRegistro, linhaComBarras) {
+  const campos = getCamposDoTipo(tipoRegistro)
+  if (!campos.length || !linhaComBarras) return null
+
+  // Obter elemento e suas medidas
+  const elemento = event.target
+  const rect = elemento.getBoundingClientRect()
+  const style = window.getComputedStyle(elemento)
+
+  // Calcular posição real considerando scroll
+  const scrollLeft = elemento.scrollLeft
+  const posicaoMouseReal = event.offsetX + scrollLeft
+
+  // Criar um elemento temporário para medir texto
+  const medidor = document.createElement('span')
+  medidor.style.font = style.font
+  medidor.style.fontSize = style.fontSize
+  medidor.style.fontFamily = style.fontFamily
+  medidor.style.visibility = 'hidden'
+  medidor.style.position = 'absolute'
+  medidor.style.whiteSpace = 'pre'
+  document.body.appendChild(medidor)
+
+  try {
+    // Dividir linha pelas barras |
+    const segments = linhaComBarras.split('|')
+    let posicaoAcumulada = 0
+
+    for (let i = 0; i < segments.length - 1 && i < campos.length; i++) { // -1 porque o último segmento após a última | pode estar vazio
+      const segmento = segments[i]
+
+      // Medir largura real do segmento
+      medidor.textContent = segmento
+      const larguraSegmento = medidor.offsetWidth
+
+      // Medir largura da barra |
+      medidor.textContent = '|'
+      const larguraBarra = medidor.offsetWidth
+
+      const inicioSegmento = posicaoAcumulada
+      const fimSegmento = posicaoAcumulada + larguraSegmento
+
+      if (posicaoMouseReal >= inicioSegmento && posicaoMouseReal <= fimSegmento) {
+        return {
+          campo: campos[i],
+          valor: segmento,
+          indice: i + 1,
+          posicaoExata: posicaoMouseReal - inicioSegmento
+        }
+      }
+
+      posicaoAcumulada = fimSegmento + larguraBarra
+    }
+  } finally {
+    document.body.removeChild(medidor)
+  }
+
+  return null
+}
+
+// Funções para controlar tooltip com precisão melhorada
+function mostrarTooltip(event, diferenca, linha, tipoLinha = 'base') {
+  // Usar função melhorada de detecção
+  const campoInfo = getCampoNaPosicaoMelhorada(event, diferenca.tipo_registro, linha)
+
+  if (campoInfo) {
+    // Posição do tooltip na tela (fixo)
+    const tooltipX = event.clientX
+    const tooltipY = event.clientY
+
+    // Ajustar posição para não sair da tela
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const tooltipWidth = 320 // Largura estimada do tooltip
+    const tooltipHeight = 200 // Altura estimada do tooltip (aumentada)
+
+    let finalX = tooltipX
+    let finalY = tooltipY
+
+    // Ajustar X se sair da tela
+    if (finalX + tooltipWidth > viewportWidth) {
+      finalX = viewportWidth - tooltipWidth - 10
+    }
+    if (finalX < 10) {
+      finalX = 10
+    }
+
+    // Posicionamento baseado no tipo de linha:
+    // BASE: tooltip muito acima (bem distante)
+    // VALIDADO/COMPARADO: tooltip abaixo
+    if (tipoLinha === 'base') {
+      finalY = tooltipY - tooltipHeight - 80 // Muito acima da linha (bem distante)
+      // Se não couber acima, forçar bem abaixo
+      if (finalY < 10) {
+        finalY = tooltipY + 60 // Bem distante quando for abaixo
+      }
+    } else {
+      finalY = tooltipY + 40 // Sempre abaixo da linha (aumentado para mais distância)
+      // Se não couber abaixo, mover para cima mas ainda tentar ficar abaixo
+      if (finalY + tooltipHeight > viewportHeight) {
+        finalY = viewportHeight - tooltipHeight - 20 // Forçar a ficar dentro da tela na parte inferior
+        // Só se realmente não couber, aí sim ir para cima
+        if (finalY < tooltipY + 10) {
+          finalY = tooltipY - tooltipHeight - 80
+        }
+      }
+    }
+
+    tooltipInfo.value = {
+      visible: true,
+      x: finalX,
+      y: finalY,
+      campo: campoInfo.campo,
+      valor: campoInfo.valor,
+      indice: campoInfo.indice,
+      posicaoExata: campoInfo.posicaoExata,
+      tipoLinha: tipoLinha
+    }
+  }
+}
+
+function esconderTooltip() {
+  // Limpar qualquer throttle pendente
+  if (tooltipThrottle) {
+    clearTimeout(tooltipThrottle)
+    tooltipThrottle = null
+  }
+  // Esconder imediatamente
+  tooltipInfo.value.visible = false
+}
+
+// Throttle para melhorar performance do mousemove
+let tooltipThrottle = null
+function mostrarTooltipThrottled(event, diferenca, linha, tipoLinha) {
+  if (tooltipThrottle) {
+    clearTimeout(tooltipThrottle)
+  }
+
+  tooltipThrottle = setTimeout(() => {
+    mostrarTooltip(event, diferenca, linha, tipoLinha)
+    tooltipThrottle = null
+  }, 50) // 50ms de throttle
 }
 
 // Reset comparison
@@ -530,5 +953,35 @@ function formatCents(value) {
 
 .stat-label {
   @apply text-sm text-gray-600 mt-1;
+}
+
+/* Tooltips customizados */
+.cursor-help {
+  cursor: help;
+}
+
+.cursor-help:hover {
+  @apply text-blue-600 transition-colors duration-200;
+}
+
+/* Garantir que tooltips customizados apareçam */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1 !important;
+}
+
+/* Melhorar aparência dos tooltips nativos */
+[title] {
+  position: relative;
+  white-space: pre-line;
+}
+
+/* Força exibição de tooltips nativos */
+[title]:hover {
+  position: relative;
+}
+
+/* Ajustar z-index para tooltips */
+.z-50 {
+  z-index: 9999 !important;
 }
 </style>

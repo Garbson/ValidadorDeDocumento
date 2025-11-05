@@ -150,6 +150,12 @@ class ComparadorEstruturalArquivos:
                 if valor_limpo and not valor_limpo.isdigit():
                     return "FORMATO_DECIMAL", f"Campo decimal '{campo.nome}' contém caracteres não numéricos: '{valor_validado}'"
 
+        # 4. VALIDAÇÕES ESPECÍFICAS POR CAMPO
+        if campo.nome == 'NFE06-IE-EMIT' and not validado_eh_vazio:
+            valor_limpo = valor_validado.strip().upper()
+            if valor_limpo == 'ISENTO':
+                return "VALOR_PROIBIDO", f"Campo '{campo.nome}' não pode ter o valor 'ISENTO': '{valor_validado}'"
+
         # Se chegou até aqui, não há diferenças estruturais relevantes
         return None, None
 
@@ -390,6 +396,40 @@ class ComparadorEstruturalArquivos:
             'NFE56-TOT-VLR-BC':         [{'tipo': '30', 'campo': 'NFE30-ICM90-VLR-BC'}],
         }
 
+        # Mapeamento para validação de cálculos individuais: BC × Alíquota = Valor
+        calculation_validations = {
+            '38': {  # PIS
+                'bc_field': 'NFE38-PIS-VLR-BC',
+                'aliq_field': 'NFE38-PIS-ALIQ',
+                'valor_field': 'NFE38-PIS-VLR',
+                'nome_imposto': 'PIS'
+            },
+            '40': {  # COFINS
+                'bc_field': 'NFE40-COFINS-VLR-BC',
+                'aliq_field': 'NFE40-COFINS-ALIQ',
+                'valor_field': 'NFE40-COFINS-VLR',
+                'nome_imposto': 'COFINS'
+            },
+            '42': {  # FUST
+                'bc_field': 'NFE42-FUST-VLR-BC',
+                'aliq_field': 'NFE42-FUST-ALIQ',
+                'valor_field': 'NFE42-FUST-VLR',
+                'nome_imposto': 'FUST'
+            },
+            '44': {  # FUNTEL
+                'bc_field': 'NFE44-FUNTEL-VLR-BC',
+                'aliq_field': 'NFE44-FUNTEL-ALIQ',
+                'valor_field': 'NFE44-FUNTEL-VLR',
+                'nome_imposto': 'FUNTEL'
+            },
+            '30': {  # ICMS (tipo 90)
+                'bc_field': 'NFE30-ICM90-VLR-BC',
+                'aliq_field': 'NFE30-ICM90-ALIQ',
+                'valor_field': 'NFE30-ICM90-VLR',
+                'nome_imposto': 'ICMS'
+            }
+        }
+
         # Índice por tipo para somar rapidamente
         sources_by_tipo: Dict[str, List[Tuple[str, str]]] = {}
         for target, fontes in totals_map.items():
@@ -406,6 +446,116 @@ class ComparadorEstruturalArquivos:
                 accum_totals[k] = 0
             for k in components.keys():
                 components[k].clear()
+
+        def _validar_calculo_imposto(tipo_registro: str, campos_extraidos: Dict[str, str], diferencas_campos: List, linha_completa: str = '', numero_linha: int = 0) -> None:
+            """Valida se o cálculo do imposto está correto: BC × Alíquota = Valor"""
+            if tipo_registro not in calculation_validations:
+                return
+
+            config = calculation_validations[tipo_registro]
+
+            # Extrair NUM-NF da linha (posições 3-15)
+            num_nf = ''
+            if linha_completa and len(linha_completa) >= 15:
+                num_nf = linha_completa[2:15].strip().lstrip('0') or '0'
+
+            # Extrair valores dos campos
+            bc_str = campos_extraidos.get(config['bc_field'], '').strip()
+            aliq_str = campos_extraidos.get(config['aliq_field'], '').strip()
+            valor_str = campos_extraidos.get(config['valor_field'], '').strip()
+
+            # Se algum campo estiver vazio, não validar
+            if not bc_str or not aliq_str or not valor_str:
+                return
+
+            try:
+                # Converter valores decimais para números (removendo pontos e tratando como centésimos)
+                def _parse_decimal_value(s: str) -> int:
+                    """Converte valor decimal para inteiro com 2 casas decimais implícitas"""
+                    try:
+                        # Remover espaços e zeros à esquerda
+                        clean_s = s.strip().lstrip('0') or '0'
+
+                        # Se contém ponto decimal, processar
+                        if '.' in clean_s:
+                            parts = clean_s.split('.')
+                            inteiro = int(parts[0]) if parts[0] else 0
+                            decimal = parts[1][:2].ljust(2, '0')  # Pegar até 2 casas e completar com zeros
+                            return inteiro * 100 + int(decimal)
+                        else:
+                            # Se não tem ponto, considerar como inteiro com 2 casas implícitas
+                            return _only_digits_to_int(clean_s)
+                    except Exception:
+                        return 0
+
+                bc_val = _parse_decimal_value(bc_str)
+                aliq_val = _parse_decimal_value(aliq_str)
+                valor_declarado = _parse_decimal_value(valor_str)
+
+                # Se todos os valores são zero, não validar
+                if bc_val == 0 and aliq_val == 0 and valor_declarado == 0:
+                    return
+
+                # Calcular valor esperado: BC × Alíquota / 10000 (alíquota em percentual)
+                # Exemplo: BC=17693 (176,93), Alíquota=65 (0,65%), Resultado=115 (1,15)
+                # Usar truncamento (divisão inteira) ao invés de arredondamento
+                valor_calculado = (bc_val * aliq_val) // 10000
+
+                # Sempre mostrar o cálculo (tanto correto quanto incorreto)
+                # Determinar se é correto ou incorreto
+                calculo_correto = valor_declarado == valor_calculado
+                tipo_calculo = "CORRETO" if calculo_correto else "ERRO"
+
+                # Formatar valores para exibição com 2 casas decimais
+                bc_fmt = f"{bc_val/100:.2f}".replace('.', ',')
+                aliq_fmt = f"{aliq_val/100:.2f}".replace('.', ',')
+                valor_decl_fmt = f"{valor_declarado/100:.2f}".replace('.', ',')
+                valor_calc_fmt = f"{valor_calculado/100:.2f}".replace('.', ',')
+
+                # Obter metadados do campo valor
+                campo_meta = self.layout.get_campo(config['valor_field'])
+                pos_ini = campo_meta.posicao_inicio if campo_meta else 1
+                pos_fim = campo_meta.posicao_fim if campo_meta else len(valor_str)
+
+                # Sequência do campo dentro do tipo
+                seq = 0
+                try:
+                    campos_do_tipo = [c for c in self.layout.campos if self._campo_pertence_ao_tipo(c.nome, tipo_registro)]
+                    for i, c in enumerate(campos_do_tipo, 1):
+                        if c.nome == config['valor_field']:
+                            seq = i
+                            break
+                except Exception:
+                    seq = 0
+
+                # Incluir NUM-NF na descrição para facilitar identificação
+                identificacao = f"NUM-NF: {num_nf}" if num_nf else f"Linha: {numero_linha}"
+
+                # Criar descrição baseada no resultado
+                if calculo_correto:
+                    descricao = f"{config['nome_imposto']} ({identificacao}): BC={bc_fmt} × Alíquota={aliq_fmt}% = {valor_calc_fmt} ✅ CORRETO"
+                    tipo_diff = f"CALCULO_OK_{config['nome_imposto']}"
+                else:
+                    diferenca_fmt = f"{(valor_declarado - valor_calculado)/100:.2f}".replace('.', ',')
+                    descricao = f"{config['nome_imposto']} ({identificacao}): BC={bc_fmt} × Alíquota={aliq_fmt}% = Calculado={valor_calc_fmt} | Declarado={valor_decl_fmt} | Diferença={diferenca_fmt}"
+                    tipo_diff = f"CALCULO_ERRO_{config['nome_imposto']}"
+
+                diferencas_campos.append(
+                    DiferencaEstruturalCampo(
+                        nome_campo=config['valor_field'],
+                        posicao_inicio=pos_ini,
+                        posicao_fim=pos_fim,
+                        valor_base='',  # Não há base para comparação de cálculo
+                        valor_validado=valor_str,
+                        tipo_diferenca=tipo_diff,
+                        descricao=descricao,
+                        sequencia_campo=seq
+                    )
+                )
+
+            except Exception:
+                # Se houver erro na validação, não adicionar diferença
+                pass
 
         try:
             with open(caminho_validado, 'r', encoding='utf-8') as fval:
@@ -430,9 +580,14 @@ class ComparadorEstruturalArquivos:
 
                     # Acúmulo/validação de totais por fatura
                     try:
+                        # Extrair campos para validações
+                        campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
+
+                        # Validar cálculos individuais de impostos (BC × Alíquota = Valor)
+                        _validar_calculo_imposto(tipo_registro, campos_tipo, diferencas_campos, linha_validado, numero_linha_validado)
+
                         # Acumular fontes do tipo atual
                         if tipo_registro in sources_by_tipo:
-                            campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
                             for target, campo_src in sources_by_tipo[tipo_registro]:
                                 val = _only_digits_to_int(campos_tipo.get(campo_src, ''))
                                 accum_totals[target] += val
@@ -516,8 +671,13 @@ class ComparadorEstruturalArquivos:
                     linha_base = referencias_base.get(tipo_registro, (0, ' ' * self.layout.tamanho_linha))[1]
                     diferencas_campos = self.comparar_campos_linha(linha_base, linha_validado, numero_linha_validado, tipo_registro)
                     try:
+                        # Extrair campos para validações
+                        campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
+
+                        # Validar cálculos individuais de impostos (BC × Alíquota = Valor)
+                        _validar_calculo_imposto(tipo_registro, campos_tipo, diferencas_campos, linha_validado, numero_linha_validado)
+
                         if tipo_registro in sources_by_tipo:
-                            campos_tipo = self.extrair_campos_linha(linha_validado, tipo_registro)
                             for target, campo_src in sources_by_tipo[tipo_registro]:
                                 val = _only_digits_to_int(campos_tipo.get(campo_src, ''))
                                 accum_totals[target] += val
