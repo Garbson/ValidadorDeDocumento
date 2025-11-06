@@ -79,7 +79,7 @@
           <p class="font-medium mb-2">Layout Confirmado (preview campos):</p>
           <div v-if="downloadUrl" class="mb-3 flex flex-wrap items-center gap-3">
             <button @click="downloadLayout" class="btn-primary">Download Layout Excel</button>
-            <button @click="usarNoValidador" class="btn-success">Usar no Validador</button>
+            <button @click="usarNoValidador" class="btn-success">Usar no Visualizador</button>
             <span class="text-xs text-gray-500 truncate" :title="downloadFilename">{{ downloadFilename }}</span>
           </div>
           <div class="overflow-x-auto">
@@ -204,16 +204,16 @@ function onConfirmed(payload){
 
 async function usarNoValidador(){
   if(!downloadUrl.value) return
-  // Save server filename in temp store so Validator can fetch it reliably
+  // Save server filename in temp store so Visualizador can fetch it reliably
   try {
     const filename = downloadFilename.value || (downloadUrl.value || '').split('/').pop()
     if (!filename) throw new Error('Nome do arquivo desconhecido')
     tempStore.setLayoutFromFilename(filename, confirmedLayout.value)
-    // Navegar para Validador (usar nome de rota consistente)
-    router.push({ name: 'Validator' })
+  // Navegar para Visualizador (usar nome de rota consistente)
+  router.push({ name: 'Visualizador' })
   } catch (e) {
-    console.error('Erro ao preparar layout para validador (fallback):', e)
-    alert('Erro ao preparar layout para o Validador. Por favor, baixe manualmente e carregue o arquivo.')
+  console.error('Erro ao preparar layout para visualizador (fallback):', e)
+  alert('Erro ao preparar layout para o Visualizador. Por favor, baixe manualmente e carregue o arquivo.')
   }
 }
 

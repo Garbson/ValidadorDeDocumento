@@ -1,0 +1,16 @@
+
+=== RELATÓRIO DE VALIDAÇÃO ===
+Layout: teste
+Data/Hora: 06/11/2025 05:07:16
+
+=== ESTATÍSTICAS ===
+Total de linhas: 1,000
+Linhas válidas: 999
+Linhas com erro: 1
+Taxa de sucesso: 99.90%
+
+=== TIPOS DE ERROS ===
+CALCULO_ERRO_ICMS: 1 ocorrências
+
+=== ERROS POR CAMPO ===
+NFE01-NUM-FATURA: 1 erros

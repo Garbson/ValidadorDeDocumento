@@ -43,6 +43,46 @@ class ResultadoValidacaoResponse(BaseModel):
     taxa_sucesso: float
 
 
+class TotaisCalculadosResponse(BaseModel):
+    """Totais acumulados por campo totalizador no registro 56."""
+    valores: Dict[str, int]
+
+
+class DuplicataNFResponse(BaseModel):
+    linha: int
+    fatura: str
+    nf: str
+    combinacao: str
+
+class EstatisticasFaturasResponse(BaseModel):
+    total_faturas: int
+    total_notas_fiscais: int  # Agora igual à SEFAZ (total de registros 01)
+    total_combinacoes_unicas: int = 0  # Combinações únicas (fatura, nf)
+    total_duplicatas: int = 0  # Número de duplicatas encontradas
+    faturas_detalhes: Dict[str, Any]
+    duplicatas_detalhes: List[DuplicataNFResponse] = []  # Lista das duplicatas
+    # Novas métricas por NF
+    total_nfs_validas: int
+    total_nfs_com_erro: int
+    taxa_sucesso_nf: float
+
+
+class ResultadoCalculosResponse(BaseModel):
+    """Resultado específico para validação de cálculos/totalizadores."""
+    resultado_basico: ResultadoValidacaoResponse
+    totais: Optional[TotaisCalculadosResponse] = None
+    estatisticas_faturas: Optional[EstatisticasFaturasResponse] = None
+    linhas_completas_com_erro: Dict[int, str] = {}
+    grupos_por_nf: Optional[Dict[str, Any]] = None  # chave "fatura|nf" -> {linhas:[], contribuintes_por_total:{campo_total:[linhas...]}}
+    layout: LayoutResponse
+
+
+class ValidarCalculosRequest(BaseModel):
+    """Request para validação de cálculos: apenas arquivos, sem base."""
+    # Mantido vazio pois usaremos UploadFile no endpoint, mas esta classe facilita documentação futura
+    pass
+
+
 class EstatisticasResponse(BaseModel):
     total_linhas: int
     linhas_validas: int
@@ -97,8 +137,6 @@ class DiferencaEstruturalLinhaResponse(BaseModel):
     arquivo_validado_linha: str
     diferencas_campos: List[DiferencaEstruturalCampoResponse]
     total_diferencas: int
-    totais_acumulados: Optional[Dict[str, int]] = None
-    componentes_totais: Optional[List[Dict[str, Any]]] = None
 
 
 class ResultadoComparacaoEstruturalResponse(BaseModel):

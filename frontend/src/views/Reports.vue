@@ -97,9 +97,9 @@
           <FileX class="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhuma validação realizada</h3>
           <p class="text-gray-500 mb-4">Comece fazendo uma validação para ver o histórico aqui.</p>
-          <router-link to="/validador" class="btn-primary">
-            <CheckSquare class="w-4 h-4 mr-2" />
-            Iniciar Validação
+          <router-link to="/visualizador" class="btn-primary">
+            <Eye class="w-4 h-4 mr-2" />
+            Abrir Visualizador
           </router-link>
         </div>
 
@@ -195,8 +195,8 @@ import { computed } from 'vue'
 import { useValidationStore } from '@/stores/validation'
 import { useRouter } from 'vue-router'
 import {
-  Clock, Download, History, Trash2, FileX, CheckSquare, CheckCircle,
-  AlertTriangle, XCircle, Eye
+  Clock, Download, History, Trash2, FileX, Eye, CheckCircle,
+  AlertTriangle, XCircle
 } from 'lucide-vue-next'
 import SuccessRateChart from '@/components/SuccessRateChart.vue'
 import ErrorTrendsChart from '@/components/ErrorTrendsChart.vue'
@@ -262,7 +262,7 @@ const downloadHistoryReport = async (timestamp, format) => {
 
 const viewValidation = (validation) => {
   validationStore.setCurrentValidation(validation)
-  router.push('/validador')
+  router.push('/visualizador')
 }
 
 const clearHistory = () => {

@@ -142,29 +142,87 @@ class LayoutParser:
         except Exception as e:
             raise ValueError(f"Erro ao processar Excel: {str(e)}")
 
-    def _validar_sobreposicoes(self, campos: List[CampoLayout]) -> None:
-        """Valida se há sobreposições entre campos.
+    def parse_dataframe(self, df: pd.DataFrame, nome_layout: str = "Layout") -> Layout:
+        """Converte um DataFrame já carregado (com colunas canônicas) em um objeto Layout.
 
-        Para arquivos multiregistro (campos com padrão NFE[XX]- ou NFCOM[XX]-),
-        verifica sobreposições apenas dentro do mesmo tipo de registro, pois cada
-        tipo representa linhas separadas.
+        Espera as colunas: 'Campo', 'Posicao_Inicio', 'Tamanho', 'Tipo', 'Obrigatorio' e opcional 'Formato'.
+        """
+        try:
+            # Validar estrutura básica
+            erros_estrutura = self.validar_excel(df)
+            if erros_estrutura:
+                raise ValueError("Erros na estrutura do DataFrame:\n" + "\n".join(erros_estrutura))
+
+            # Validar cada linha
+            erros_linhas = []
+            for idx, linha in df.iterrows():
+                erros_linha = self.validar_linha_layout(linha, idx + 2)
+                erros_linhas.extend(erros_linha)
+
+            if erros_linhas:
+                raise ValueError("Erros nas linhas do layout:\n" + "\n".join(erros_linhas))
+
+            # Converter linhas em CampoLayout
+            campos: List[CampoLayout] = []
+            for _, row in df.iterrows():
+                nome = str(row['Campo']).strip()
+                pos_ini = int(row['Posicao_Inicio'])
+                tam = int(row['Tamanho'])
+                tipo_str = str(row['Tipo']).upper().strip()
+
+                # Garantir que o tipo é um TipoCampo válido
+                try:
+                    tipo_campo = TipoCampo(tipo_str)
+                except ValueError:
+                    # Fallback para TEXTO se vier algo não mapeado
+                    tipo_campo = TipoCampo.TEXTO
+
+                obrig = str(row['Obrigatorio']).upper().strip() in ['S', 'SIM', 'Y', 'YES', '1', 'TRUE', 'OBRIG', 'OBRIGATORIO']
+                formato = str(row.get('Formato', '')).strip() if pd.notna(row.get('Formato', None)) else None
+
+                campos.append(CampoLayout(
+                    nome=nome,
+                    posicao_inicio=pos_ini,
+                    tamanho=tam,
+                    tipo=tipo_campo,
+                    obrigatorio=obrig,
+                    formato=formato
+                ))
+
+            # Validar sobreposições e calcular tamanho total
+            self._validar_sobreposicoes(campos)
+            tamanho_linha = max((c.posicao_fim for c in campos), default=0)
+
+            return Layout(nome=nome_layout, campos=campos, tamanho_linha=tamanho_linha)
+        except Exception as e:
+            raise ValueError(f"Erro ao processar DataFrame: {str(e)}")
+
+    def _validar_sobreposicoes(self, campos: List[CampoLayout]) -> None:
+        """Valida se há sobreposições entre campos
+
+        Para arquivos multiregistro (campos com padrão NFE[XX]-), verifica sobreposições
+        apenas dentro do mesmo tipo de registro, pois cada tipo representa linhas separadas.
         """
         import re
 
-        # Detectar se é arquivo multiregistro (aceita NFE##- e NFCOM##-)
-        is_multirecord = any(re.match(r'(?:NFE|NFCOM)\d+-', campo.nome) for campo in campos)
+        # Detectar se é arquivo multiregistro
+        is_multirecord = any(re.match(r'NFE\d+-', campo.nome) for campo in campos)
 
         if is_multirecord:
             # Para multiregistro: agrupar campos por tipo de registro
-            campos_por_tipo: Dict[str, List[CampoLayout]] = {}
+            campos_por_tipo = {}
             for campo in campos:
-                match = re.match(r'(?:NFE|NFCOM)(\d+)-', campo.nome)
+                match = re.match(r'NFE(\d+)-', campo.nome)
                 if match:
                     tipo_registro = match.group(1)
-                    campos_por_tipo.setdefault(tipo_registro, []).append(campo)
+                    if tipo_registro not in campos_por_tipo:
+                        campos_por_tipo[tipo_registro] = []
+                    campos_por_tipo[tipo_registro].append(campo)
                 else:
-                    # Campos sem padrão são tratados como tipo "00" por padrão
-                    campos_por_tipo.setdefault("00", []).append(campo)
+                    # Campos sem padrão NFE[XX]- são tratados como tipo "00" por padrão
+                    if "00" not in campos_por_tipo:
+                        campos_por_tipo["00"] = []
+                    campos_por_tipo["00"].append(campo)
 
             # Validar sobreposições dentro de cada tipo de registro
             for tipo_registro, campos_do_tipo in campos_por_tipo.items():

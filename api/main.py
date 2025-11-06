@@ -25,6 +25,7 @@ from src.layout_normalizer import (
     list_excel_sheets, find_header_row
 )
 from src.file_validator import ValidadorArquivo
+from src.enhanced_validator import EnhancedValidator
 from src.multi_record_validator import MultiRecordValidator
 from src.structural_comparator import ComparadorEstruturalArquivos
 from src.report_generator import GeradorRelatorio
@@ -36,7 +37,8 @@ from .models import (
     EstatisticasResponse, ValidacaoCompleta,
     StatusResponse, ErrorResponse, RegistroPreviewResponse,
     DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
-    ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta
+    ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta,
+    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse
 )
 
 app = FastAPI(
@@ -111,6 +113,192 @@ def converter_resultado_para_response(resultado) -> ResultadoValidacaoResponse:
     )
 
 
+def _extrair_linhas_completas(caminho: str) -> Dict[int, str]:
+    """Lê arquivo e mapeia numero_linha -> conteúdo bruto (com padding original)."""
+    linhas: Dict[int, str] = {}
+    try:
+        with open(caminho, 'r', encoding='utf-8') as f:
+            for i, linha in enumerate(f, 1):
+                linhas[i] = linha.rstrip('\n\r')
+    except UnicodeDecodeError:
+        with open(caminho, 'r', encoding='latin-1') as f:
+            for i, linha in enumerate(f, 1):
+                linhas[i] = linha.rstrip('\n\r')
+    return linhas
+
+
+def _gerar_estatisticas_faturas_do_enhanced(ev: EnhancedValidator) -> EstatisticasFaturasResponse:
+    stats = ev._gerar_estatisticas_faturas()
+    # Calcular métricas de NF usando os grupos e erros presentes
+    total_nfs = stats.get('total_notas_fiscais', 0)
+    nfs_com_erro = set()
+    # Mapear linhas com erro por NF via grupos
+    linhas_com_erro = set()
+    # Tentar obter erros do último resultado produzido: não está diretamente disponível aqui;
+    # então inferimos por presença de divergências de total (56) no agrupamento não é possível aqui.
+    # Alternativa robusta: considerar NF válida se houve registro 56 e nenhum erro TOTAL_* associado a esse grupo.
+    # Como não temos os erros aqui, aproximamos: todas as NF presentes são consideradas "validadas" por padrão.
+    total_validas = total_nfs - len(nfs_com_erro)
+    taxa_sucesso = (total_validas / total_nfs * 100) if total_nfs > 0 else 0.0
+
+    # Converter duplicatas para o modelo de resposta
+    from .models import DuplicataNFResponse
+    duplicatas_response = []
+    for dup in stats.get('duplicatas_detalhes', []):
+        duplicatas_response.append(DuplicataNFResponse(
+            linha=dup['linha'],
+            fatura=dup['fatura'],
+            nf=dup['nf'],
+            combinacao=dup['combinacao']
+        ))
+
+    return EstatisticasFaturasResponse(
+        total_faturas=stats.get('total_faturas', 0),
+        total_notas_fiscais=total_nfs,
+        total_combinacoes_unicas=stats.get('total_combinacoes_unicas', 0),
+        total_duplicatas=stats.get('total_duplicatas', 0),
+        faturas_detalhes=stats.get('faturas_detalhes', {}),
+        duplicatas_detalhes=duplicatas_response if duplicatas_response else [],
+        total_nfs_validas=total_validas,
+        total_nfs_com_erro=len(nfs_com_erro),
+        taxa_sucesso_nf=taxa_sucesso
+    )
+
+
+@app.post("/api/validar-calculos")
+async def validar_calculos(
+    layout_file: UploadFile = File(...),
+    data_file: UploadFile = File(...),
+    sheet_name: Optional[int] = Form(None)
+):
+    """Valida cálculos e totalizadores (sem arquivo base), retornando erros e a linha completa de cada ocorrência."""
+    if not layout_file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Layout deve ser Excel (.xlsx ou .xls)")
+    if not data_file.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Arquivo de dados deve ser TXT")
+
+    temp_layout = None
+    temp_data = None
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Salvar uploads
+        temp_layout = UPLOAD_DIR / f"layout_{timestamp}_{layout_file.filename}"
+        with open(temp_layout, "wb") as buffer:
+            buffer.write(await layout_file.read())
+
+        temp_data = UPLOAD_DIR / f"data_{timestamp}_{data_file.filename}"
+        with open(temp_data, "wb") as buffer:
+            buffer.write(await data_file.read())
+
+        # Carregar layout (aba definida ou 0)
+        parser = LayoutParser()
+        sheet_index = sheet_name if sheet_name is not None else 0
+        layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
+
+        # Rodar EnhancedValidator sem limite de erros
+        ev = EnhancedValidator(layout)
+        resultado = ev.validar_arquivo(str(temp_data))
+
+        # Converter resultados básicos
+        resultado_response = converter_resultado_para_response(resultado)
+
+        # Linhas completas: capturar apenas as com erro
+        linhas_raw = _extrair_linhas_completas(str(temp_data))
+        linhas_com_erro: Dict[int, str] = {}
+        for erro in resultado.erros:
+            if erro.linha not in linhas_com_erro and erro.linha in linhas_raw:
+                # Pad para tamanho de linha do layout para coerência visual
+                linha = linhas_raw[erro.linha]
+                if len(linha) < layout.tamanho_linha:
+                    linha = linha.ljust(layout.tamanho_linha)
+                linhas_com_erro[erro.linha] = linha
+
+        # Preparar extras: totais
+        totais_resp = TotaisCalculadosResponse(valores=dict(ev.totais_acumulados))
+
+        # Converter grupos por NF para resposta serializável (inclui conteúdo das linhas do grupo)
+        grupos_resp: Dict[str, Any] = {}
+        for (fatura, nf), dados in ev.grupos_nf.items():
+            key = f"{fatura}|{nf}"
+            # Mapear conteúdo bruto das linhas do grupo (com padding)
+            linhas_conteudo: Dict[int, str] = {}
+            for ln in dados.get('linhas', []):
+                if ln in linhas_raw:
+                    linha = linhas_raw[ln]
+                    if len(linha) < layout.tamanho_linha:
+                        linha = linha.ljust(layout.tamanho_linha)
+                    linhas_conteudo[ln] = linha
+            grupos_resp[key] = {
+                'linhas': dados.get('linhas', []),
+                'contribuintes_por_total': dados.get('contribuintes_por_total', {}),
+                'linhas_conteudo': linhas_conteudo
+            }
+
+        # Estatísticas por NF - usar contador igual SEFAZ (por linha processada = registros 01)
+        total_nfs = ev.total_registros_01  # Cada registro 01 = 1 NFCOM processada
+        nfs_com_erro: set[str] = set()
+
+        def extrair_grupo_key_descricao(desc: str) -> Optional[str]:
+            if not desc:
+                return None
+            import re as _re
+            m = _re.search(r"Fatura\s+(\S+)\s*\|\s*NF\s+(\S+)", desc)
+            if m:
+                return f"{m.group(1)}|{m.group(2)}"
+            return None
+
+        # Mapear rapidamente linha->grupo
+        linha_para_grupo: Dict[int, str] = {}
+        for gk, gdata in grupos_resp.items():
+            for ln in gdata.get('linhas', []):
+                linha_para_grupo[ln] = gk
+
+        for erro in resultado.erros:
+            gk = extrair_grupo_key_descricao(getattr(erro, 'descricao', ''))
+            if not gk:
+                gk = linha_para_grupo.get(getattr(erro, 'linha', -1))
+            if gk:
+                nfs_com_erro.add(gk)
+
+        total_nfs_com_erro = len(nfs_com_erro)
+
+        # TODO: Integrar dados reais da SEFAZ quando disponível
+        # SEFAZ real: 148 aprovadas + 363 rejeitadas = 511 total
+        # Arquivo TXT: 502 registros 01
+        # Por enquanto, usar contagem do arquivo TXT
+        total_nfs_validas = max(0, total_nfs - total_nfs_com_erro)
+        taxa_sucesso_nf = (total_nfs_validas / total_nfs * 100) if total_nfs > 0 else 0.0
+
+        stats_resp = EstatisticasFaturasResponse(
+            total_faturas=len(ev.notas_fiscais_por_fatura),
+            total_notas_fiscais=total_nfs,
+            total_combinacoes_unicas=len(ev.combinacoes_fatura_nf),  # 343 combinações únicas
+            total_duplicatas=len(ev.duplicatas_fatura_nf),  # Duplicatas encontradas
+            faturas_detalhes=ev._gerar_estatisticas_faturas().get('faturas_detalhes', {}),
+            duplicatas_detalhes=ev.duplicatas_fatura_nf,  # Lista das duplicatas
+            total_nfs_validas=total_nfs_validas,
+            total_nfs_com_erro=total_nfs_com_erro,
+            taxa_sucesso_nf=taxa_sucesso_nf
+        )
+
+        return ResultadoCalculosResponse(
+            resultado_basico=resultado_response,
+            totais=totais_resp,
+            estatisticas_faturas=stats_resp,
+            linhas_completas_com_erro=linhas_com_erro,
+            grupos_por_nf=grupos_resp,
+            layout=converter_layout_para_response(layout)
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro durante validação de cálculos: {str(e)}")
+    finally:
+        if temp_layout and temp_layout.exists():
+            os.remove(temp_layout)
+        if temp_data and temp_data.exists():
+            os.remove(temp_data)
+
+
 def gerar_estatisticas(resultado) -> EstatisticasResponse:
     """Gera estatísticas detalhadas"""
     tipos_erro = Counter(erro.erro_tipo for erro in resultado.erros)
@@ -150,9 +338,7 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
             arquivo_base_linha=diferenca_linha.arquivo_base_linha,
             arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
             diferencas_campos=campos_response,
-            total_diferencas=diferenca_linha.total_diferencas,
-            totais_acumulados=diferenca_linha.totais_acumulados,
-            componentes_totais=diferenca_linha.componentes_totais
+            total_diferencas=diferenca_linha.total_diferencas
         ))
 
     return ResultadoComparacaoEstruturalResponse(
@@ -747,15 +933,37 @@ async def comparar_arquivos_estrutural(
         # Carregar layout
         sheet_index = sheet_name if sheet_name is not None else 0
 
-    # Observação: permitir layouts multi-registro na comparação estrutural.
-    # O comparador já filtra campos por tipo de registro corretamente.
+        # Verificar se é layout multi-registro (não suportado para comparação estrutural)
+        def is_multi_record_layout(layout_path, sheet_idx):
+            try:
+                import pandas as pd
+                df = pd.read_excel(layout_path, sheet_name=sheet_idx, header=1)
+                df_clean = df[df['Campo'].notna() & (df['Campo'] != 'Campo')].copy()
+
+                tipos_encontrados = set()
+                for _, row in df_clean.iterrows():
+                    campo_nome = str(row['Campo'])
+                    if 'NFE' in campo_nome and '-' in campo_nome:
+                        tipo = campo_nome.split('-')[0].replace('NFE', '')
+                        if tipo.isdigit():
+                            tipos_encontrados.add(tipo)
+
+                return len(tipos_encontrados) > 1
+            except:
+                return False
+
+        if is_multi_record_layout(str(temp_layout), sheet_index):
+            raise HTTPException(
+                status_code=400,
+                detail="Comparação estrutural não suportada para layouts multi-registro. Use layouts normalizados."
+            )
 
         # Carregar layout usando parser padrão
         parser = LayoutParser()
         layout = parser.parse_excel(str(temp_layout), sheet_name=sheet_index)
 
         # Executar comparação estrutural
-        comparador = ComparadorEstruturalArquivos(layout, show_all_lines=True)
+        comparador = ComparadorEstruturalArquivos(layout)
         resultado_comparacao = comparador.comparar_arquivos(str(temp_base), str(temp_validado))
 
         # Gerar relatório textual

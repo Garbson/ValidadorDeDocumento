@@ -1,7 +1,27 @@
 import axios from 'axios'
 
+// Base URL strategy:
+// - In development (Vite dev server), prefer the proxy '/api' to hit backend :8000
+// - Allow override with VITE_API_URL only when explicitly desired (set VITE_FORCE_API_URL=true)
+// - In production, VITE_API_URL can point to the deployed API; otherwise '/api' works when served behind the same origin
+const isDev = import.meta.env.DEV
+const forceApi = import.meta.env.VITE_FORCE_API_URL === 'true'
+let base = '/api'
+
+if (!isDev && import.meta.env.VITE_API_URL) {
+  base = import.meta.env.VITE_API_URL
+}
+
+if (isDev) {
+  if (forceApi && import.meta.env.VITE_API_URL) {
+    base = import.meta.env.VITE_API_URL
+  } else {
+    base = '/api' // use Vite proxy to http://localhost:8000
+  }
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: base,
   timeout: 300000, // 5 minutos para arquivos grandes da claro
 })
 

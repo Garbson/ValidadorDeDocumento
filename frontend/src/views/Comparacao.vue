@@ -110,8 +110,8 @@
       </div>
     </div>
 
-  <!-- Results -->
-  <div v-if="hasResults && !isLoading" class="space-y-6">
+    <!-- Results -->
+    <div v-if="hasResults && !isLoading" class="space-y-6">
       <!-- Header de Resultados -->
       <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-900">Resultado da Comparação</h2>
@@ -124,106 +124,6 @@
             <RotateCcw class="w-4 h-4 mr-2" />
             Nova Comparação
           </button>
-        </div>
-      </div>
-
-      <!-- Resumo de Cálculos de Impostos -->
-      <div v-if="calculationResults.total.length > 0" class="space-y-4">
-
-        <!-- Resumo Geral de Cálculos -->
-        <div class="card border-blue-300 bg-blue-50">
-          <div class="card-header bg-blue-100">
-            <h3 class="text-lg font-semibold text-blue-800 flex items-center justify-between">
-              <span class="flex items-center">
-                🧮 Cálculos de Impostos Verificados
-                <span class="ml-2 px-2 py-1 text-xs bg-blue-200 text-blue-700 rounded-full">
-                  {{ calculationResults.total.length }} cálculo(s)
-                </span>
-              </span>
-              <div class="flex gap-2 text-xs">
-                <span class="px-2 py-1 bg-green-200 text-green-700 rounded-full">
-                  ✅ {{ calculationResults.correct.length }} correto(s)
-                </span>
-                <span v-if="calculationResults.errors.length > 0" class="px-2 py-1 bg-red-200 text-red-700 rounded-full">
-                  ❌ {{ calculationResults.errors.length }} erro(s)
-                </span>
-              </div>
-            </h3>
-          </div>
-        </div>
-
-        <!-- Erros de Cálculo (se houver) -->
-        <div v-if="calculationErrors.length > 0" class="card border-red-300 bg-red-50">
-          <div class="card-header bg-red-100">
-            <h3 class="text-lg font-semibold text-red-800 flex items-center">
-              ❌ Erros de Cálculo de Impostos
-              <span class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-700 rounded-full">
-                {{ calculationErrors.length }} erro(s)
-              </span>
-            </h3>
-          </div>
-          <div class="card-body">
-            <p class="text-red-700 mb-3">
-              Erros encontrados nos cálculos de impostos. Estes erros podem causar rejeição na SEFAZ.
-            </p>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
-              <div
-                v-for="(error, index) in calculationErrors.slice(0, 10)"
-                :key="index"
-                class="p-2 bg-white rounded border border-red-200"
-              >
-                <div class="text-sm">
-                  <span class="font-semibold text-red-800">
-                    {{ error.tipo_diferenca.replace('CALCULO_ERRO_', '') }}
-                  </span>
-                  <span class="text-gray-600 ml-2">({{ extractNumNF(error.descricao) || 'Linha ' + error.linha }})</span>
-                </div>
-                <div class="text-xs text-red-900 font-mono mt-1">
-                  {{ error.descricao }}
-                </div>
-              </div>
-            </div>
-            <div v-if="calculationErrors.length > 10" class="text-sm text-red-600 mt-2">
-              ... e mais {{ calculationErrors.length - 10 }} erro(s). Veja detalhes abaixo.
-            </div>
-          </div>
-        </div>
-
-        <!-- Cálculos Corretos -->
-        <div v-if="calculationResults.correct.length > 0" class="card border-green-300 bg-green-50">
-          <div class="card-header bg-green-100">
-            <h3 class="text-lg font-semibold text-green-800 flex items-center">
-              ✅ Cálculos Corretos de Impostos
-              <span class="ml-2 px-2 py-1 text-xs bg-green-200 text-green-700 rounded-full">
-                {{ calculationResults.correct.length }} correto(s)
-              </span>
-            </h3>
-          </div>
-          <div class="card-body">
-            <p class="text-green-700 mb-3">
-              Cálculos de impostos verificados e confirmados como corretos.
-            </p>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
-              <div
-                v-for="(calc, index) in calculationResults.correct.slice(0, 10)"
-                :key="index"
-                class="p-2 bg-white rounded border border-green-200"
-              >
-                <div class="text-sm">
-                  <span class="font-semibold text-green-800">
-                    {{ calc.tipo_diferenca.replace('CALCULO_OK_', '') }}
-                  </span>
-                  <span class="text-gray-600 ml-2">({{ extractNumNF(calc.descricao) || 'Linha ' + calc.linha }})</span>
-                </div>
-                <div class="text-xs text-green-900 font-mono mt-1">
-                  {{ calc.descricao }}
-                </div>
-              </div>
-            </div>
-            <div v-if="calculationResults.correct.length > 10" class="text-sm text-green-600 mt-2">
-              ... e mais {{ calculationResults.correct.length - 10 }} cálculo(s) correto(s). Veja detalhes abaixo.
-            </div>
-          </div>
         </div>
       </div>
 
@@ -249,28 +149,15 @@
         </div>
       </div>
 
-      <!-- Paginação por Fatura (Nota) -->
-      <div v-if="totalFaturas > 1" class="card">
-        <div class="card-body flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div class="text-sm text-gray-700">
-            Fatura <span class="font-semibold">{{ currentFatura }}</span> de <span class="font-semibold">{{ totalFaturas }}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="btn-outline" @click="prevFatura" :disabled="currentFatura <= 1">Anterior</button>
-            <button class="btn-outline" @click="nextFatura" :disabled="currentFatura >= totalFaturas">Próxima</button>
-          </div>
-        </div>
-      </div>
-
-  <!-- Diferenças Detalhadas (paginadas por fatura) -->
-  <div v-if="linhasExibidas.length > 0" class="card">
+      <!-- Diferenças Detalhadas -->
+      <div v-if="comparisonResult?.diferencas_por_linha?.length > 0" class="card">
         <div class="card-header">
           <h3 class="text-lg font-semibold">Diferenças Encontradas</h3>
         </div>
         <div class="card-body">
           <div class="space-y-6">
             <div
-      v-for="(diferenca, index) in linhasExibidas"
+              v-for="(diferenca, index) in comparisonResult.diferencas_por_linha"
               :key="index"
               class="border border-gray-200 rounded-lg p-4"
             >
@@ -399,30 +286,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Totais e Componentes (apenas para tipo 56) -->
-              <div v-if="diferenca.tipo_registro === '56' && (diferenca.totais_acumulados || diferenca.componentes_totais)" class="mt-4">
-                <h5 class="font-medium text-gray-700">Totais calculados na fatura</h5>
-                <div v-if="diferenca.totais_acumulados" class="text-sm text-gray-700 mt-2">
-                  <div v-for="(val, key) in diferenca.totais_acumulados" :key="key" class="flex justify-between py-1 border-b border-gray-100">
-                    <span class="font-mono">{{ key }}</span>
-                    <span class="font-semibold">{{ formatCents(val) }}</span>
-                  </div>
-                </div>
-                <div v-if="diferenca.componentes_totais" class="text-sm text-gray-700 mt-4">
-                  <h6 class="font-medium">Componentes por total</h6>
-                  <div v-for="(grp, gi) in diferenca.componentes_totais" :key="gi" class="mt-2">
-                    <div class="font-mono text-blue-700">{{ grp.total }}</div>
-                    <div v-if="grp.componentes && grp.componentes.length" class="pl-3 mt-1 space-y-1">
-                      <div v-for="(comp, ci) in grp.componentes" :key="ci" class="flex justify-between">
-                        <span>#{{ comp.linha }} • Tipo {{ comp.tipo }} • {{ comp.campo }}</span>
-                        <span class="font-semibold">{{ formatCents(comp.valor) }}</span>
-                      </div>
-                    </div>
-                    <div v-else class="pl-3 text-gray-500">Sem componentes (0)</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -506,6 +369,17 @@ import api from '../services/api'
 import localStorageService from '../services/localStorage'
 
 // Reactive data
+const tooltipInfo = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  campo: null,
+  valor: '',
+  indice: 0,
+  posicaoExata: 0,
+  tipoLinha: 'base'
+})
+const layoutData = ref({ campos: [] })
 const layoutFile = ref(null)
 const baseFile = ref(null)
 const validationFile = ref(null)
@@ -514,54 +388,6 @@ const error = ref('')
 const comparisonResult = ref(null)
 const reportText = ref('')
 const timestamp = ref('')
-const layoutData = ref(null)
-
-// Tooltip state
-const tooltipInfo = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  campo: null,
-  valor: '',
-  indice: 0
-})
-
-// Pagination by Fatura (Nota fiscal: começa em tipo 01)
-const currentFatura = ref(1)
-const gruposFatura = computed(() => {
-  const diffs = comparisonResult.value?.diferencas_por_linha || []
-  if (!diffs.length) return []
-
-  const grupos = []
-  let atual = []
-
-  for (const d of diffs) {
-    // Iniciar nova fatura ao encontrar tipo 01 (mantém a linha no novo grupo)
-    if (d.tipo_registro === '01') {
-      if (atual.length) grupos.push(atual)
-      atual = []
-    }
-    atual.push(d)
-  }
-  if (atual.length) grupos.push(atual)
-
-  // Se não encontrou nenhum 01, mantemos tudo como um único grupo
-  return grupos.length ? grupos : [diffs]
-})
-
-const totalFaturas = computed(() => gruposFatura.value.length)
-const linhasExibidas = computed(() => {
-  const idx = Math.min(Math.max(currentFatura.value - 1, 0), Math.max(totalFaturas.value - 1, 0))
-  return totalFaturas.value ? gruposFatura.value[idx] : (comparisonResult.value?.diferencas_por_linha || [])
-})
-
-function nextFatura() {
-  if (currentFatura.value < totalFaturas.value) currentFatura.value += 1
-}
-
-function prevFatura() {
-  if (currentFatura.value > 1) currentFatura.value -= 1
-}
 
 // Computed properties
 const hasResults = computed(() => comparisonResult.value !== null)
@@ -649,17 +475,10 @@ async function handleComparison() {
       }
     })
 
-  comparisonResult.value = response.data.resultado_comparacao
+    comparisonResult.value = response.data.resultado_comparacao
     reportText.value = response.data.relatorio_texto
     timestamp.value = response.data.timestamp
     layoutData.value = response.data.layout // Salvar dados do layout
-
-    // Salvar no localStorage para download posterior
-    if (response.data.dados_comparacao) {
-      localStorageService.saveComparison(timestamp.value, response.data.dados_comparacao)
-    }
-
-  currentFatura.value = 1
 
   } catch (err) {
     console.error('Erro na comparação:', err)
@@ -905,13 +724,6 @@ function sincronizarScroll(event, targetRefName, numeracaoRefName = null) {
 const layoutFileInput = ref(null)
 const baseFileInput = ref(null)
 const validationFileInput = ref(null)
-
-// Helpers
-function formatCents(value) {
-  const n = Number(value || 0)
-  const reais = n / 100
-  return reais.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
 </script>
 
 <style scoped>

@@ -41,19 +41,17 @@ class MultiRecordValidator:
         print(f"Carregando layouts para {len(tipos_registro)} tipos de registro...")
 
         # Criar layout para cada tipo
-        parser = LayoutParser()
         for tipo in tipos_registro:
             try:
-                layout_path = self._criar_layout_para_tipo(tipo, df_clean)
-                layout = parser.parse_excel(layout_path)
+                layout = self._criar_layout_para_tipo(tipo, df_clean)
                 self.layouts_por_tipo[tipo] = layout
                 self.validadores_por_tipo[tipo] = ValidadorArquivo(layout)
                 print(f"  ✅ Tipo {tipo}: {len(layout.campos)} campos")
             except Exception as e:
                 print(f"  ❌ Erro no tipo {tipo}: {e}")
 
-    def _criar_layout_para_tipo(self, tipo: str, df_clean: pd.DataFrame) -> str:
-        """Cria arquivo de layout para um tipo específico"""
+    def _criar_layout_para_tipo(self, tipo: str, df_clean: pd.DataFrame) -> Layout:
+        """Cria objeto Layout para um tipo específico (sem arquivo físico)"""
         campos_tipo = df_clean[df_clean['Campo'].str.contains(f'NFE{tipo}-', na=False)]
 
         # Ordenar por posição original para manter a ordem correta
@@ -87,12 +85,12 @@ class MultiRecordValidator:
             # Avançar posição para próximo campo
             posicao_atual += tamanho
 
-        # Salvar layout temporário
-        layout_path = f'layout_tipo_{tipo}.xlsx'
+        # Criar layout em memória usando DataFrame
         df_convertido = pd.DataFrame(campos_convertidos)
-        df_convertido.to_excel(layout_path, index=False)
+        parser = LayoutParser()
+        layout = parser.parse_dataframe(df_convertido, f'layout_tipo_{tipo}')
 
-        return layout_path
+        return layout
 
     def detectar_tipo_registro(self, linha: str) -> str:
         """Detecta o tipo de registro de uma linha"""

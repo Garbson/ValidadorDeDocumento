@@ -10,9 +10,9 @@
         baseada em layouts definidos em Excel. Economize horas de análise manual.
       </p>
       <div class="flex justify-center space-x-4">
-        <router-link to="/validador" class="btn-primary px-8 py-3 text-lg">
-          <CheckSquare class="w-5 h-5 mr-2" />
-          Iniciar Validação
+        <router-link to="/visualizador" class="btn-primary px-8 py-3 text-lg">
+          <Eye class="w-5 h-5 mr-2" />
+          Abrir Visualizador
         </router-link>
         <router-link to="/layout" class="btn-secondary px-8 py-3 text-lg">
           <FileSpreadsheet class="w-5 h-5 mr-2" />
@@ -167,5 +167,5 @@
 </template>
 
 <script setup>
-import { BarChart3, CheckSquare, FileSpreadsheet, FileText, Shield, Zap } from 'lucide-vue-next';
+import { BarChart3, Eye, FileSpreadsheet, FileText, Shield, Zap } from 'lucide-vue-next';
 </script>

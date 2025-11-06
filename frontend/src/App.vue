@@ -76,15 +76,16 @@
 </template>
 
 <script setup>
-import { BarChart3, CheckSquare, FileSpreadsheet, FileText, Home, Menu, X, GitCompare } from 'lucide-vue-next'
+import { BarChart3, Eye, FileSpreadsheet, FileText, Home, Menu, X, GitCompare, AlertCircle, Calculator } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const mobileMenuOpen = ref(false)
 
 const navLinks = [
   { name: 'Home', path: '/', label: 'Início', icon: Home },
-  { name: 'Validator', path: '/validador', label: 'Validador', icon: CheckSquare },
+  { name: 'Visualizador', path: '/visualizador', label: 'Visualizador', icon: Eye },
   { name: 'Comparacao', path: '/comparacao', label: 'Comparação', icon: GitCompare },
+  { name: 'Calculadora', path: '/calculadora', label: 'Cálculos', icon: Calculator },
   { name: 'Mapeamento', path: '/mapeamento', label: 'Mapeamento', icon: FileText },
   { name: 'Layout', path: '/layout', label: 'Layout', icon: FileSpreadsheet },
   { name: 'Reports', path: '/relatorios', label: 'Relatórios', icon: BarChart3 },

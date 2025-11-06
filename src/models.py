@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any
 from enum import Enum
 
 
@@ -45,7 +45,7 @@ class ResultadoValidacao:
     linhas_validas: int
     linhas_com_erro: int
     erros: List[ErroValidacao]
-    taxa_sucesso: float
+    taxa_sucesso: float = 0.0
 
     def __post_init__(self):
         """Calcula taxa de sucesso"""
@@ -78,9 +78,6 @@ class DiferencaEstruturalLinha:
     diferencas_campos: List[DiferencaEstruturalCampo]
     total_diferencas: int
     linha_numeracao: str = ""  # Linha com numeração dos campos
-    # Totais calculados por fatura (somatórios) e componentes que geraram cada total
-    totais_acumulados: Optional[Dict[str, int]] = None  # ex.: { 'NFE56-TOT-VLR-PIS': 1234, ... }
-    componentes_totais: Optional[List[Dict[str, Any]]] = None  # lista de componentes somados
 
 
 @dataclass
