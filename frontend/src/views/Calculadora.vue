@@ -40,7 +40,7 @@
     </div>
 
     <div v-if="hasResults && !isLoading" class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div class="stat-card">
           <div class="stat-value">{{ result?.estatisticas_faturas?.total_notas_fiscais || 0 }}</div>
           <div class="stat-label">Total NFCOMs (igual SEFAZ)</div>
@@ -51,11 +51,15 @@
         </div>
         <div class="stat-card">
           <div class="stat-value text-orange-600">{{ result?.estatisticas_faturas?.total_duplicatas || 0 }}</div>
-          <div class="stat-label">Duplicatas</div>
+          <div class="stat-label">Duplicadas</div>
         </div>
         <div class="stat-card">
           <div class="stat-value text-green-600">{{ result?.estatisticas_faturas?.total_nfs_validas || 0 }}</div>
           <div class="stat-label">NFCOMs Validadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value text-red-600">{{ result?.estatisticas_faturas?.total_nfs_com_erro || 0 }}</div>
+          <div class="stat-label">NFCOMs com Erro</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ (result?.estatisticas_faturas?.taxa_sucesso_nf || 0).toFixed(2) }}%</div>
@@ -66,8 +70,8 @@
       <!-- Botão para mostrar duplicatas -->
       <div v-if="result?.estatisticas_faturas?.total_duplicatas > 0" class="flex justify-center">
         <button @click="mostrarDuplicatas = !mostrarDuplicatas" class="btn-outline">
-          <span v-if="!mostrarDuplicatas">Mostrar {{ result.estatisticas_faturas.total_duplicatas }} Duplicatas</span>
-          <span v-else>Ocultar Duplicatas</span>
+          <span v-if="!mostrarDuplicatas">Mostrar {{ result.estatisticas_faturas.total_duplicatas }} Duplicadas</span>
+          <span v-else>Ocultar Duplicadas</span>
         </button>
       </div>
 
@@ -97,17 +101,6 @@
         </div>
       </div>
 
-      <div v-if="result?.totais" class="card">
-        <div class="card-header"><h3 class="text-lg font-semibold">Totais Acumulados (registro 56)</h3></div>
-        <div class="card-body">
-          <ul class="grid sm:grid-cols-2 gap-2 font-mono text-sm">
-            <li v-for="(v, k) in result.totais.valores" :key="k">
-              <span class="text-gray-700">{{ k }}:</span>
-              <span class="ml-2">{{ formatCentavos(v) }}</span>
-            </li>
-          </ul>
-        </div>
-      </div>
 
       <div v-if="result?.resultado_basico?.erros?.length" class="card">
         <div class="card-header">
