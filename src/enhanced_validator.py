@@ -140,16 +140,29 @@ class EnhancedValidator:
 
                 # Primeira passada: coletar informações e validar estrutura
                 for numero_linha, linha_content in enumerate(linhas, 1):
-                    linha_content = linha_content.rstrip('\n\r')
-                    # Guardar conteúdo da linha para breakdowns posteriores
-                    self.linhas_conteudo[numero_linha] = linha_content
+                    try:
+                        linha_content = linha_content.rstrip('\n\r')
+                        # Guardar conteúdo da linha para breakdowns posteriores
+                        self.linhas_conteudo[numero_linha] = linha_content
 
-                    if len(linha_content) < 2:
+                        if len(linha_content) < 2:
+                            continue
+
+                        # Detectar tipo de registro
+                        tipo_registro = linha_content[:2]
+                        self.registros_por_linha[numero_linha] = tipo_registro
+                    except Exception as e:
+                        # Capturar erro específico da linha e continuar
+                        erro_linha = ErroValidacao(
+                            linha=numero_linha,
+                            campo="LINHA",
+                            valor_encontrado=str(e),
+                            erro_tipo="ERRO_LEITURA",
+                            descricao=f"Erro ao processar linha {numero_linha}: {str(e)}",
+                            valor_esperado="Linha válida"
+                        )
+                        erros_aprimorados.append(erro_linha)
                         continue
-
-                    # Detectar tipo de registro
-                    tipo_registro = linha_content[:2]
-                    self.registros_por_linha[numero_linha] = tipo_registro
 
                     # Header (00): capturar declarações
                     if tipo_registro == '00':
@@ -284,7 +297,11 @@ class EnhancedValidator:
         if linha_anterior in self.registros_por_linha:
             tipo_anterior = self.registros_por_linha[linha_anterior]
 
-            if tipo_anterior == tipo_registro and tipo_registro not in ['00', '99']:  # Exceção para header/trailer
+            # Exceção para header/trailer (00, 99) e registros de item/impostos (20, 22, 36, 38, 40, 42, 44)
+            # que podem se repetir para múltiplos itens
+            tipos_permitidos_repetir = ['00', '99', '20', '22', '36', '38', '40', '42', '44']
+            
+            if tipo_anterior == tipo_registro and tipo_registro not in tipos_permitidos_repetir:
                 erro = ErroValidacao(
                     linha=numero_linha,
                     campo=f"NFE{tipo_registro}-TP-REG",
@@ -908,30 +925,11 @@ class EnhancedValidator:
 
             # impostos esperados em ordem
             if tipo_registro in impostos_ordem:
-                esperado_idx = len(taxes_seen)
-                tipo_idx = impostos_ordem.index(tipo_registro) if tipo_registro in impostos_ordem else -1
-                # Imposto fora de ordem
-                if tipo_idx != esperado_idx:
-                    erros.append(ErroValidacao(
-                        linha=numero_linha,
-                        campo=f"NFE{tipo_registro}-IMPOSTO",
-                        valor_encontrado=tipo_registro,
-                        erro_tipo='ESTRUTURA_IMPOSTO_FORA_DE_ORDEM',
-                        descricao=(f"Fatura {self.current_fatura} | NF {self.current_nf}: Ordem de impostos inválida (esperado {impostos_ordem[esperado_idx]} após {taxes_seen or '20'})"),
-                        valor_esperado=impostos_ordem[esperado_idx]
-                    ))
-                # Registrar visto (evita duplicata consecutiva)
-                if taxes_seen and taxes_seen[-1] == tipo_registro:
-                    erros.append(ErroValidacao(
-                        linha=numero_linha,
-                        campo=f"NFE{tipo_registro}-IMPOSTO",
-                        valor_encontrado='repetido',
-                        erro_tipo='ESTRUTURA_REGISTRO_REPETIDO',
-                        descricao=(f"Fatura {self.current_fatura} | NF {self.current_nf}: Tipo {tipo_registro} repetido consecutivamente"),
-                        valor_esperado='Sequência sem repetição consecutiva'
-                    ))
-                else:
-                    taxes_seen.append(tipo_registro)
+                # NOTA: Quando há múltiplos itens na mesma NF, os impostos aparecem repetidos
+                # Exemplo: Item1 -> 22,38,40,42,44 -> Item2 -> 22,38,40,42,44
+                # Por isso, NÃO validamos ordem estrita nem repetição consecutiva aqui
+                # Apenas registramos que o imposto foi visto para este item
+                taxes_seen.append(tipo_registro)
                 return erros
 
             # Qualquer outro tipo aparecendo com item aberto fecha e valida o item atual
