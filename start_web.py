@@ -19,10 +19,10 @@ def check_dependencies():
     try:
         import uvicorn
         import fastapi
-        print("✅ Dependências Python OK")
+        print("[OK] Dependências Python OK")
         return True
     except ImportError:
-        print("❌ Dependências Python não encontradas")
+        print("[ERROR] Dependências Python não encontradas")
         print("Execute: pip install -r requirements.txt")
         return False
 
@@ -32,12 +32,12 @@ def check_node():
     try:
         result = subprocess.run(["node", "--version"], capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"✅ Node.js {result.stdout.strip()} encontrado")
+            print(f"[OK] Node.js {result.stdout.strip()} encontrado")
             return True
     except FileNotFoundError:
         pass
 
-    print("❌ Node.js não encontrado")
+    print("[ERROR] Node.js não encontrado")
     print("Instale o Node.js para rodar o frontend")
     return False
 
@@ -46,15 +46,15 @@ def check_frontend_deps():
     """Verifica se as dependências do frontend estão instaladas"""
     frontend_path = Path("frontend")
     if not frontend_path.exists():
-        print("❌ Diretório frontend não encontrado")
+        print("[ERROR] Diretório frontend não encontrado")
         return False
 
     node_modules = frontend_path / "node_modules"
     if node_modules.exists():
-        print("✅ Dependências do frontend OK")
+        print("[OK] Dependências do frontend OK")
         return True
     else:
-        print("📦 Instalando dependências do frontend...")
+        print("[INFO] Instalando dependências do frontend...")
         return install_frontend_deps()
 
 
@@ -68,19 +68,19 @@ def install_frontend_deps():
             text=True
         )
         if result.returncode == 0:
-            print("✅ Dependências do frontend instaladas")
+            print("[OK] Dependências do frontend instaladas")
             return True
         else:
-            print(f"❌ Erro ao instalar dependências: {result.stderr}")
+            print(f"[ERROR] Erro ao instalar dependências: {result.stderr}")
             return False
     except Exception as e:
-        print(f"❌ Erro ao instalar dependências: {e}")
+        print(f"[ERROR] Erro ao instalar dependências: {e}")
         return False
 
 
 def start_backend():
     """Inicia o backend FastAPI"""
-    print("🚀 Iniciando backend (FastAPI)...")
+    print("[START] Iniciando backend (FastAPI)...")
 
     # Definir variáveis de ambiente
     env = os.environ.copy()
@@ -98,13 +98,13 @@ def start_backend():
 
         return process
     except Exception as e:
-        print(f"❌ Erro ao iniciar backend: {e}")
+        print(f"[ERROR] Erro ao iniciar backend: {e}")
         return None
 
 
 def start_frontend():
     """Inicia o servidor de desenvolvimento do frontend"""
-    print("🎨 Iniciando frontend (Vue.js dev server)...")
+    print("[START] Iniciando frontend (Vue.js dev server)...")
 
     try:
         # Tentar executar npm; em Windows pode ser necessário npm.cmd
@@ -131,7 +131,7 @@ def start_frontend():
                     universal_newlines=True,
                     bufsize=1
                 )
-                print(f"✅ Frontend iniciado com: {' '.join(cmd)}")
+                print(f"[OK] Frontend iniciado com: {' '.join(cmd)}")
                 return process
             except FileNotFoundError as fe:
                 last_exc = fe
@@ -143,12 +143,12 @@ def start_frontend():
             "Não foi possível iniciar o frontend: nenhum executor (npm/npx/pnpm) encontrado no PATH "
             "ou falha ao invocar o comando. Tente executar manualmente:\n  cd frontend && npm run dev"
         )
-        print(f"❌ {err_msg}")
+        print(f"[ERROR] {err_msg}")
         if last_exc:
             print(f"Detalhe do último erro: {last_exc}")
         return None
     except Exception as e:
-        print(f"❌ Erro ao iniciar frontend: {e}")
+        print(f"[ERROR] Erro ao iniciar frontend: {e}")
         return None
 
 
@@ -159,7 +159,7 @@ def monitor_process(process, name):
             if line.strip():
                 print(f"[{name}] {line.strip()}")
     except Exception as e:
-        print(f"❌ Erro ao monitorar {name}: {e}")
+        print(f"[ERROR] Erro ao monitorar {name}: {e}")
 
 
 def cleanup_processes(*processes):
@@ -176,7 +176,7 @@ def cleanup_processes(*processes):
 
 def main():
     """Função principal"""
-    print("🌐 Iniciando Validador de Documentos Sequenciais - Web")
+    print("[START] Iniciando Validador de Documentos Sequenciais - Web")
     print("=" * 50)
 
     # Verificar dependências
@@ -225,12 +225,12 @@ def main():
 
     try:
         print("\n" + "=" * 60)
-        print("🎉 Aplicação iniciada com sucesso!")
-        print("📍 URLs disponíveis:")
-        print("   🎨 Frontend (Vue.js): http://localhost:3000")
-        print("   🔗 Backend (FastAPI): http://localhost:8000")
-        print("   📚 Documentação API: http://localhost:8000/docs")
-        print("\n💡 Dicas:")
+        print("[OK] Aplicação iniciada com sucesso!")
+        print("[INFO] URLs disponíveis:")
+        print("   [FRONTEND] Frontend (Vue.js): http://localhost:3000")
+        print("   [BACKEND] Backend (FastAPI): http://localhost:8000")
+        print("   [DOCS] Documentação API: http://localhost:8000/docs")
+        print("\n[TIPS]")
         print("  • Use Ctrl+C para parar todos os serviços")
         print("  • O frontend roda em modo de desenvolvimento com hot-reload")
         print("  • A API aceita uploads de até 100MB")
@@ -240,19 +240,19 @@ def main():
         # Aguardar que algum processo termine ou interrupção
         while True:
             if backend_process.poll() is not None:
-                print("\n❌ Backend parou inesperadamente")
+                print("\n[ERROR] Backend parou inesperadamente")
                 break
             if frontend_process.poll() is not None:
-                print("\n❌ Frontend parou inesperadamente")
+                print("\n[ERROR] Frontend parou inesperadamente")
                 break
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n\n🛑 Parando serviços...")
+        print("\n\n[STOP] Parando serviços...")
 
     finally:
         cleanup_processes(backend_process, frontend_process)
-        print("✅ Todos os serviços foram parados!")
+        print("[OK] Todos os serviços foram parados!")
 
 
 if __name__ == "__main__":

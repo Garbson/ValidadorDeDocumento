@@ -795,7 +795,7 @@ class EnhancedValidator:
                     erros.append(erro)
             else:
                 # Se não encontrou campo de quantidade no layout, criar aviso informativo
-                print(f"⚠️  AVISO: Não foi encontrado campo de quantidade de NF no trailer 99 do layout")
+                print(f"[WARN] AVISO: Não foi encontrado campo de quantidade de NF no trailer 99 do layout")
                 print(f"    Campos procurados: {campos_trailer_possiveis}")
                 print(f"    Quantidade real de NF encontrada: {quantidade_real}")
 
@@ -825,7 +825,7 @@ class EnhancedValidator:
 
         # Usar sempre o contador igual SEFAZ (por linha processada = registros 01)
         total_nfcoms = self.total_registros_01  # Cada registro 01 = 1 NFCOM processada
-        print(f"🔍 [DEBUG] Finalizando estatísticas: total_nfcoms={total_nfcoms}")
+        print(f"[DEBUG] Finalizando estatísticas: total_nfcoms={total_nfcoms}")
 
         stats = {
             'total_faturas': len(self.notas_fiscais_por_fatura),

@@ -66,8 +66,8 @@ teste_content = f"""{linha_01}
 print("Conteúdo do teste:")
 print("===================")
 print("Linha 1 (Reg 01): Fatura 1111, NF 1234")
-print("Linha 2 (Reg 22): BC=500,00 | ALIQ_FCP=2,00% | VLR_FCP=0,00 ❌ (deveria ser 10,00)")
-print("Linha 3 (Reg 56): TOT_FCP=0,00 ❌ (deveria ser 10,00)")
+print("Linha 2 (Reg 22): BC=500,00 | ALIQ_FCP=2,00% | VLR_FCP=0,00 [ERROR] (deveria ser 10,00)")
+print("Linha 3 (Reg 56): TOT_FCP=0,00 [ERROR] (deveria ser 10,00)")
 print()
 
 with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_file:
@@ -77,12 +77,12 @@ with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_
 try:
     print("1. Criando Enhanced Validator...")
     validator = EnhancedValidator(layout_teste)
-    print("✅ Enhanced Validator criado com sucesso")
+    print("[OK] Enhanced Validator criado com sucesso")
 
     print("\n2. Executando validação para FCP ZERADO...")
     resultado = validator.validar_arquivo(temp_file_path)
 
-    print(f"\n✅ Validação concluída:")
+    print(f"\n[OK] Validação concluída:")
     print(f"   Total de linhas: {resultado.total_linhas}")
     print(f"   Linhas válidas: {resultado.linhas_validas}")
     print(f"   Linhas com erro: {resultado.linhas_com_erro}")
@@ -92,20 +92,20 @@ try:
     print("\n3. ERROS DETECTADOS:")
     if resultado.erros:
         for i, erro in enumerate(resultado.erros, 1):
-            print(f"\n   🔴 ERRO {i}:")
+            print(f"\n   [ERROR] ERRO {i}:")
             print(f"      Linha: {erro.linha}")
             print(f"      Campo: {erro.campo}")
             print(f"      Tipo: {erro.erro_tipo}")
             print(f"      Valor encontrado: {erro.valor_encontrado}")
             print(f"      Valor esperado: {erro.valor_esperado}")
-            print(f"      📝 Descrição: {erro.descricao}")
+            print(f"      [NOTE] Descrição: {erro.descricao}")
 
     print("\n4. TOTAIS ACUMULADOS:")
     if resultado.totais_acumulados:
         for campo, valor in resultado.totais_acumulados.items():
             valor_fmt = f"{valor/100:.2f}".replace('.', ',')
             imposto = campo.replace('NFE56-TOT-VLR-', '')
-            print(f"   💰 {imposto}: R$ {valor_fmt}")
+            print(f"   [MONEY] {imposto}: R$ {valor_fmt}")
 
     # Verificar se detectou os erros esperados
     tipos_erro_encontrados = [erro.erro_tipo for erro in resultado.erros]
@@ -114,14 +114,14 @@ try:
     print("\n5. VERIFICAÇÃO DOS ERROS ESPERADOS:")
     for erro_esperado in erros_esperados:
         if erro_esperado in tipos_erro_encontrados:
-            print(f"   ✅ {erro_esperado}: DETECTADO")
+            print(f"   [OK] {erro_esperado}: DETECTADO")
         else:
-            print(f"   ❌ {erro_esperado}: NÃO DETECTADO")
+            print(f"   [ERROR] {erro_esperado}: NÃO DETECTADO")
 
-    print("\n✅ Teste de FCP ZERADO concluído!")
+    print("\n[OK] Teste de FCP ZERADO concluído!")
 
 except Exception as e:
-    print(f"❌ Erro no teste: {e}")
+    print(f"[ERROR] Erro no teste: {e}")
     import traceback
     traceback.print_exc()
 

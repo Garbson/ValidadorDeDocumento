@@ -46,9 +46,9 @@ class MultiRecordValidator:
                 layout = self._criar_layout_para_tipo(tipo, df_clean)
                 self.layouts_por_tipo[tipo] = layout
                 self.validadores_por_tipo[tipo] = ValidadorArquivo(layout)
-                print(f"  ✅ Tipo {tipo}: {len(layout.campos)} campos")
+                print(f"  [OK] Tipo {tipo}: {len(layout.campos)} campos")
             except Exception as e:
-                print(f"  ❌ Erro no tipo {tipo}: {e}")
+                print(f"  [ERROR] Erro no tipo {tipo}: {e}")
 
     def _criar_layout_para_tipo(self, tipo: str, df_clean: pd.DataFrame) -> Layout:
         """Cria objeto Layout para um tipo específico (sem arquivo físico)"""

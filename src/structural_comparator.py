@@ -355,12 +355,12 @@ class ComparadorEstruturalArquivos:
                     break
 
             if diferenca_encontrada:
-                status = "❌"
+                status = "[ERROR]"
                 linha_base_separada.append(f"{valor_base}")
                 linha_validado_separada.append(f"{valor_validado}")
                 status_campos.append(f"{status} {campo.nome}")
             else:
-                status = "✅"
+                status = "[OK]"
                 linha_base_separada.append(f"{valor_base}")
                 linha_validado_separada.append(f"{valor_validado}")
                 status_campos.append(f"{status} {campo.nome}")
@@ -666,12 +666,12 @@ class ComparadorEstruturalArquivos:
         """Gera relatório completo da comparação estrutural"""
 
         relatorio = []
-        relatorio.append("🔍 RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS")
+        relatorio.append("[REPORT] RELATÓRIO DE COMPARAÇÃO ESTRUTURAL DE ARQUIVOS")
         relatorio.append("=" * 80)
         relatorio.append("")
 
         # Estatísticas gerais
-        relatorio.append(f"📊 ESTATÍSTICAS GERAIS:")
+        relatorio.append(f"[STATS] ESTATÍSTICAS GERAIS:")
         relatorio.append(f"   Total de linhas comparadas: {resultado.total_linhas_comparadas}")
         relatorio.append(f"   Linhas idênticas: {resultado.linhas_identicas}")
         relatorio.append(f"   Linhas com diferenças: {resultado.linhas_com_diferencas}")
@@ -679,10 +679,10 @@ class ComparadorEstruturalArquivos:
         relatorio.append("")
 
         if resultado.linhas_com_diferencas == 0:
-            relatorio.append("✅ ARQUIVOS ESTRUTURALMENTE IDÊNTICOS!")
+            relatorio.append("[OK] ARQUIVOS ESTRUTURALMENTE IDÊNTICOS!")
             relatorio.append("   Todos os campos coincidem perfeitamente.")
         else:
-            relatorio.append(f"❌ ENCONTRADAS {resultado.linhas_com_diferencas} LINHAS COM DIFERENÇAS:")
+            relatorio.append(f"[ERROR] ENCONTRADAS {resultado.linhas_com_diferencas} LINHAS COM DIFERENÇAS:")
             relatorio.append("")
 
             # Agrupar diferenças por tipo de registro
@@ -695,13 +695,13 @@ class ComparadorEstruturalArquivos:
 
             # Mostrar até 3 exemplos por tipo de registro
             for tipo_registro, diferencias_tipo in sorted(diferencas_por_tipo.items()):
-                relatorio.append(f"🔸 TIPO DE REGISTRO: {tipo_registro}")
+                relatorio.append(f"[TYPE] TIPO DE REGISTRO: {tipo_registro}")
                 relatorio.append(f"   Total de linhas com diferenças: {len(diferencias_tipo)}")
                 relatorio.append("")
 
                 # Mostrar até 3 exemplos deste tipo
                 for i, diferenca_linha in enumerate(diferencias_tipo[:3]):
-                    relatorio.append(f"📍 EXEMPLO {i+1} - LINHA {diferenca_linha.numero_linha}")
+                    relatorio.append(f"[EXEMPLO] EXEMPLO {i+1} - LINHA {diferenca_linha.numero_linha}")
                     relatorio.append(f"   Total de diferenças: {diferenca_linha.total_diferencas}")
 
                     # Mostrar representação visual com contagem

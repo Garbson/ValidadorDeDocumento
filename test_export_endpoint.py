@@ -47,22 +47,22 @@ try:
     if response.status_code == 200:
         data = response.json()
         if 'download_url' in data:
-            print(f"\n✅ Sucesso! Arquivo disponível em: {data['download_url']}")
+            print(f"\n[OK] Sucesso! Arquivo disponível em: {data['download_url']}")
             print(f"   Filename: {data.get('filename')}")
             
             # Tentar baixar o arquivo
             download_response = requests.get(f"http://localhost:8000{data['download_url']}")
             if download_response.status_code == 200:
-                print(f"   ✅ Download OK - {len(download_response.content)} bytes")
+                print(f"   [OK] Download OK - {len(download_response.content)} bytes")
             else:
-                print(f"   ❌ Falha no download: {download_response.status_code}")
+                print(f"   [ERROR] Falha no download: {download_response.status_code}")
         else:
-            print("\n⚠️  Resposta não contém download_url")
+            print("\n[WARN] Resposta não contém download_url")
     else:
-        print(f"\n❌ Erro: {response.status_code}")
+        print(f"\n[ERROR] Erro: {response.status_code}")
         
 except requests.exceptions.ConnectionError:
-    print("\n❌ Erro: Não foi possível conectar ao servidor")
+    print("\n[ERROR] Erro: Não foi possível conectar ao servidor")
     print("   Certifique-se de que o backend está rodando em http://localhost:8000")
 except Exception as e:
-    print(f"\n❌ Erro: {e}")
+    print(f"\n[ERROR] Erro: {e}")
