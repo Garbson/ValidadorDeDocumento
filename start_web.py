@@ -86,9 +86,12 @@ def start_backend():
     env = os.environ.copy()
     env['PYTHONPATH'] = str(Path.cwd())
 
+    # No Windows, preferir 'py' ao invés de sys.executable
+    python_cmd = "py" if sys.platform == "win32" else sys.executable
+
     try:
         process = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+            [python_cmd, "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
