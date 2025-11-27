@@ -133,97 +133,103 @@ class EnhancedValidator:
         erros_aprimorados = []
         total_linhas = 0
 
+        # Tentar ler com UTF-8, se falhar usar latin-1
         try:
             with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
                 linhas = arquivo.readlines()
-                total_linhas = len([l for l in linhas if l.strip()])
+        except UnicodeDecodeError:
+            with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
+                linhas = arquivo.readlines()
 
-                # Primeira passada: coletar informações e validar estrutura
-                for numero_linha, linha_content in enumerate(linhas, 1):
-                    try:
-                        linha_content = linha_content.rstrip('\n\r')
-                        # Guardar conteúdo da linha para breakdowns posteriores
-                        self.linhas_conteudo[numero_linha] = linha_content
+        try:
+            total_linhas = len([l for l in linhas if l.strip()])
 
-                        if len(linha_content) < 2:
-                            continue
+            # Primeira passada: coletar informações e validar estrutura
+            for numero_linha, linha_content in enumerate(linhas, 1):
+                try:
+                    linha_content = linha_content.rstrip('\n\r')
+                    # Guardar conteúdo da linha para breakdowns posteriores
+                    self.linhas_conteudo[numero_linha] = linha_content
 
-                        # Detectar tipo de registro
-                        tipo_registro = linha_content[:2]
-                        self.registros_por_linha[numero_linha] = tipo_registro
-                    except Exception as e:
-                        # Capturar erro específico da linha e continuar
-                        erro_linha = ErroValidacao(
-                            linha=numero_linha,
-                            campo="LINHA",
-                            valor_encontrado=str(e),
-                            erro_tipo="ERRO_LEITURA",
-                            descricao=f"Erro ao processar linha {numero_linha}: {str(e)}",
-                            valor_esperado="Linha válida"
-                        )
-                        erros_aprimorados.append(erro_linha)
+                    if len(linha_content) < 2:
                         continue
 
-                    # Header (00): capturar declarações
-                    if tipo_registro == '00':
-                        self._capturar_declaracoes_header_00(numero_linha, linha_content)
+                    # Detectar tipo de registro
+                    tipo_registro = linha_content[:2]
+                    self.registros_por_linha[numero_linha] = tipo_registro
+                except Exception as e:
+                    # Capturar erro específico da linha e continuar
+                    erro_linha = ErroValidacao(
+                        linha=numero_linha,
+                        campo="LINHA",
+                        valor_encontrado=str(e),
+                        erro_tipo="ERRO_LEITURA",
+                        descricao=f"Erro ao processar linha {numero_linha}: {str(e)}",
+                        valor_esperado="Linha válida"
+                    )
+                    erros_aprimorados.append(erro_linha)
+                    continue
 
-                    # Validação 1: Estrutura - evitar registros duplicados consecutivos
-                    erros_estrutura = self._validar_estrutura_consecutiva(numero_linha, tipo_registro)
-                    erros_aprimorados.extend(erros_estrutura)
+                # Header (00): capturar declarações
+                if tipo_registro == '00':
+                    self._capturar_declaracoes_header_00(numero_linha, linha_content)
 
-                    # Validação 2: Coletar dados de fatura e NF (registro 01)
-                    if tipo_registro == '01':
-                        # Primeiro processa o 01 para atualizar o contexto da NF atual
-                        erros_unicidade = self._processar_registro_01(numero_linha, linha_content)
-                        erros_aprimorados.extend(erros_unicidade)
-                        # Agora registre a própria linha 01 no grupo correto (NF atual)
-                        self._registrar_linha_no_grupo(numero_linha)
-                    else:
-                        # Para os demais tipos, registra no grupo vigente
-                        self._registrar_linha_no_grupo(numero_linha)
+                # Validação 1: Estrutura - evitar registros duplicados consecutivos
+                erros_estrutura = self._validar_estrutura_consecutiva(numero_linha, tipo_registro)
+                erros_aprimorados.extend(erros_estrutura)
 
-                    # Validação 3 & 3.5: Validar cálculos E acumular valores corretos
-                    # IMPORTANTE: Fazer os cálculos primeiro e acumular apenas valores CORRETOS
-                    erros_calculos_linha = self._validar_calculos_linha(numero_linha, tipo_registro, linha_content)
-                    erros_aprimorados.extend(erros_calculos_linha)
+                # Validação 2: Coletar dados de fatura e NF (registro 01)
+                if tipo_registro == '01':
+                    # Primeiro processa o 01 para atualizar o contexto da NF atual
+                    erros_unicidade = self._processar_registro_01(numero_linha, linha_content)
+                    erros_aprimorados.extend(erros_unicidade)
+                    # Agora registre a própria linha 01 no grupo correto (NF atual)
+                    self._registrar_linha_no_grupo(numero_linha)
+                else:
+                    # Para os demais tipos, registra no grupo vigente
+                    self._registrar_linha_no_grupo(numero_linha)
 
-                    # Acumular valores (usando valores corretos se houver erro de cálculo)
-                    self._acumular_valores_impostos(numero_linha, tipo_registro, linha_content, erros_calculos_linha)
+                # Validação 3 & 3.5: Validar cálculos E acumular valores corretos
+                # IMPORTANTE: Fazer os cálculos primeiro e acumular apenas valores CORRETOS
+                erros_calculos_linha = self._validar_calculos_linha(numero_linha, tipo_registro, linha_content)
+                erros_aprimorados.extend(erros_calculos_linha)
 
-                    # Validação 4: Verificar totalizador (registro 56)
-                    if tipo_registro == '56':
-                        erros_totais = self._validar_totalizador_56(numero_linha, linha_content)
-                        erros_aprimorados.extend(erros_totais)
+                # Acumular valores (usando valores corretos se houver erro de cálculo)
+                self._acumular_valores_impostos(numero_linha, tipo_registro, linha_content, erros_calculos_linha)
 
-                    # Capturar TRANSACTION_ID_CLARO dos registros 90 (por NF)
-                    if tipo_registro == '90':
-                        try:
-                            # Heurística: procurar padrão 14 dígitos + 6 dígitos + 'FTC' (ex.: 2025083107360004FTC)
-                            m = re.search(r"\b\d{10,18}FTC\b", linha_content)
-                            if m and self.current_fatura is not None and self.current_nf is not None:
-                                key_g = (self.current_fatura, self.current_nf)
-                                self.grupos_nf.setdefault(key_g, {
-                                    'linhas': [],
-                                    'contribuintes_por_total': {k: [] for k in self.totais_acumulados.keys()}
-                                })
-                                self.grupos_nf[key_g]['transaction_id_claro'] = m.group(0)
-                        except Exception:
-                            pass
+                # Validação 4: Verificar totalizador (registro 56)
+                if tipo_registro == '56':
+                    erros_totais = self._validar_totalizador_56(numero_linha, linha_content)
+                    erros_aprimorados.extend(erros_totais)
 
-                    # Validação 5: Verificar trailer final (apenas registro 99) - quantidade de notas fiscais
-                    if tipo_registro == '99':
-                        erros_trailer = self._validar_trailer_99(numero_linha, linha_content)
-                        erros_aprimorados.extend(erros_trailer)
+                # Capturar TRANSACTION_ID_CLARO dos registros 90 (por NF)
+                if tipo_registro == '90':
+                    try:
+                        # Heurística: procurar padrão 14 dígitos + 6 dígitos + 'FTC' (ex.: 2025083107360004FTC)
+                        m = re.search(r"\b\d{10,18}FTC\b", linha_content)
+                        if m and self.current_fatura is not None and self.current_nf is not None:
+                            key_g = (self.current_fatura, self.current_nf)
+                            self.grupos_nf.setdefault(key_g, {
+                                'linhas': [],
+                                'contribuintes_por_total': {k: [] for k in self.totais_acumulados.keys()}
+                            })
+                            self.grupos_nf[key_g]['transaction_id_claro'] = m.group(0)
+                    except Exception:
+                        pass
 
-                    # Validação estrutural por NF: regras de sequência
-                    erros_seq = self._validar_estrutura_nf(numero_linha, tipo_registro)
-                    erros_aprimorados.extend(erros_seq)
+                # Validação 5: Verificar trailer final (apenas registro 99) - quantidade de notas fiscais
+                if tipo_registro == '99':
+                    erros_trailer = self._validar_trailer_99(numero_linha, linha_content)
+                    erros_aprimorados.extend(erros_trailer)
 
-                    # Removido limite de erros - queremos ver TODOS os problemas
+                # Validação estrutural por NF: regras de sequência
+                erros_seq = self._validar_estrutura_nf(numero_linha, tipo_registro)
+                erros_aprimorados.extend(erros_seq)
 
-                # Validações adicionais pós-passada: conferir header 00 vs contagem real de NF
-                if self.declaracoes_header:
+                # Removido limite de erros - queremos ver TODOS os problemas
+
+            # Validações adicionais pós-passada: conferir header 00 vs contagem real de NF
+            if self.declaracoes_header:
                     quantidade_real_nf = self.total_registros_01  # Igual SEFAZ: total registros 01
                     for campo_nome, qtd_decl in self.declaracoes_header.items():
                         if 'QTD-NF' in campo_nome or 'TOT-NF' in campo_nome or 'QTD-NOTAS' in campo_nome:
