@@ -135,13 +135,18 @@ class EnhancedValidator:
 
         # Tentar ler com UTF-8, se falhar usar latin-1
         try:
-            with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
-                linhas = arquivo.readlines()
-        except UnicodeDecodeError:
-            with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
-                linhas = arquivo.readlines()
+            # Tentar abrir preferencialmente em UTF-8, se falhar tentar CP1252 e por fim latin-1
+            try:
+                with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+                    linhas = arquivo.readlines()
+            except UnicodeDecodeError:
+                try:
+                    with open(caminho_arquivo, 'r', encoding='cp1252') as arquivo:
+                        linhas = arquivo.readlines()
+                except UnicodeDecodeError:
+                    with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
+                        linhas = arquivo.readlines()
 
-        try:
             total_linhas = len([l for l in linhas if l.strip()])
 
             # Primeira passada: coletar informações e validar estrutura
