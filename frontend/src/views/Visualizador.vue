@@ -62,15 +62,61 @@
 
     <!-- Visualização por Nota Fiscal: inclui header (00) e trailer (90/99) -->
     <div v-if="layout && linhas.length" class="card max-w-6xl mx-auto">
-      <div class="card-header flex items-center justify-between">
-        <h3 class="text-lg font-semibold flex items-center">
+      <div class="card-header">
+        <h3 class="text-lg font-semibold flex items-center mb-3">
           <FileText class="w-5 h-5 mr-2" />
-          Registros agrupados por NF
+          Visualização de Registros
         </h3>
+        
+        <!-- Abas -->
+        <div class="flex gap-2 border-b border-gray-200">
+          <button
+            @click="modoVisualizacao = 'agrupado'"
+            :class="[
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              modoVisualizacao === 'agrupado' 
+                ? 'border-blue-500 text-blue-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Agrupado por NF
+          </button>
+          <button
+            @click="modoVisualizacao = 'completo'"
+            :class="[
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              modoVisualizacao === 'completo' 
+                ? 'border-blue-500 text-blue-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Arquivo Completo
+          </button>
+        </div>
+      </div>
+
+      <!-- Modo: Agrupado por NF -->
+      <div v-if="modoVisualizacao === 'agrupado'" class="card-header flex items-center justify-between border-t">
     <div class="flex items-center gap-2">
           <div class="text-xs text-gray-500" v-if="paginas.length">
             Página {{ paginaAtualIndex + 1 }} de {{ paginas.length }}
           </div>
+          <button
+      class="inline-flex items-center px-2 py-1 border border-gray-300 text-sm rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+            :disabled="!podeVoltar100"
+            @click="voltar100()"
+            title="Voltar -100 notas"
+          >
+            <ChevronsLeft class="w-4 h-4" />
+          </button>
+          <button
+      class="inline-flex items-center px-2 py-1 border border-gray-300 text-sm rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+            :disabled="!temPaginaAnterior"
+            @click="goAnterior()"
+            title="Nota anterior"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
           <button
       class="inline-flex items-center px-2 py-1 border border-gray-300 text-sm rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
             :disabled="!temProximaPagina"
@@ -89,7 +135,7 @@
           </button>
         </div>
       </div>
-      <div class="card-body">
+      <div v-if="modoVisualizacao === 'agrupado'" class="card-body">
         <div v-if="paginaAtual" class="border rounded">
           <div class="px-3 py-2 bg-gray-100 text-sm font-medium flex items-center justify-between">
             <div>
@@ -122,6 +168,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Modo: Arquivo Completo -->
+      <div v-if="modoVisualizacao === 'completo'" class="card-body">
+        <div class="mb-4 flex items-center gap-4">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="showDots" class="rounded" />
+            Mostrar espaços como pontos (·)
+          </label>
+          <div class="text-xs text-gray-500">
+            Total de linhas: {{ linhas.length }}
+          </div>
+        </div>
+        
+        <div class="border rounded bg-gray-50 p-4 max-h-[600px] overflow-y-auto">
+          <div
+            v-for="(linha, idx) in linhas"
+            :key="idx"
+            class="font-mono text-xs mb-1 flex hover:bg-yellow-50 transition-colors"
+          >
+            <span class="text-gray-400 mr-3 select-none w-12 text-right flex-shrink-0">{{ idx + 1 }}</span>
+            <span class="whitespace-pre">{{ formatarLinhaCompleta(linha) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -129,7 +199,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import api from '@/services/api'
-import { Upload, Eye, FileSpreadsheet, FileText, ChevronRight, ChevronsRight } from 'lucide-vue-next'
+import { Upload, Eye, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
 
 const layoutFile = ref(null)
 const dataFile = ref(null)
@@ -144,6 +214,7 @@ const jump = ref(1)
 const showDots = ref(true)
 const MAX_MOSTRAR = 500
 const paginaAtualIndex = ref(0)
+const modoVisualizacao = ref('agrupado') // 'agrupado' ou 'completo'
 
 const onLayoutChange = (e) => {
   layoutFile.value = e.target.files?.[0] || null
@@ -418,13 +489,33 @@ const nfIndices = computed(() => paginas.value
   .filter(i => i !== null))
 
 const temProximaPagina = computed(() => (paginaAtualIndex.value + 1) < paginas.value.length)
+const temPaginaAnterior = computed(() => paginaAtualIndex.value > 0)
+
 const podePular100 = computed(() => nfIndices.value.length > 0 && (function(){
   const pos = nfIndices.value.findIndex(i => i >= paginaAtualIndex.value)
   return pos !== -1 && (pos + 100) < nfIndices.value.length
 })())
 
+const podeVoltar100 = computed(() => nfIndices.value.length > 0 && (function(){
+  const pos = nfIndices.value.findIndex(i => i >= paginaAtualIndex.value)
+  return pos > 100 || (pos === -1 && nfIndices.value.length > 100)
+})())
+
+function goAnterior() {
+  if (temPaginaAnterior.value) paginaAtualIndex.value -= 1
+}
+
 function goProxima() {
   if (temProximaPagina.value) paginaAtualIndex.value += 1
+}
+
+function voltar100() {
+  if (!nfIndices.value.length) return
+  // posição NF atual ou próxima NF antes da página atual
+  const pos = nfIndices.value.findIndex(i => i >= paginaAtualIndex.value)
+  const alvo = pos <= 0 ? nfIndices.value[0]
+    : nfIndices.value[Math.max(pos - 100, 0)]
+  paginaAtualIndex.value = alvo
 }
 
 function pular100() {
@@ -453,6 +544,11 @@ const valorCampoLinha = (linhaRaw, c) => {
 }
 
 const tooltipCampo = (c) => `${c.nome} | ${c.posicao_inicio}-${c.posicao_fim} (tam ${c.tamanho}) | ${c.tipo}`
+
+const formatarLinhaCompleta = (linha) => {
+  if (!linha) return ''
+  return showDots.value ? linha.replace(/ /g, '·') : linha
+}
 
 // Navegação desabilitada no modo empilhado (mantida aqui se quiser reativar)
 </script>
