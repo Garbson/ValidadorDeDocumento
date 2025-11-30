@@ -14,6 +14,7 @@ from collections import Counter
 from typing import Dict, Any, Optional, List
 
 # Adicionar src ao path
+# UPDATED: 2024-11-30 - Forçar reload após correção arredondamento
 src_path = str(Path(__file__).parent.parent / 'src')
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
