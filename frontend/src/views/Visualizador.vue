@@ -157,13 +157,16 @@
               class="font-mono text-sm overflow-x-auto whitespace-pre p-2 bg-gray-50 rounded border border-gray-200"
             >
               <span class="text-gray-500 mr-2">{{ linha.num }}.</span>
-              <template v-for="(campo, i) in camposParaLinha(linha.raw)" :key="campo.nome + '-' + i">
-                <span
-                  class="inline-block px-1 hover:bg-yellow-100 rounded cursor-default"
-                  :title="tooltipCampo(campo)"
-                >{{ valorCampoLinha(linha.raw, campo) }}</span>
-                <span v-if="i < camposParaLinha(linha.raw).length - 1" class="text-gray-400"> | </span>
-              </template>
+              <span
+                class="inline-block"
+                @mousemove="mostrarTooltipThrottled($event, linha.raw, linhaComBarras(linha.raw))"
+                @mouseleave="esconderTooltip"
+              >
+                <template v-for="(campo, i) in camposParaLinha(linha.raw)" :key="campo.nome + '-' + i">
+                  <span class="inline-block px-1 hover:bg-yellow-100 rounded cursor-default">{{ valorCampoLinha(linha.raw, campo) }}</span>
+                  <span v-if="i < camposParaLinha(linha.raw).length - 1" class="text-gray-400"> | </span>
+                </template>
+              </span>
             </div>
           </div>
         </div>
@@ -190,6 +193,31 @@
             <span class="text-gray-400 mr-3 select-none w-12 text-right flex-shrink-0">{{ idx + 1 }}</span>
             <span class="whitespace-pre">{{ formatarLinhaCompleta(linha) }}</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tooltip flutuante avançado -->
+    <div
+      v-if="tooltipInfo.visible && tooltipInfo.campo"
+      class="fixed z-50 px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl pointer-events-none border border-gray-700"
+      :style="{ left: tooltipInfo.x + 'px', top: tooltipInfo.y + 'px', maxWidth: '320px', minWidth: '280px' }"
+    >
+      <div class="space-y-2">
+        <div class="font-bold text-blue-300 border-b border-gray-700 pb-1 flex items-center justify-between">
+          <span>📋 {{ tooltipInfo.campo.nome }}</span>
+          <span class="px-2 py-1 rounded text-xs font-mono bg-purple-700 text-purple-200">VIS</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div><span class="text-gray-400">📍 Posição:</span> <span class="text-white font-mono">{{ tooltipInfo.campo.posicao_inicio }}-{{ tooltipInfo.campo.posicao_fim }}</span></div>
+          <div><span class="text-gray-400">🔢 Campo:</span> <span class="text-yellow-300 font-mono">{{ (tooltipInfo.indice || 0).toString().padStart(2, '0') }}</span></div>
+          <div><span class="text-gray-400">📏 Tamanho:</span> <span class="text-green-300">{{ tooltipInfo.campo.tamanho }}</span></div>
+          <div><span class="text-gray-400">📄 Tipo:</span> <span class="text-green-300">{{ tooltipInfo.campo.tipo }}</span></div>
+          <div v-if="tooltipInfo.campo.obrigatorio" class="col-span-2"><span class="text-gray-400">⚠️ Status:</span> <span class="text-red-300">Obrigatório</span></div>
+        </div>
+        <div v-if="(tooltipInfo.valor || '').trim()" class="border-t border-gray-700 pt-2">
+          <div class="text-gray-400 text-xs mb-1">💾 Valor atual:</div>
+          <div class="bg-gray-800 p-2 rounded font-mono text-xs break-all text-cyan-300">"{{ (tooltipInfo.valor || '').trim() }}"</div>
         </div>
       </div>
     </div>
@@ -544,6 +572,88 @@ const valorCampoLinha = (linhaRaw, c) => {
 }
 
 const tooltipCampo = (c) => `${c.nome} | ${c.posicao_inicio}-${c.posicao_fim} (tam ${c.tamanho}) | ${c.tipo}`
+
+// Tooltip avançado
+const tooltipInfo = ref({ visible: false, x: 0, y: 0, campo: null, valor: '', indice: 0, posicaoExata: 0 })
+let tooltipThrottle = null
+
+function linhaComBarras(raw) {
+  const campos = camposParaLinha(raw)
+  return campos.map(c => valorCampoLinha(raw, c)).join('|')
+}
+
+function getCampoNaPosicaoMelhorada(event, raw, linhaComBarrasStr) {
+  const campos = camposParaLinha(raw)
+  if (!campos.length || !linhaComBarrasStr) return null
+
+  const elemento = event.target
+  const style = window.getComputedStyle(elemento)
+  const scrollLeft = elemento.scrollLeft
+  const posicaoMouseReal = event.offsetX + scrollLeft
+
+  const medidor = document.createElement('span')
+  medidor.style.font = style.font
+  medidor.style.fontSize = style.fontSize
+  medidor.style.fontFamily = style.fontFamily
+  medidor.style.visibility = 'hidden'
+  medidor.style.position = 'absolute'
+  medidor.style.whiteSpace = 'pre'
+  document.body.appendChild(medidor)
+
+  try {
+    const segments = linhaComBarrasStr.split('|')
+    let posicaoAcumulada = 0
+    for (let i = 0; i < segments.length && i < campos.length; i++) {
+      const segmento = segments[i]
+      medidor.textContent = segmento
+      const larguraSegmento = medidor.offsetWidth
+      medidor.textContent = ' | '
+      const larguraBarra = medidor.offsetWidth
+
+      const inicioSegmento = posicaoAcumulada
+      const fimSegmento = posicaoAcumulada + larguraSegmento
+
+      if (posicaoMouseReal >= inicioSegmento && posicaoMouseReal <= fimSegmento) {
+        return { campo: campos[i], valor: segmento, indice: i + 1, posicaoExata: posicaoMouseReal - inicioSegmento }
+      }
+      posicaoAcumulada = fimSegmento + larguraBarra
+    }
+  } finally {
+    document.body.removeChild(medidor)
+  }
+  return null
+}
+
+function mostrarTooltip(event, raw, linhaComBarrasStr) {
+  const campoInfo = getCampoNaPosicaoMelhorada(event, raw, linhaComBarrasStr)
+  if (campoInfo) {
+    let finalX = event.clientX
+    let finalY = event.clientY + 40
+    const vw = window.innerWidth, vh = window.innerHeight
+    const tw = 320, th = 200
+    if (finalX + tw > vw) finalX = vw - tw - 10
+    if (finalY + th > vh) finalY = vh - th - 10
+    tooltipInfo.value = { 
+      visible: true, 
+      x: finalX, 
+      y: finalY, 
+      campo: campoInfo.campo, 
+      valor: campoInfo.valor, 
+      indice: campoInfo.indice, 
+      posicaoExata: campoInfo.posicaoExata 
+    }
+  }
+}
+
+function mostrarTooltipThrottled(event, raw, linhaComBarrasStr) {
+  if (tooltipThrottle) clearTimeout(tooltipThrottle)
+  tooltipThrottle = setTimeout(() => mostrarTooltip(event, raw, linhaComBarrasStr), 50)
+}
+
+function esconderTooltip() {
+  if (tooltipThrottle) { clearTimeout(tooltipThrottle); tooltipThrottle = null }
+  tooltipInfo.value.visible = false
+}
 
 const formatarLinhaCompleta = (linha) => {
   if (!linha) return ''

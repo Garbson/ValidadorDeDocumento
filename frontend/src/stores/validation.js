@@ -167,7 +167,7 @@ export const useValidationStore = defineStore('validation', () => {
   const downloadReport = async (timestamp, format = 'excel') => {
     try {
       // Buscar dados do localStorage
-      const validationData = localStorageService.getValidation(timestamp)
+      let validationData = localStorageService.getValidation(timestamp)
       if (!validationData) {
         // Se não estiver no localStorage, usar dados da validação atual
         if (currentValidation.value?.timestamp === timestamp && currentValidation.value?.dados_relatorio) {

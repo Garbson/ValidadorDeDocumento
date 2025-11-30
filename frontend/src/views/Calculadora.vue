@@ -40,10 +40,43 @@
     </div>
 
     <div v-if="hasResults && !isLoading" class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <!-- Aviso para arquivos grandes -->
+      <div v-if="result?.resultado_basico?.total_linhas > 10000" class="card bg-yellow-50 border-yellow-300">
+        <div class="card-body">
+          <div class="flex items-start gap-3">
+            <span class="text-3xl">⚠️</span>
+            <div>
+              <h3 class="font-bold text-yellow-800 text-lg">Arquivo Grande Detectado</h3>
+              <p class="text-yellow-700 mt-2">
+                Este arquivo tem <strong>{{ result.resultado_basico.total_linhas.toLocaleString() }} linhas</strong> e 
+                <strong>{{ result.resultado_basico.erros.length.toLocaleString() }} erros</strong>.
+              </p>
+              <p class="text-yellow-700 mt-1">
+                Para evitar travamento do navegador, apenas os <strong>primeiros 1.000 erros</strong> são mostrados com detalhes completos.
+              </p>
+              <p class="text-yellow-600 text-sm mt-2">
+                💡 <strong>Dica:</strong> Corrija os erros principais e revalide o arquivo para ver mais detalhes.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botão Nova Validação no topo -->
+      <div class="flex justify-end">
+        <button class="btn-primary" @click="reset">
+          🔄 Nova Validação
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
         <div class="stat-card">
           <div class="stat-value">{{ result?.estatisticas_faturas?.total_notas_fiscais || 0 }}</div>
           <div class="stat-label">Total NFCOMs (igual SEFAZ)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value text-purple-600">{{ (result?.resultado_basico?.total_linhas || 0).toLocaleString() }}</div>
+          <div class="stat-label">Total de Linhas</div>
         </div>
         <div class="stat-card">
           <div class="stat-value text-blue-600">{{ result?.estatisticas_faturas?.total_combinacoes_unicas || 0 }}</div>
@@ -102,9 +135,87 @@
       </div>
 
 
+      <!-- Nova seção: Validação Detalhada com Regras e Cálculos -->
+      <div v-if="result?.resultado_basico?.erros?.length" class="card">
+        <div class="card-header flex items-center justify-between">
+          <h3 class="text-lg font-semibold">📋 Erros Detalhados com Regras de Validação</h3>
+          <button 
+            v-if="result?.resultado_basico?.total_linhas < 10000"
+            @click="modoDetalhado = !modoDetalhado" 
+            class="btn-outline text-sm">
+            {{ modoDetalhado ? 'Ocultar Detalhes' : 'Mostrar Regras e Cálculos' }}
+          </button>
+          <div v-else class="text-sm text-gray-500 italic">
+            ⚠️ Arquivo muito grande ({{ result.resultado_basico.total_linhas.toLocaleString() }} linhas). Detalhes desabilitados para evitar travamento.
+          </div>
+        </div>
+        <div v-if="modoDetalhado" class="card-body space-y-6">
+          <div v-for="(erro, idx) in result.resultado_basico.erros" :key="idx" 
+               class="border-2 border-red-300 rounded-lg p-4 bg-red-50">
+            
+            <!-- Cabeçalho do Erro -->
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <div class="text-lg font-bold text-red-700 flex items-center gap-2">
+                  <span class="text-2xl">❌</span>
+                  <span>Linha {{ erro.linha.toString().padStart(6, '0') }}</span>
+                </div>
+                <div class="text-sm text-gray-600 mt-1">
+                  <span class="font-mono bg-white px-2 py-1 rounded">{{ erro.campo }}</span>
+                  <span class="mx-2">•</span>
+                  <span class="font-semibold">{{ erro.erro_tipo }}</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-gray-500">NF/Fatura</div>
+                <div class="font-mono text-sm">{{ grupoKey(erro) || '—' }}</div>
+              </div>
+            </div>
+
+            <!-- Regra Aplicada -->
+            <div v-if="getRegraErro(erro)" class="mb-3 p-3 bg-blue-100 border border-blue-300 rounded">
+              <div class="text-xs font-semibold text-blue-800 mb-1">📐 REGRA:</div>
+              <div class="font-mono text-sm text-blue-900">{{ getRegraErro(erro).regra }}</div>
+            </div>
+
+            <!-- Cálculo Detalhado -->
+            <div v-if="getRegraErro(erro)" class="mb-3 p-3 bg-yellow-50 border border-yellow-300 rounded">
+              <div class="text-xs font-semibold text-yellow-800 mb-2">🧮 CÁLCULO:</div>
+              <div class="font-mono text-sm text-yellow-900 whitespace-pre-line">{{ getRegraErro(erro).calculo }}</div>
+            </div>
+
+            <!-- Descrição do Erro -->
+            <div class="mb-3 p-3 bg-white border border-red-200 rounded">
+              <div class="text-xs font-semibold text-red-800 mb-1">⚠️ PROBLEMA:</div>
+              <div class="text-sm text-red-700">{{ erro.descricao }}</div>
+            </div>
+
+            <!-- Valores Comparados -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 bg-white border border-gray-300 rounded">
+                <div class="text-xs text-gray-600 mb-1">Valor Encontrado</div>
+                <div class="font-mono font-bold text-lg text-red-600">{{ erro.valor_encontrado || '—' }}</div>
+              </div>
+              <div class="p-3 bg-white border border-gray-300 rounded">
+                <div class="text-xs text-gray-600 mb-1">Valor Esperado</div>
+                <div class="font-mono font-bold text-lg text-green-600">{{ erro.valor_esperado || '—' }}</div>
+              </div>
+            </div>
+
+            <!-- Linha Completa -->
+            <details class="mt-3">
+              <summary class="cursor-pointer text-sm text-gray-700 hover:text-gray-900 font-semibold">
+                📄 Ver linha completa
+              </summary>
+              <pre class="mt-2 p-3 bg-gray-800 text-gray-100 rounded text-xs font-mono overflow-x-auto">{{ result.linhas_completas_com_erro[erro.linha] || '(indisponível)' }}</pre>
+            </details>
+          </div>
+        </div>
+      </div>
+
       <div v-if="result?.resultado_basico?.erros?.length" class="card">
         <div class="card-header">
-          <h3 class="text-lg font-semibold">Ocorrências Encontradas</h3>
+          <h3 class="text-lg font-semibold">Ocorrências Encontradas (Lista Resumida)</h3>
         </div>
         <div class="card-body space-y-4">
           <!-- Filtro por tipo de erro com contadores -->
@@ -173,10 +284,6 @@
           </div>
         </div>
       </div>
-
-      <div class="flex justify-end">
-        <button class="btn-outline" @click="reset">Nova Validação</button>
-      </div>
     </div>
 
     <div
@@ -219,6 +326,7 @@ const layoutData = ref(null)
 const expanded = ref({})
 const selectedErrorType = ref('')
 const mostrarDuplicatas = ref(false)
+const modoDetalhado = ref(false)
 
 const hasResults = computed(() => !!result.value)
 const canSubmit = computed(() => !!layoutFile.value && !!dataFile.value)
@@ -426,6 +534,279 @@ function mostrarTooltipThrottled(event, tipoRegistro, linhaComBarrasStr) {
 function esconderTooltip() {
   if (tooltipThrottle) { clearTimeout(tooltipThrottle); tooltipThrottle = null }
   tooltipInfo.value.visible = false
+}
+
+// ====== Função para exibir campos com validação ======
+function camposExibidosLinha(chaveGrupo, numeroLinha) {
+  if (!layoutData.value?.campos || !result.value?.linhas_completas_com_erro) return []
+  
+  const linhaContent = conteudoLinha(chaveGrupo, numeroLinha)
+  if (!linhaContent) return []
+  
+  const tipo = tipoRegistroDoConteudo(linhaContent)
+  const campos = getCamposDoTipo(tipo)
+  
+  // Pegar erros desta linha
+  const errosDaLinha = (result.value?.resultado_basico?.erros || []).filter(e => e.linha === numeroLinha)
+  
+  // Extrair todos os valores da linha para cálculos
+  const valoresLinha = {}
+  campos.forEach(c => {
+    valoresLinha[c.nome] = extrairValorCampoNumerico(linhaContent, c)
+  })
+  
+  return campos.map(campo => {
+    const valor = extrairValorCampo(linhaContent, campo)
+    const valorNum = valoresLinha[campo.nome]
+    const errocampo = errosDaLinha.find(e => e.campo === campo.nome)
+    
+    // Detectar regra e calcular
+    const regraCalculo = detectarRegraCalculo(tipo, campo.nome, valoresLinha, linhaContent)
+    
+    // Debug
+    if (campo.nome.includes('VLR') || campo.nome.includes('PCT') || campo.nome.includes('BC')) {
+      console.log('Campo:', campo.nome, 'Tipo:', tipo, 'Regra:', regraCalculo.regra)
+    }
+    
+    return {
+      nome: campo.nome,
+      valor: valor || '(vazio)',
+      erro: !!errocampo,
+      mensagem: errocampo?.descricao || '',
+      regra: regraCalculo.regra,
+      calculo: regraCalculo.calculo
+    }
+  })
+}
+
+// Função para obter regra e cálculo de um erro
+const getRegraErro = (erro) => {
+  console.log('getRegraErro chamado para:', erro.campo, 'Linha:', erro.linha)
+  
+  const linhaContent = result.value?.linhas_completas_com_erro?.[erro.linha]
+  if (!linhaContent) {
+    console.log('❌ Linha não encontrada')
+    return null
+  }
+
+  const tipo = linhaContent.slice(0, 2)
+  console.log('✅ Tipo detectado:', tipo)
+
+  // Extrair todos os valores da linha
+  const valores = {}
+  if (result.value?.layout?.campos) {
+    const camposDoTipo = result.value.layout.campos.filter(c => 
+      c.nome.startsWith(`NFE${tipo}-`) || c.nome.startsWith(`NFCOM${tipo}-`)
+    )
+    
+    camposDoTipo.forEach(campo => {
+      const valor = extrairValorCampoNumerico(linhaContent, campo)
+      if (valor !== null) {
+        valores[campo.nome] = valor
+      }
+    })
+    console.log('📊 Valores extraídos:', Object.keys(valores).length, 'campos')
+  }
+
+  // Detectar regra baseada no campo do erro
+  return detectarRegraCalculo(tipo, erro.campo, valores, linhaContent)
+}
+
+function detectarRegraCalculo(tipo, nomeCampo, valores, linhaContent) {
+  console.log('detectarRegraCalculo - Tipo:', tipo, 'Campo:', nomeCampo, 'Valores disponíveis:', Object.keys(valores).length)
+  
+  // ====== REGISTRO 23 - PIS/COFINS ======
+  if (tipo === '23') {
+    // BC PIS
+    if (nomeCampo === 'NFE23-PIS-VLR-BC') {
+      const bc = valores[nomeCampo] || 0
+      return {
+        regra: 'Base de Cálculo do PIS',
+        calculo: `BC = ${(bc/100).toFixed(2)}`
+      }
+    }
+    // Alíquota PIS
+    if (nomeCampo === 'NFE23-PIS-PCT-ALIQUOTA') {
+      const aliq = valores[nomeCampo] || 0
+      return {
+        regra: 'Alíquota do PIS (em %)',
+        calculo: `Alíquota = ${(aliq/100).toFixed(2)}%`
+      }
+    }
+    // Valor PIS
+    if (nomeCampo === 'NFE23-PIS-VLR-TRIBUTO') {
+      const bc = valores['NFE23-PIS-VLR-BC'] || 0
+      const aliq = valores['NFE23-PIS-PCT-ALIQUOTA'] || 0
+      const valor = valores[nomeCampo] || 0
+      const calc = Math.floor((bc * aliq) / 10000)
+      const status = valor === calc ? '✅' : '❌'
+      return {
+        regra: 'Valor PIS = BC × Alíquota ÷ 10000',
+        calculo: `${(bc/100).toFixed(2)} × ${(aliq/100).toFixed(2)}% ÷ 10000 = ${(calc/100).toFixed(2)} ${status}`
+      }
+    }
+    
+    // BC COFINS
+    if (nomeCampo === 'NFE23-COFINS-VLR-BC') {
+      const bc = valores[nomeCampo] || 0
+      return {
+        regra: 'Base de Cálculo do COFINS',
+        calculo: `BC = ${(bc/100).toFixed(2)}`
+      }
+    }
+    // Alíquota COFINS
+    if (nomeCampo === 'NFE23-COFINS-PCT-ALIQUOTA') {
+      const aliq = valores[nomeCampo] || 0
+      return {
+        regra: 'Alíquota do COFINS (em %)',
+        calculo: `Alíquota = ${(aliq/100).toFixed(2)}%`
+      }
+    }
+    // Valor COFINS
+    if (nomeCampo === 'NFE23-COFINS-VLR-TRIBUTO') {
+      const bc = valores['NFE23-COFINS-VLR-BC'] || 0
+      const aliq = valores['NFE23-COFINS-PCT-ALIQUOTA'] || 0
+      const valor = valores[nomeCampo] || 0
+      const calc = Math.floor((bc * aliq) / 10000)
+      const status = valor === calc ? '✅' : '❌'
+      return {
+        regra: 'Valor COFINS = BC × Alíquota ÷ 10000',
+        calculo: `${(bc/100).toFixed(2)} × ${(aliq/100).toFixed(2)}% ÷ 10000 = ${(calc/100).toFixed(2)} ${status}`
+      }
+    }
+  }
+  
+  // ====== REGISTRO 25 - ICMS ======
+  if (tipo === '25') {
+    if (nomeCampo === 'NFE25-ICMS-VLR-BC') {
+      const bc = valores[nomeCampo] || 0
+      return {
+        regra: 'Base de Cálculo do ICMS',
+        calculo: `BC = ${(bc/100).toFixed(2)}`
+      }
+    }
+    if (nomeCampo === 'NFE25-ICMS-PCT-ALIQUOTA') {
+      const aliq = valores[nomeCampo] || 0
+      return {
+        regra: 'Alíquota do ICMS (em %)',
+        calculo: `Alíquota = ${(aliq/100).toFixed(2)}%`
+      }
+    }
+    if (nomeCampo === 'NFE25-ICMS-VLR-TRIBUTO') {
+      const bc = valores['NFE25-ICMS-VLR-BC'] || 0
+      const aliq = valores['NFE25-ICMS-PCT-ALIQUOTA'] || 0
+      const valor = valores[nomeCampo] || 0
+      const calc = Math.floor((bc * aliq) / 10000)
+      const status = valor === calc ? '✅' : '❌'
+      return {
+        regra: 'Valor ICMS = BC × Alíquota ÷ 10000',
+        calculo: `${(bc/100).toFixed(2)} × ${(aliq/100).toFixed(2)}% ÷ 10000 = ${(calc/100).toFixed(2)} ${status}`
+      }
+    }
+  }
+  
+  // ====== REGISTRO 44 - FUST ======
+  if (tipo === '44') {
+    if (nomeCampo === 'NFE44-FUST-VLR-BC') {
+      const bc = valores[nomeCampo] || 0
+      return {
+        regra: 'Base de Cálculo do FUST',
+        calculo: `BC = ${(bc/100).toFixed(2)}`
+      }
+    }
+    if (nomeCampo === 'NFE44-FUST-PCT-ALIQUOTA') {
+      const aliq = valores[nomeCampo] || 0
+      return {
+        regra: 'Alíquota do FUST (em %)',
+        calculo: `Alíquota = ${(aliq/100).toFixed(2)}%`
+      }
+    }
+    if (nomeCampo === 'NFE44-FUST-VLR-TRIBUTO') {
+      const bc = valores['NFE44-FUST-VLR-BC'] || 0
+      const aliq = valores['NFE44-FUST-PCT-ALIQUOTA'] || 0
+      const valor = valores[nomeCampo] || 0
+      const calc = Math.floor((bc * aliq) / 10000)
+      const status = valor === calc ? '✅' : '❌'
+      return {
+        regra: 'Valor FUST = BC × Alíquota ÷ 10000',
+        calculo: `${(bc/100).toFixed(2)} × ${(aliq/100).toFixed(2)}% ÷ 10000 = ${(calc/100).toFixed(2)} ${status}`
+      }
+    }
+  }
+  
+  // ====== REGISTRO 46 - FUNTEL ======
+  if (tipo === '46') {
+    if (nomeCampo === 'NFE46-FUNTEL-VLR-BC') {
+      const bc = valores[nomeCampo] || 0
+      return {
+        regra: 'Base de Cálculo do FUNTEL',
+        calculo: `BC = ${(bc/100).toFixed(2)}`
+      }
+    }
+    if (nomeCampo === 'NFE46-FUNTEL-PCT-ALIQUOTA') {
+      const aliq = valores[nomeCampo] || 0
+      return {
+        regra: 'Alíquota do FUNTEL (em %)',
+        calculo: `Alíquota = ${(aliq/100).toFixed(2)}%`
+      }
+    }
+    if (nomeCampo === 'NFE46-FUNTEL-VLR-TRIBUTO') {
+      const bc = valores['NFE46-FUNTEL-VLR-BC'] || 0
+      const aliq = valores['NFE46-FUNTEL-PCT-ALIQUOTA'] || 0
+      const valor = valores[nomeCampo] || 0
+      const calc = Math.floor((bc * aliq) / 10000)
+      const status = valor === calc ? '✅' : '❌'
+      return {
+        regra: 'Valor FUNTEL = BC × Alíquota ÷ 10000',
+        calculo: `${(bc/100).toFixed(2)} × ${(aliq/100).toFixed(2)}% ÷ 10000 = ${(calc/100).toFixed(2)} ${status}`
+      }
+    }
+  }
+  
+  // ====== REGISTRO 56 - TOTALIZADOR ======
+  if (tipo === '56') {
+    // Totais de impostos
+    const totalizadores = {
+      'NFE56-VLR-PIS-TOTAL': { nome: 'PIS', origem: 'NFE23-PIS-VLR-TRIBUTO' },
+      'NFE56-VLR-COFINS-TOTAL': { nome: 'COFINS', origem: 'NFE23-COFINS-VLR-TRIBUTO' },
+      'NFE56-VLR-ICMS-TOTAL': { nome: 'ICMS', origem: 'NFE25-ICMS-VLR-TRIBUTO' },
+      'NFE56-VLR-FUST-TOTAL': { nome: 'FUST', origem: 'NFE44-FUST-VLR-TRIBUTO' },
+      'NFE56-VLR-FUNTEL-TOTAL': { nome: 'FUNTEL', origem: 'NFE46-FUNTEL-VLR-TRIBUTO' }
+    }
+    
+    if (totalizadores[nomeCampo]) {
+      const info = totalizadores[nomeCampo]
+      const valor = valores[nomeCampo] || 0
+      return {
+        regra: `Total ${info.nome} = Soma de todos ${info.nome} da NF`,
+        calculo: `Total declarado = ${(valor/100).toFixed(2)}`
+      }
+    }
+    
+    if (nomeCampo === 'NFE56-VLR-TOTAL') {
+      const total = valores[nomeCampo] || 0
+      return {
+        regra: 'Valor Total = Soma de todos os impostos',
+        calculo: `Total = ${(total/100).toFixed(2)}`
+      }
+    }
+  }
+  
+  return { regra: null, calculo: null }
+}
+
+function extrairValorCampoNumerico(linha, campo) {
+  const valor = extrairValorCampo(linha, campo)
+  // Remove tudo exceto dígitos e converte para inteiro
+  const numStr = (valor || '').replace(/[^0-9]/g, '')
+  return numStr ? parseInt(numStr, 10) : 0
+}
+
+function extrairValorCampo(linha, campo) {
+  if (!linha || !campo) return ''
+  const start = (campo.posicao_inicio || 1) - 1
+  const end = campo.posicao_fim || (start + campo.tamanho)
+  return linha.slice(start, end).trim()
 }
 </script>
 

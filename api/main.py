@@ -202,37 +202,67 @@ async def validar_calculos(
         # Converter resultados básicos
         resultado_response = converter_resultado_para_response(resultado)
 
-        # Linhas completas: capturar apenas as com erro
+        # PROTEÇÃO: Para arquivos muito grandes, limitar dados retornados
+        MAX_ERROS_DETALHES = 1000  # Máximo de erros com detalhes completos
+        MAX_LINHAS_CONTEUDO = 5000  # Máximo de linhas de conteúdo
+        arquivo_grande = resultado.total_linhas > 10000 or len(resultado.erros) > MAX_ERROS_DETALHES
+        
+        # Linhas completas: capturar apenas as com erro (limitado para arquivos grandes)
         linhas_raw = _extrair_linhas_completas(str(temp_data))
         linhas_com_erro: Dict[int, str] = {}
-        for erro in resultado.erros:
-            if erro.linha not in linhas_com_erro and erro.linha in linhas_raw:
-                # Pad para tamanho de linha do layout para coerência visual
-                linha = linhas_raw[erro.linha]
-                if len(linha) < layout.tamanho_linha:
-                    linha = linha.ljust(layout.tamanho_linha)
-                linhas_com_erro[erro.linha] = linha
+        
+        if arquivo_grande:
+            # Para arquivos grandes, retornar apenas primeiros N erros com detalhes
+            erros_limitados = resultado.erros[:MAX_ERROS_DETALHES]
+            for erro in erros_limitados:
+                if erro.linha not in linhas_com_erro and erro.linha in linhas_raw:
+                    linha = linhas_raw[erro.linha]
+                    if len(linha) < layout.tamanho_linha:
+                        linha = linha.ljust(layout.tamanho_linha)
+                    linhas_com_erro[erro.linha] = linha
+        else:
+            # Para arquivos normais, retornar todos
+            for erro in resultado.erros:
+                if erro.linha not in linhas_com_erro and erro.linha in linhas_raw:
+                    linha = linhas_raw[erro.linha]
+                    if len(linha) < layout.tamanho_linha:
+                        linha = linha.ljust(layout.tamanho_linha)
+                    linhas_com_erro[erro.linha] = linha
 
         # Preparar extras: totais
         totais_resp = TotaisCalculadosResponse(valores=dict(ev.totais_acumulados))
 
         # Converter grupos por NF para resposta serializável (inclui conteúdo das linhas do grupo)
         grupos_resp: Dict[str, Any] = {}
-        for (fatura, nf), dados in ev.grupos_nf.items():
-            key = f"{fatura}|{nf}"
-            # Mapear conteúdo bruto das linhas do grupo (com padding)
-            linhas_conteudo: Dict[int, str] = {}
-            for ln in dados.get('linhas', []):
-                if ln in linhas_raw:
-                    linha = linhas_raw[ln]
-                    if len(linha) < layout.tamanho_linha:
-                        linha = linha.ljust(layout.tamanho_linha)
-                    linhas_conteudo[ln] = linha
-            grupos_resp[key] = {
-                'linhas': dados.get('linhas', []),
-                'contribuintes_por_total': dados.get('contribuintes_por_total', {}),
-                'linhas_conteudo': linhas_conteudo
-            }
+        
+        if arquivo_grande:
+            # Para arquivos grandes, limitar grupos retornados
+            grupos_limitados = dict(list(ev.grupos_nf.items())[:100])  # Primeiros 100 grupos
+            for (fatura, nf), dados in grupos_limitados.items():
+                key = f"{fatura}|{nf}"
+                # Não incluir conteúdo das linhas para economizar memória
+                grupos_resp[key] = {
+                    'linhas': dados.get('linhas', []),
+                    'contribuintes_por_total': dados.get('contribuintes_por_total', {}),
+                    'linhas_conteudo': {}  # Vazio para arquivos grandes
+                }
+        else:
+            # Para arquivos normais, retornar tudo
+            for (fatura, nf), dados in ev.grupos_nf.items():
+                key = f"{fatura}|{nf}"
+                # Mapear conteúdo bruto das linhas do grupo (com padding)
+                linhas_conteudo: Dict[int, str] = {}
+                for ln in dados.get('linhas', []):
+                    if ln in linhas_raw:
+                        linha = linhas_raw[ln]
+                        if len(linha) < layout.tamanho_linha:
+                            linha = linha.ljust(layout.tamanho_linha)
+                        linhas_conteudo[ln] = linha
+                grupos_resp[key] = {
+                    'linhas': dados.get('linhas', []),
+                    'contribuintes_por_total': dados.get('contribuintes_por_total', {}),
+                    'linhas_conteudo': linhas_conteudo
+                }
 
         # Estatísticas por NF - usar contador igual SEFAZ (por linha processada = registros 01)
         total_nfs = ev.total_registros_01  # Cada registro 01 = 1 NFCOM processada
@@ -254,6 +284,11 @@ async def validar_calculos(
                 linha_para_grupo[ln] = gk
 
         for erro in resultado.erros:
+            # Ignorar erros de totalizador (56, 57, 99) e header (00) pois afetam o arquivo todo, não NFs específicas
+            tipo_erro = getattr(erro, 'erro_tipo', '')
+            if tipo_erro.startswith('TOTAL_') or tipo_erro.startswith('RT_TOTAL_') or tipo_erro == 'TRAILER_QTD_NF' or tipo_erro == 'HEADER_QTD_NF':
+                continue
+            
             gk = extrair_grupo_key_descricao(getattr(erro, 'descricao', ''))
             if not gk:
                 gk = linha_para_grupo.get(getattr(erro, 'linha', -1))
@@ -262,12 +297,10 @@ async def validar_calculos(
 
         total_nfs_com_erro = len(nfs_com_erro)
 
-        # TODO: Integrar dados reais da SEFAZ quando disponível
-        # SEFAZ real: 148 aprovadas + 363 rejeitadas = 511 total
-        # Arquivo TXT: 502 registros 01
-        # Por enquanto, usar contagem do arquivo TXT
+        # Calcular NFCOMs válidas e taxa de sucesso
+        # Exemplo: 10 NFCOMs totais, 2 com erro = 8 válidas = 80% de taxa de sucesso
         total_nfs_validas = max(0, total_nfs - total_nfs_com_erro)
-        taxa_sucesso_nf = (total_nfs_validas / total_nfs * 100) if total_nfs > 0 else 0.0
+        taxa_sucesso_nf = (total_nfs_validas / total_nfs * 100) if total_nfs > 0 else 100.0
 
         stats_resp = EstatisticasFaturasResponse(
             total_faturas=len(ev.notas_fiscais_por_fatura),

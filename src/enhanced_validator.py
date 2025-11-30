@@ -310,7 +310,7 @@ class EnhancedValidator:
 
             # Exceção para header/trailer (00, 99) e registros de item/impostos (20, 22, 36, 38, 40, 42, 44)
             # que podem se repetir para múltiplos itens
-            tipos_permitidos_repetir = ['00', '99', '20', '22', '36', '38', '40', '42', '44']
+            tipos_permitidos_repetir = ['00', '99', '20', '22', '36', '38', '40', '42', '44', '70']
             
             if tipo_anterior == tipo_registro and tipo_registro not in tipos_permitidos_repetir:
                 erro = ErroValidacao(
@@ -964,7 +964,7 @@ class EnhancedValidator:
             tipo_anterior = self.registros_por_linha[linha_anterior]
             if tipo_anterior == tipo_registro and tipo_registro not in ['00', '99']:
                 # Já tratamos impostos repetidos acima; evite duplicar erro para esses tipos
-                if tipo_registro not in ['22', '38', '40', '42', '44', '20', '36']:
+                if tipo_registro not in ['22', '38', '40', '42', '44', '20', '36', '70']:
                     erros.append(ErroValidacao(
                         linha=numero_linha,
                         campo=f"NFE{tipo_registro}-TP-REG",
