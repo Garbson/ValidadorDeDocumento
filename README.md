@@ -5,6 +5,7 @@ Ferramenta profissional para validação automática de arquivos sequenciais (TX
 ## 🎯 Funcionalidades
 
 ### Core da Aplicação
+
 - ✅ **Parser de layouts Excel** com validação robusta
 - ✅ **Mapeamento automático de layouts** com colunas variadas
 - ✅ **Geração automática de posições** quando ausentes
@@ -16,6 +17,7 @@ Ferramenta profissional para validação automática de arquivos sequenciais (TX
 - ✅ **Suporte a múltiplos tipos** (TEXTO, NUMERO, DATA, DECIMAL)
 
 ### Interface Web
+
 - 🌐 **Dashboard interativo** com gráficos e estatísticas
 - 🔄 **Mapeamento inteligente** de layouts com estruturas variadas
 - 📤 **Exportação de layouts padronizados** em Excel
@@ -59,14 +61,14 @@ python setup.py
 
 O arquivo Excel deve conter as seguintes colunas obrigatórias:
 
-| Coluna | Descrição | Valores Válidos | Exemplo |
-|--------|-----------|-----------------|---------|
-| **Campo** | Nome do campo | Qualquer texto | `NOME_CLIENTE` |
-| **Posicao_Inicio** | Posição inicial (1-indexed) | Número > 0 | `1` |
-| **Tamanho** | Tamanho do campo | Número > 0 | `30` |
-| **Tipo** | Tipo do dado | TEXTO, NUMERO, DATA, DECIMAL | `TEXTO` |
-| **Obrigatorio** | Campo obrigatório | S (Sim) ou N (Não) | `S` |
-| **Formato** | Formato específico (opcional) | Para datas: YYYYMMDD, etc. | `YYYYMMDD` |
+| Coluna             | Descrição                     | Valores Válidos              | Exemplo        |
+| ------------------ | ----------------------------- | ---------------------------- | -------------- |
+| **Campo**          | Nome do campo                 | Qualquer texto               | `NOME_CLIENTE` |
+| **Posicao_Inicio** | Posição inicial (1-indexed)   | Número > 0                   | `1`            |
+| **Tamanho**        | Tamanho do campo              | Número > 0                   | `30`           |
+| **Tipo**           | Tipo do dado                  | TEXTO, NUMERO, DATA, DECIMAL | `TEXTO`        |
+| **Obrigatorio**    | Campo obrigatório             | S (Sim) ou N (Não)           | `S`            |
+| **Formato**        | Formato específico (opcional) | Para datas: YYYYMMDD, etc.   | `YYYYMMDD`     |
 
 ### 🔄 Mapeamento Automático de Layouts
 
@@ -129,6 +131,7 @@ Documentação interativa: **http://localhost:8000/docs**
 ## 📊 Exemplos de Uso
 
 ### Via Interface Web
+
 1. Acesse http://localhost:8000
 2. Vá para "Validador"
 3. Faça upload do layout Excel e arquivo TXT
@@ -136,6 +139,7 @@ Documentação interativa: **http://localhost:8000/docs**
 5. Baixe relatórios detalhados
 
 ### Via CLI
+
 ```bash
 # Validação básica
 python main.py -l exemplos/layout_exemplo.xlsx -a exemplos/dados_exemplo.txt
@@ -153,12 +157,14 @@ python main.py -l layout.xlsx --info-layout
 ## 💰 Valor Comercial
 
 ### ROI Comprovado
+
 - ⏱️ **95% de redução** no tempo de análise
 - 🎯 **99.9% de precisão** na detecção de erros
 - 📈 **10x aumento** na capacidade de processamento
 - 🔍 **100% de rastreabilidade** com relatórios detalhados
 
 ### Casos de Uso
+
 - 📡 **Telecomunicações**: Validação de arquivos de cobrança
 - 🏦 **Bancos**: Validação de remessas de pagamento
 - 🏛️ **Governo**: Validação de prestação de contas

@@ -31,6 +31,7 @@ from src.multi_record_validator import MultiRecordValidator
 from src.structural_comparator import ComparadorEstruturalArquivos
 from src.report_generator import GeradorRelatorio
 from src.models import TipoCampo, Layout
+from src.printcenter_parser import parse_printcenter_layout
 
 from .models import (
     LayoutResponse, CampoLayoutResponse, TipoCampoAPI,
@@ -39,7 +40,8 @@ from .models import (
     StatusResponse, ErrorResponse, RegistroPreviewResponse,
     DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
     ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta,
-    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse
+    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse,
+    FaturaInfo
 )
 
 app = FastAPI(
@@ -68,6 +70,10 @@ if frontend_path.exists():
 # Diretório temporário para uploads
 UPLOAD_DIR = Path("temp_uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Diretório PrintCenter
+PRINTCENTER_DIR = Path(__file__).parent.parent / "printcenter"
+import json
 
 
 
@@ -363,7 +369,8 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
                 valor_base=campo_diff.valor_base,
                 valor_validado=campo_diff.valor_validado,
                 tipo_diferenca=campo_diff.tipo_diferenca,
-                descricao=campo_diff.descricao
+                descricao=campo_diff.descricao,
+                sequencia_campo=getattr(campo_diff, 'sequencia_campo', 0)
             ))
 
         diferencas_response.append(DiferencaEstruturalLinhaResponse(
@@ -372,7 +379,8 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
             arquivo_base_linha=diferenca_linha.arquivo_base_linha,
             arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
             diferencas_campos=campos_response,
-            total_diferencas=diferenca_linha.total_diferencas
+            total_diferencas=diferenca_linha.total_diferencas,
+            linha_numeracao=getattr(diferenca_linha, 'linha_numeracao', '')
         ))
 
     return ResultadoComparacaoEstruturalResponse(
@@ -1033,6 +1041,461 @@ async def comparar_arquivos_estrutural(
                 os.remove(temp_file)
 
 
+
+
+@app.get("/api/printcenter/config")
+async def get_printcenter_config():
+    """Retorna configuração do PrintCenter com lotes disponíveis"""
+    config_path = PRINTCENTER_DIR / "config.json"
+    lotes_dir = PRINTCENTER_DIR / "lotes"
+
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="Configuração do PrintCenter não encontrada")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    # Auto-detectar arquivos .txt na pasta lotes/ que não estão no config
+    lotes_config = {l["arquivo"] for l in config.get("lotes", [])}
+    lotes = list(config.get("lotes", []))
+
+    if lotes_dir.exists():
+        for arquivo in sorted(lotes_dir.iterdir()):
+            if arquivo.is_file() and arquivo.name != ".gitkeep":
+                arquivo_rel = f"lotes/{arquivo.name}"
+                if arquivo_rel not in lotes_config:
+                    lotes.append({
+                        "nome": arquivo.name,
+                        "arquivo": arquivo_rel
+                    })
+
+    # Verificar se layout existe
+    layout_file = config.get("layout_file", "")
+    layout_exists = (PRINTCENTER_DIR / layout_file).exists() if layout_file else False
+
+    return {
+        "layout_file": layout_file,
+        "layout_exists": layout_exists,
+        "sheet_index": config.get("sheet_index", 0),
+        "lotes": lotes
+    }
+
+
+# Mapeamento de tipos de registro: PRODUÇÃO → DEV
+# Na produção, os tipos 10-14 correspondem a tipos diferentes no DEV
+MAPA_TIPOS_PROD_PARA_DEV = {
+    '10': '40',   # Endereço/dados do cliente
+    '11': '46',   # Descrição do serviço
+    '12': '48',   # Valores
+    '13': '50',   # Somatórios
+    '14': '86',   # Informações legais (não comparar)
+}
+
+# Tipos DEV que NÃO existem na produção (ignorar na comparação)
+TIPOS_DEV_SEM_CORRESPONDENCIA = {'42', '85'}
+
+# Tipos PROD que NÃO devem ser comparados
+TIPOS_PROD_SEM_COMPARACAO = {'14'}
+
+
+def _ler_arquivo_com_encoding(caminho: str) -> list:
+    """Lê arquivo tentando utf-8 primeiro, depois latin-1. Retorna lista de linhas sem \\n."""
+    for enc in ('utf-8', 'latin-1'):
+        try:
+            with open(caminho, 'r', encoding=enc) as f:
+                return [linha.rstrip('\n\r') for linha in f]
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"Não foi possível ler o arquivo: {caminho}")
+
+
+def _agrupar_linhas_por_tipo(linhas: list) -> dict:
+    """Agrupa linhas por tipo de registro (2 primeiros chars). Retorna dict tipo -> [(num_linha, conteudo)]."""
+    grupos = {}
+    for i, linha in enumerate(linhas, 1):
+        if len(linha) < 2:
+            continue
+        tipo = linha[:2]
+        if tipo not in grupos:
+            grupos[tipo] = []
+        grupos[tipo].append((i, linha))
+    return grupos
+
+
+def _construir_arquivo_alinhado(linhas_dev: list, linhas_prod: list) -> tuple:
+    """
+    Constrói dois arrays de linhas alinhados para comparação lado a lado.
+    
+    Regras:
+    - Tipos iguais (00,01,02,03,04,05,06,99): compara diretamente
+    - DEV 40 ↔ PROD 10
+    - DEV 46 ↔ PROD 11
+    - DEV 48 ↔ PROD 12
+    - DEV 50 ↔ PROD 13
+    - DEV 42, 85: ignorar (sem correspondência na PROD)
+    - PROD 14: não comparar
+    
+    Retorna (linhas_prod_alinhadas, linhas_dev_alinhadas) prontas para comparação.
+    """
+    grupos_dev = _agrupar_linhas_por_tipo(linhas_dev)
+    grupos_prod = _agrupar_linhas_por_tipo(linhas_prod)
+    
+    # Mapeamento reverso: DEV → PROD
+    MAPA_DEV_PARA_PROD = {v: k for k, v in MAPA_TIPOS_PROD_PARA_DEV.items()}
+    
+    resultado_base = []    # linhas da produção (base)
+    resultado_validado = []  # linhas do dev (validado)
+    
+    # Processar na ordem dos tipos do DEV
+    tipos_dev_ordenados = []
+    for linha in linhas_dev:
+        if len(linha) >= 2:
+            tipo = linha[:2]
+            if tipo not in tipos_dev_ordenados:
+                tipos_dev_ordenados.append(tipo)
+    
+    tipos_processados_prod = set()
+    
+    for tipo_dev in tipos_dev_ordenados:
+        # Ignorar tipos DEV sem correspondência
+        if tipo_dev in TIPOS_DEV_SEM_CORRESPONDENCIA:
+            continue
+        
+        # Determinar qual tipo da PROD corresponde
+        tipo_prod = MAPA_DEV_PARA_PROD.get(tipo_dev, tipo_dev)
+        
+        linhas_d = grupos_dev.get(tipo_dev, [])
+        linhas_p = grupos_prod.get(tipo_prod, [])
+        
+        tipos_processados_prod.add(tipo_prod)
+        
+        # Alinhar usando zip_longest-like: emparelhar linhas na ordem
+        max_linhas = max(len(linhas_d), len(linhas_p))
+        for i in range(max_linhas):
+            if i < len(linhas_p):
+                # Manter a linha da produção como está (não converter tipo)
+                linha_prod = linhas_p[i][1]
+            else:
+                linha_prod = ''
+                
+            if i < len(linhas_d):
+                linha_dev = linhas_d[i][1]
+            else:
+                linha_dev = ''
+            
+            resultado_base.append(linha_prod)
+            resultado_validado.append(linha_dev)
+    
+    return resultado_base, resultado_validado
+
+
+def _extrair_mapa_faturas(caminho_arquivo: str) -> List[FaturaInfo]:
+    """
+    Percorre o arquivo e identifica cada fatura.
+    Toda fatura começa em um registro tipo '01'.
+    O número da fatura está nas posições 18-30 (índice 17:30) do tipo 01.
+    Retorna uma lista de FaturaInfo com numero_fatura, linha_inicio e linha_fim.
+    """
+    faturas = []
+    fatura_atual = None
+
+    try:
+        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
+
+        for numero_linha, linha in enumerate(linhas, 1):
+            if len(linha) < 2:
+                continue
+
+            tipo_registro = linha[:2]
+
+            if tipo_registro == '01':
+                # Fechar fatura anterior
+                if fatura_atual:
+                    fatura_atual['linha_fim'] = numero_linha - 1
+                    faturas.append(FaturaInfo(**fatura_atual))
+
+                # Extrair número da fatura: posições 18-30 (índice 17:30)
+                num_fatura = ''
+                if len(linha) >= 30:
+                    num_fatura = linha[17:30].strip()
+
+                fatura_atual = {
+                    'numero_fatura': num_fatura or f'Fatura-L{numero_linha}',
+                    'linha_inicio': numero_linha,
+                    'linha_fim': numero_linha
+                }
+            elif fatura_atual:
+                fatura_atual['linha_fim'] = numero_linha
+
+        # Fechar última fatura
+        if fatura_atual:
+            faturas.append(FaturaInfo(**fatura_atual))
+
+    except Exception as e:
+        print(f"Aviso: Erro ao extrair mapa de faturas: {e}")
+
+    return faturas
+
+
+def _extrair_codigos_cliente(caminho_arquivo: str) -> set:
+    """
+    Extrai os códigos de cliente do arquivo (posições 3-17 do tipo 01, índice [2:17]).
+    Usado para comparação inteligente, pois o número da fatura muda entre DEV e PROD
+    mas o código do cliente permanece o mesmo.
+    """
+    codigos = set()
+    try:
+        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
+        for linha in linhas:
+            if len(linha) >= 17 and linha[:2] == '01':
+                codigo = linha[2:17].strip()
+                if codigo:
+                    codigos.add(codigo)
+    except Exception as e:
+        print(f"Aviso: Erro ao extrair códigos de cliente: {e}")
+    return codigos
+
+
+def _detectar_tipos_no_arquivo(caminho_arquivo: str) -> set:
+    """Detecta quais tipos de registro existem em um arquivo."""
+    tipos = set()
+    try:
+        encoding = 'utf-8'
+        try:
+            with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+                f.read(100)
+        except UnicodeDecodeError:
+            encoding = 'latin-1'
+
+        with open(caminho_arquivo, 'r', encoding=encoding) as f:
+            for linha in f:
+                linha_raw = linha.rstrip('\n\r')
+                if len(linha_raw) >= 2:
+                    tipos.add(linha_raw[:2])
+    except Exception as e:
+        print(f"Aviso: Erro ao detectar tipos no arquivo: {e}")
+    return tipos
+
+
+def _extrair_linhas_de_faturas(caminho_arquivo: str, codigos_cliente: set) -> List[str]:
+    """
+    Dado um arquivo e um conjunto de códigos de cliente, extrai apenas as linhas
+    pertencentes às faturas desses clientes (bloco completo do tipo 01 até próximo 01 ou fim).
+    Sempre inclui header (00) e trailer (90/99).
+    
+    Usa código do cliente (posições 3-17, índice [2:17]) para identificar a fatura,
+    pois o número da fatura muda entre DEV e PROD mas o código do cliente não.
+    """
+    linhas_resultado = []
+    dentro_fatura_desejada = False
+
+    try:
+        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
+
+        for linha_raw in linhas:
+            if len(linha_raw) < 2:
+                continue
+
+            tipo_registro = linha_raw[:2]
+
+            # Header e trailer sempre incluídos
+            if tipo_registro in ['00', '90', '99']:
+                linhas_resultado.append(linha_raw)
+                continue
+
+            if tipo_registro == '01':
+                # Verificar se este cliente é um dos desejados
+                codigo_cliente = ''
+                if len(linha_raw) >= 17:
+                    codigo_cliente = linha_raw[2:17].strip()
+                dentro_fatura_desejada = codigo_cliente in codigos_cliente
+                if dentro_fatura_desejada:
+                    linhas_resultado.append(linha_raw)
+            elif dentro_fatura_desejada:
+                linhas_resultado.append(linha_raw)
+
+    except Exception as e:
+        print(f"Aviso: Erro ao extrair linhas de faturas: {e}")
+
+    return linhas_resultado
+
+
+@app.post("/api/printcenter/comparar")
+async def printcenter_comparar(
+    arquivo_usuario: UploadFile = File(...),
+    lote_arquivo: Optional[str] = Form(None),
+    arquivo_producao: Optional[UploadFile] = File(None)
+):
+    """Compara arquivo do usuário com arquivo de produção (lote da pasta ou upload direto).
+    
+    Se o arquivo do usuário tiver menos faturas que o de produção,
+    busca automaticamente apenas as faturas correspondentes no arquivo de produção.
+    """
+    config_path = PRINTCENTER_DIR / "config.json"
+
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="Configuração do PrintCenter não encontrada")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    # Validar layout
+    layout_file_rel = config.get("layout_file", "")
+    layout_path = PRINTCENTER_DIR / layout_file_rel
+    if not layout_path.exists():
+        raise HTTPException(status_code=400, detail=f"Arquivo de layout não encontrado: {layout_file_rel}. Coloque o arquivo na pasta printcenter/layout/")
+
+    # Determinar arquivo de produção: upload tem prioridade, senão usa lote
+    lote_arquivo_val = lote_arquivo.strip() if lote_arquivo else ''
+    tem_upload_producao = arquivo_producao is not None and arquivo_producao.filename
+    
+    if not tem_upload_producao and not lote_arquivo_val:
+        raise HTTPException(status_code=400, detail="Informe um lote ou faça upload do arquivo de produção")
+
+    if not arquivo_usuario.filename:
+        raise HTTPException(status_code=400, detail="Arquivo do usuário é obrigatório")
+
+    temp_usuario = None
+    temp_producao = None
+    temp_producao_filtrado = None
+
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # Salvar arquivo do usuário temporariamente
+        temp_usuario = UPLOAD_DIR / f"printcenter_{timestamp}_{arquivo_usuario.filename}"
+        with open(temp_usuario, "wb") as buffer:
+            content = await arquivo_usuario.read()
+            buffer.write(content)
+
+        # Determinar caminho do arquivo de produção
+        if tem_upload_producao:
+            # Upload direto do arquivo de produção
+            temp_producao = UPLOAD_DIR / f"printcenter_prod_{timestamp}_{arquivo_producao.filename}"
+            with open(temp_producao, "wb") as buffer:
+                content = await arquivo_producao.read()
+                buffer.write(content)
+            producao_path = temp_producao
+        else:
+            # Usar lote da pasta
+            lote_path = PRINTCENTER_DIR / lote_arquivo_val
+            if not lote_path.exists():
+                raise HTTPException(status_code=400, detail=f"Arquivo do lote não encontrado: {lote_arquivo_val}")
+            producao_path = lote_path
+
+        sheet_index = config.get("sheet_index", 0)
+
+        # Carregar layout usando parser PrintCenter (formato COBOL Picture)
+        layout = parse_printcenter_layout(str(layout_path), sheet_name=sheet_index)
+
+        # Extrair faturas do arquivo do usuário (para navegação no frontend)
+        faturas_usuario = _extrair_mapa_faturas(str(temp_usuario))
+
+        # Ler ambos os arquivos
+        linhas_dev = _ler_arquivo_com_encoding(str(temp_usuario))
+        linhas_prod_completo = _ler_arquivo_com_encoding(str(producao_path))
+
+        # Comparação inteligente: usa código do cliente (pos 3-17 do tipo 01)
+        # para casar faturas entre DEV e PROD, pois o número da fatura muda
+        codigos_cliente_dev = _extrair_codigos_cliente(str(temp_usuario))
+        codigos_cliente_prod = _extrair_codigos_cliente(str(producao_path))
+
+        # Se produção tem mais clientes/faturas, filtrar para os clientes do usuário
+        if codigos_cliente_dev and len(codigos_cliente_prod) > len(codigos_cliente_dev):
+            linhas_prod = _extrair_linhas_de_faturas(str(producao_path), codigos_cliente_dev)
+        else:
+            linhas_prod = linhas_prod_completo
+
+        # Alinhar os arquivos por tipo de registro (com mapeamento PROD→DEV)
+        linhas_base_alinhadas, linhas_validado_alinhadas = _construir_arquivo_alinhado(linhas_dev, linhas_prod)
+
+        # Salvar arquivos alinhados para comparação
+        temp_base_alinhado = UPLOAD_DIR / f"printcenter_base_alinhado_{timestamp}.txt"
+        temp_val_alinhado = UPLOAD_DIR / f"printcenter_val_alinhado_{timestamp}.txt"
+
+        with open(temp_base_alinhado, 'w', encoding='utf-8') as f:
+            for linha in linhas_base_alinhadas:
+                f.write(linha + '\n')
+
+        with open(temp_val_alinhado, 'w', encoding='utf-8') as f:
+            for linha in linhas_validado_alinhadas:
+                f.write(linha + '\n')
+
+        # Executar comparação estrutural nos arquivos alinhados
+        # Passar mapeamento de tipos PROD→DEV para o comparador saber qual layout usar
+        # e campos a ignorar (mudam naturalmente entre DEV e PROD)
+        comparador = ComparadorEstruturalArquivos(
+            layout,
+            mapa_tipos=MAPA_TIPOS_PROD_PARA_DEV,
+            campos_ignorados={
+                'NFCOM01-Número da CPS/Fatura',
+                'NFCOM01-Data da Emissão',
+                # Tipo de Registro muda entre PROD e DEV nos tipos mapeados (10→40, etc)
+                'NFCOM40-Tipo de Registro = 40',
+                'NFCOM46-Tipo de Registro = 46',
+                'NFCOM48-Tipo de Registro = 48',
+                'NFCOM50-Tipo de Registro = 50',
+            }
+        )
+        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(
+            str(temp_base_alinhado), str(temp_val_alinhado)
+        )
+
+        # Extrair mapa de faturas do arquivo do usuário (para navegação no frontend)
+        mapa_faturas = faturas_usuario
+
+        # Gerar relatório textual
+        relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
+
+        # Info sobre clientes encontrados/não encontrados
+        clientes_nao_encontrados = codigos_cliente_dev - codigos_cliente_prod
+        info_extra = ""
+        if clientes_nao_encontrados:
+            info_extra = f"\n⚠️ Clientes do seu arquivo NÃO encontrados na produção: {', '.join(sorted(clientes_nao_encontrados))}"
+
+        dados_comparacao = {
+            'timestamp': timestamp,
+            'data_comparacao': datetime.now().isoformat(),
+            'relatorio_texto': relatorio_texto + info_extra,
+            'layout_nome': layout.nome,
+            'faturas_usuario': len(faturas_usuario),
+            'clientes_usuario': len(codigos_cliente_dev),
+            'clientes_producao': len(codigos_cliente_prod),
+            'clientes_comparados': len(codigos_cliente_dev - clientes_nao_encontrados)
+        }
+
+        layout_response = converter_layout_para_response(layout)
+        resultado_response = converter_resultado_comparacao_para_response(resultado_comparacao)
+
+        return ComparacaoEstruturalCompleta(
+            layout=layout_response,
+            resultado_comparacao=resultado_response,
+            relatorio_texto=relatorio_texto + info_extra,
+            timestamp=timestamp,
+            dados_comparacao=dados_comparacao,
+            mapa_faturas=mapa_faturas
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro na comparação PrintCenter: {str(e)}")
+
+    finally:
+        for temp_file in [temp_usuario, temp_producao, temp_producao_filtrado]:
+            try:
+                if temp_file and Path(temp_file).exists():
+                    os.remove(temp_file)
+            except:
+                pass
+        # Limpar arquivos alinhados
+        for nome in [f"printcenter_base_alinhado_{timestamp}.txt", f"printcenter_val_alinhado_{timestamp}.txt"]:
+            try:
+                p = UPLOAD_DIR / nome
+                if p.exists():
+                    os.remove(p)
+            except:
+                pass
 
 
 if __name__ == "__main__":
