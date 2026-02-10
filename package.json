@@ -1,0 +1,11 @@
+{
+  "name": "validador-de-documento",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Validador de Documentos Sequenciais - Root package",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "dev": "cd frontend && npm run dev",
+    "install:frontend": "cd frontend && npm install"
+  }
+}
