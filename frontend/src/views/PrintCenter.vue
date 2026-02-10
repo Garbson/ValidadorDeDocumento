@@ -264,128 +264,258 @@
                     · {{ faturaAtual.totalErros }} campo{{ faturaAtual.totalErros !== 1 ? 's' : '' }} divergente{{ faturaAtual.totalErros !== 1 ? 's' : '' }}
                   </span>
                 </div>
-                <span class="text-xs text-red-500">
-                  Linhas {{ faturaAtual.linhaInicio }} – {{ faturaAtual.linhaFim }}
-                </span>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-red-500">
+                    Linhas {{ faturaAtual.linhaInicio }} – {{ faturaAtual.linhaFim }}
+                  </span>
+                  <!-- Toggle modo de visualização -->
+                  <button
+                    v-if="todasLinhas.length > 0"
+                    @click="modoVisualizacao = modoVisualizacao === 'erros' ? 'completa' : 'erros'"
+                    :class="[
+                      'inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors',
+                      modoVisualizacao === 'completa'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ]"
+                  >
+                    <Eye v-if="modoVisualizacao === 'completa'" class="w-3.5 h-3.5 mr-1" />
+                    <EyeOff v-else class="w-3.5 h-3.5 mr-1" />
+                    {{ modoVisualizacao === 'completa' ? 'Fatura Completa' : 'Apenas Erros' }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Diferenças da fatura selecionada -->
+        <!-- Conteúdo da fatura selecionada -->
         <div v-if="faturaAtual" class="card">
           <div class="card-header">
             <h3 class="text-lg font-semibold">
-              Diferenças — {{ faturaAtual.label }}
+              {{ modoVisualizacao === 'completa' ? 'Fatura Completa' : 'Diferenças' }} — {{ faturaAtual.label }}
             </h3>
           </div>
           <div class="card-body">
             <div class="space-y-6">
-              <div
-                v-for="(diferenca, dIdx) in faturaAtual.diferencas"
-                :key="dIdx"
-                class="border border-gray-200 rounded-lg p-4"
-              >
-                <div class="flex justify-between items-center mb-3">
-                  <h4 class="font-semibold text-gray-900">
-                    Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
-                  </h4>
-                  <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                    {{ diferenca.total_diferencas }} diferença(s)
-                  </span>
-                </div>
 
-                <!-- Visualização das Linhas -->
-                <div class="space-y-1 mb-4 text-sm font-mono">
-                  <div>
-                    <span class="text-gray-600">Produção (Lote):</span>
-                    <div
-                      :data-ref="`base-linha-${faturaSelecionadaIndex}-${dIdx}`"
-                      class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                      style="white-space: pre;"
-                      @scroll="sincronizarScroll($event, `validado-linha-${faturaSelecionadaIndex}-${dIdx}`)"
-                      @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
-                      @mouseleave="esconderTooltip"
-                    >{{ diferenca.arquivo_base_linha }}</div>
+              <!-- MODO FATURA COMPLETA -->
+              <template v-if="modoVisualizacao === 'completa'">
+                <div
+                  v-for="(linha, lIdx) in linhasFaturaCompleta"
+                  :key="'completa-' + lIdx"
+                  :class="[
+                    'rounded-lg p-4 border',
+                    linha.total_diferencas > 0
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-gray-200 bg-gray-50'
+                  ]"
+                >
+                  <div class="flex justify-between items-center mb-2">
+                    <h4 :class="['font-semibold', linha.total_diferencas > 0 ? 'text-red-900' : 'text-gray-700']">
+                      Linha {{ linha.numero_linha }} - Tipo {{ linha.tipo_registro }}
+                    </h4>
+                    <span v-if="linha.total_diferencas > 0" class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                      {{ linha.total_diferencas }} diferença(s)
+                    </span>
+                    <span v-else class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      OK
+                    </span>
                   </div>
-                  <div>
-                    <span class="text-gray-600">Seu Arquivo:</span>
-                    <div
-                      :data-ref="`validado-linha-${faturaSelecionadaIndex}-${dIdx}`"
-                      class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                      style="white-space: pre;"
-                      @scroll="sincronizarScroll($event, `base-linha-${faturaSelecionadaIndex}-${dIdx}`)"
-                      @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
-                      @mouseleave="esconderTooltip"
-                    >{{ diferenca.arquivo_validado_linha }}</div>
-                  </div>
-                </div>
 
-                <!-- Diferenças por Campo -->
-                <div class="space-y-2">
-                  <h5 class="font-medium text-gray-700">Campos com Diferenças:</h5>
-                  <div class="grid gap-2">
-                    <div
-                      v-for="(campo, campIndex) in diferenca.diferencas_campos"
-                      :key="campIndex"
-                      :class="[
-                        'p-3 rounded-lg border-l-4',
-                        campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
-                          ? 'bg-orange-50 border-orange-400'
-                          : 'bg-red-50 border-red-400'
-                      ]"
-                    >
-                      <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                          <div class="flex items-center">
-                            <span class="font-medium">
-                              Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
-                            </span>
-                            <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                                  class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
-                              Calculo do imposto
-                            </span>
-                            <span v-else-if="campo.tipo_diferenca"
-                                  class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
-                              {{ campo.tipo_diferenca }}
+                  <!-- Linhas lado a lado -->
+                  <div class="space-y-1 text-sm font-mono">
+                    <div>
+                      <span class="text-gray-600">Produção:</span>
+                      <div
+                        :data-ref="`completa-base-${lIdx}`"
+                        class="bg-white p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                        style="white-space: pre;"
+                        @scroll="sincronizarScroll($event, `completa-val-${lIdx}`)"
+                        @mousemove="mostrarTooltipThrottled($event, linha, linha.arquivo_base_linha, 'base')"
+                        @mouseleave="esconderTooltip"
+                      >{{ linha.arquivo_base_linha }}</div>
+                    </div>
+                    <div>
+                      <span class="text-gray-600">Seu Arquivo:</span>
+                      <div
+                        :data-ref="`completa-val-${lIdx}`"
+                        class="bg-white p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                        style="white-space: pre;"
+                        @scroll="sincronizarScroll($event, `completa-base-${lIdx}`)"
+                        @mousemove="mostrarTooltipThrottled($event, linha, linha.arquivo_validado_linha, 'validado')"
+                        @mouseleave="esconderTooltip"
+                      >{{ linha.arquivo_validado_linha }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Detalhes dos campos divergentes (se houver) -->
+                  <div v-if="linha.total_diferencas > 0" class="mt-3 space-y-2">
+                    <h5 class="font-medium text-red-700">Campos com Diferenças:</h5>
+                    <div class="grid gap-2">
+                      <div
+                        v-for="(campo, campIndex) in linha.diferencas_campos"
+                        :key="campIndex"
+                        :class="[
+                          'p-3 rounded-lg border-l-4',
+                          campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
+                            ? 'bg-orange-50 border-orange-400'
+                            : 'bg-red-50 border-red-400'
+                        ]"
+                      >
+                        <div class="flex justify-between items-start">
+                          <div class="flex-1">
+                            <div class="flex items-center">
+                              <span class="font-medium">
+                                Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
+                              </span>
+                              <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                                    class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
+                                Calculo do imposto
+                              </span>
+                              <span v-else-if="campo.tipo_diferenca"
+                                    class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
+                                {{ campo.tipo_diferenca }}
+                              </span>
+                            </div>
+                            <span class="text-sm text-gray-600">
+                              (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
                             </span>
                           </div>
-                          <span class="text-sm text-gray-600">
-                            (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
-                          </span>
                         </div>
-                      </div>
-
-                      <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                           class="mt-3 p-3 bg-orange-100 rounded">
-                        <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
-                        <div class="text-sm text-orange-900 font-mono">
-                          {{ campo.descricao }}
+                        <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                             class="mt-3 p-3 bg-orange-100 rounded">
+                          <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
+                          <div class="text-sm text-orange-900 font-mono">{{ campo.descricao }}</div>
                         </div>
-                      </div>
-
-                      <div v-else-if="campo.descricao"
-                           class="mt-2 p-2 bg-gray-100 rounded">
-                        <div class="text-sm text-gray-700">
-                          {{ campo.descricao }}
+                        <div v-else-if="campo.descricao" class="mt-2 p-2 bg-gray-100 rounded">
+                          <div class="text-sm text-gray-700">{{ campo.descricao }}</div>
                         </div>
-                      </div>
-
-                      <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')"
-                           class="mt-2 text-sm">
-                        <div class="grid grid-cols-2 gap-2">
-                          <div class="text-gray-600">
-                            Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
-                          </div>
-                          <div class="text-gray-600">
-                            Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                        <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')" class="mt-2 text-sm">
+                          <div class="grid grid-cols-2 gap-2">
+                            <div class="text-gray-600">
+                              Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
+                            </div>
+                            <div class="text-gray-600">
+                              Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </template>
+
+              <!-- MODO APENAS ERROS (original) -->
+              <template v-else>
+                <div
+                  v-for="(diferenca, dIdx) in faturaAtual.diferencas"
+                  :key="dIdx"
+                  class="border border-gray-200 rounded-lg p-4"
+                >
+                  <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-semibold text-gray-900">
+                      Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
+                    </h4>
+                    <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                      {{ diferenca.total_diferencas }} diferença(s)
+                    </span>
+                  </div>
+
+                  <!-- Visualização das Linhas -->
+                  <div class="space-y-1 mb-4 text-sm font-mono">
+                    <div>
+                      <span class="text-gray-600">Produção (Lote):</span>
+                      <div
+                        :data-ref="`base-linha-${faturaSelecionadaIndex}-${dIdx}`"
+                        class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                        style="white-space: pre;"
+                        @scroll="sincronizarScroll($event, `validado-linha-${faturaSelecionadaIndex}-${dIdx}`)"
+                        @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
+                        @mouseleave="esconderTooltip"
+                      >{{ diferenca.arquivo_base_linha }}</div>
+                    </div>
+                    <div>
+                      <span class="text-gray-600">Seu Arquivo:</span>
+                      <div
+                        :data-ref="`validado-linha-${faturaSelecionadaIndex}-${dIdx}`"
+                        class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                        style="white-space: pre;"
+                        @scroll="sincronizarScroll($event, `base-linha-${faturaSelecionadaIndex}-${dIdx}`)"
+                        @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
+                        @mouseleave="esconderTooltip"
+                      >{{ diferenca.arquivo_validado_linha }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Diferenças por Campo -->
+                  <div class="space-y-2">
+                    <h5 class="font-medium text-gray-700">Campos com Diferenças:</h5>
+                    <div class="grid gap-2">
+                      <div
+                        v-for="(campo, campIndex) in diferenca.diferencas_campos"
+                        :key="campIndex"
+                        :class="[
+                          'p-3 rounded-lg border-l-4',
+                          campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
+                            ? 'bg-orange-50 border-orange-400'
+                            : 'bg-red-50 border-red-400'
+                        ]"
+                      >
+                        <div class="flex justify-between items-start">
+                          <div class="flex-1">
+                            <div class="flex items-center">
+                              <span class="font-medium">
+                                Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
+                              </span>
+                              <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                                    class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
+                                Calculo do imposto
+                              </span>
+                              <span v-else-if="campo.tipo_diferenca"
+                                    class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
+                                {{ campo.tipo_diferenca }}
+                              </span>
+                            </div>
+                            <span class="text-sm text-gray-600">
+                              (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                             class="mt-3 p-3 bg-orange-100 rounded">
+                          <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
+                          <div class="text-sm text-orange-900 font-mono">
+                            {{ campo.descricao }}
+                          </div>
+                        </div>
+
+                        <div v-else-if="campo.descricao"
+                             class="mt-2 p-2 bg-gray-100 rounded">
+                          <div class="text-sm text-gray-700">
+                            {{ campo.descricao }}
+                          </div>
+                        </div>
+
+                        <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')"
+                             class="mt-2 text-sm">
+                          <div class="grid grid-cols-2 gap-2">
+                            <div class="text-gray-600">
+                              Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
+                            </div>
+                            <div class="text-gray-600">
+                              Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
             </div>
           </div>
         </div>
@@ -467,7 +597,7 @@
 </template>
 
 <script setup>
-import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Download, Loader2, Printer, RotateCcw } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Loader2, Printer, RotateCcw } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import localStorageService from '../services/localStorage'
@@ -507,6 +637,8 @@ const tooltipInfo = ref({
 // Navegação por fatura
 const faturaSelecionadaIndex = ref(0)
 const mapaFaturas = ref([])
+const modoVisualizacao = ref('erros') // 'erros' ou 'completa'
+const todasLinhas = ref([])
 
 // Computed
 const hasResults = computed(() => comparisonResult.value !== null)
@@ -579,6 +711,18 @@ const faturaAtual = computed(() => {
   return faturasComErro.value[idx]
 })
 
+/**
+ * Retorna todas as linhas da fatura selecionada (para visualização completa).
+ * Filtra todas_linhas pelo range de linhas da fatura atual.
+ */
+const linhasFaturaCompleta = computed(() => {
+  const fatura = faturaAtual.value
+  if (!fatura || !todasLinhas.value?.length) return []
+  return todasLinhas.value.filter(
+    l => l.numero_linha >= fatura.linhaInicio && l.numero_linha <= fatura.linhaFim
+  )
+})
+
 // Load config on mount
 onMounted(async () => {
   try {
@@ -630,6 +774,7 @@ async function handleComparison() {
     timestamp.value = response.data.timestamp
     layoutData.value = response.data.layout
     mapaFaturas.value = response.data.mapa_faturas || []
+    todasLinhas.value = response.data.resultado_comparacao?.todas_linhas || []
     faturaSelecionadaIndex.value = 0
   } catch (err) {
     console.error('Erro na comparação:', err)
@@ -657,6 +802,8 @@ function resetComparison() {
   error.value = ''
   faturaSelecionadaIndex.value = 0
   mapaFaturas.value = []
+  todasLinhas.value = []
+  modoVisualizacao.value = 'erros'
   if (userFileInput.value) userFileInput.value.value = ''
   if (producaoFileInput.value) producaoFileInput.value.value = ''
 }

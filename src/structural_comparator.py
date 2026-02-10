@@ -17,7 +17,7 @@ except ImportError:
 class ComparadorEstruturalArquivos:
     """Comparador estrutural que analisa diferenças entre arquivo base e arquivo a ser validado"""
 
-    def __init__(self, layout: Layout, mapa_tipos: Dict[str, str] = None, campos_ignorados: set = None):
+    def __init__(self, layout: Layout, mapa_tipos: Dict[str, str] = None, campos_ignorados: set = None, campos_ignorar_se_preenchido: set = None):
         self.layout = layout
         # Mapa de tipos: quando encontrar tipo X na base, usar layout do tipo Y
         # Ex: {'10': '40', '11': '46', '12': '48', '13': '50'}
@@ -25,6 +25,10 @@ class ComparadorEstruturalArquivos:
         # Campos a ignorar na comparação (não reportar diferenças)
         # Ex: {'NFCOM01-Número da CPS/Fatura', 'NFCOM01-Data da Emissão'}
         self.campos_ignorados = campos_ignorados or set()
+        # Campos a ignorar se o valor no validado (DEV) estiver preenchido
+        # Se o DEV estiver vazio, reportar erro
+        # Ex: {'NFCOM19-Hash-Code'} - valores são naturalmente diferentes, mas DEV não pode estar vazio
+        self.campos_ignorar_se_preenchido = campos_ignorar_se_preenchido or set()
 
     def extrair_campos_linha(self, linha: str, tipo_registro: Optional[str] = None) -> Dict[str, str]:
         """Extrai os campos de uma linha baseado no layout, filtrado por tipo de registro se especificado"""
@@ -101,6 +105,25 @@ class ComparadorEstruturalArquivos:
 
             valor_base = campos_base.get(campo.nome, '')
             valor_validado = campos_validado.get(campo.nome, '')
+
+            # Campos que só reportam erro se o DEV (validado) estiver vazio
+            if campo.nome in self.campos_ignorar_se_preenchido:
+                validado_vazio = not valor_validado or valor_validado.isspace()
+                if not validado_vazio:
+                    continue  # DEV tem valor → ignorar diferença
+                # DEV está vazio → reportar como erro
+                diferenca = DiferencaEstruturalCampo(
+                    nome_campo=campo.nome,
+                    posicao_inicio=campo.posicao_inicio,
+                    posicao_fim=campo.posicao_fim,
+                    valor_base=valor_base,
+                    valor_validado=valor_validado,
+                    tipo_diferenca="CAMPO_VAZIO_NO_DEV",
+                    descricao=f"Campo '{campo.nome}' está vazio no arquivo DEV mas deveria ter valor",
+                    sequencia_campo=sequencia
+                )
+                diferencas.append(diferenca)
+                continue
 
             # Analisar diferenças estruturais (formato, obrigatoriedade, tamanho)
             tipo_diferenca, descricao = self._analisar_tipo_diferenca(
@@ -286,6 +309,10 @@ class ComparadorEstruturalArquivos:
             if self._campo_pertence_ao_tipo(campo.nome, tipo_registro)
         ]
 
+        # Se não há campos no layout para este tipo, retornar a linha raw
+        if not campos_do_tipo:
+            return linha.rstrip()
+
         valores_campos = []
         for campo in campos_do_tipo:
             # Extrair valor diretamente da linha preservando espaços exatos
@@ -309,7 +336,8 @@ class ComparadorEstruturalArquivos:
         return "|".join(valores_campos) + "|"
 
     def _gerar_linha_com_barras_e_numeracao(self, linha: str, tipo_registro: str) -> Tuple[str, str]:
-        """Gera representação da linha com campos separados por barras e linha de numeração"""
+        """Gera representação da linha com campos separados por barras e linha de numeração.
+        Se o tipo de registro não tem campos no layout, retorna a linha raw."""
         # Resolver tipo para busca no layout
         tipo_layout = self.mapa_tipos.get(tipo_registro, tipo_registro)
 
@@ -318,6 +346,10 @@ class ComparadorEstruturalArquivos:
             campo for campo in self.layout.campos
             if self._campo_pertence_ao_tipo(campo.nome, tipo_layout)
         ]
+
+        # Se não há campos no layout para este tipo, retornar a linha raw
+        if not campos_do_tipo:
+            return linha.rstrip(), ''
 
         valores_campos = []
         numeros_campos = []
@@ -684,9 +716,11 @@ class ComparadorEstruturalArquivos:
         total_linhas = 0
         linhas_com_diferencas = 0
         todas_diferencas = []
+        todas_linhas = []
 
         for diferenca_linha in self.comparar_arquivos_por_tipo_generator(caminho_base, caminho_validado):
             total_linhas += 1
+            todas_linhas.append(diferenca_linha)
 
             if diferenca_linha.total_diferencas > 0:
                 linhas_com_diferencas += 1
@@ -699,6 +733,7 @@ class ComparadorEstruturalArquivos:
             linhas_com_diferencas=linhas_com_diferencas,
             linhas_identicas=linhas_identicas,
             diferencas_por_linha=todas_diferencas,
+            todas_linhas=todas_linhas,
             taxa_identidade=0.0  # Será calculado no __post_init__
         )
 
@@ -708,6 +743,7 @@ class ComparadorEstruturalArquivos:
         total_linhas = 0
         linhas_com_diferencas = 0
         todas_diferencas = []
+        todas_linhas = []
 
         for diferenca_linha in self.comparar_arquivos_generator(caminho_base, caminho_validado):
             total_linhas += 1
@@ -724,6 +760,8 @@ class ComparadorEstruturalArquivos:
             diferenca_linha.arquivo_validado_linha = linha_validado_formatada
             diferenca_linha.linha_numeracao = linha_numeracao
 
+            todas_linhas.append(diferenca_linha)
+
             if diferenca_linha.total_diferencas > 0:
                 linhas_com_diferencas += 1
                 todas_diferencas.append(diferenca_linha)
@@ -735,6 +773,7 @@ class ComparadorEstruturalArquivos:
             linhas_com_diferencas=linhas_com_diferencas,
             linhas_identicas=linhas_identicas,
             diferencas_por_linha=todas_diferencas,
+            todas_linhas=todas_linhas,
             taxa_identidade=0.0  # Será calculado no __post_init__
         )
 

@@ -355,41 +355,49 @@ def gerar_estatisticas(resultado) -> EstatisticasResponse:
     )
 
 
+def _converter_linha_para_response(diferenca_linha) -> DiferencaEstruturalLinhaResponse:
+    """Converte uma linha de diferença estrutural para response da API"""
+    campos_response = []
+    for campo_diff in diferenca_linha.diferencas_campos:
+        campos_response.append(DiferencaEstruturalCampoResponse(
+            nome_campo=campo_diff.nome_campo,
+            posicao_inicio=campo_diff.posicao_inicio,
+            posicao_fim=campo_diff.posicao_fim,
+            valor_base=campo_diff.valor_base,
+            valor_validado=campo_diff.valor_validado,
+            tipo_diferenca=campo_diff.tipo_diferenca,
+            descricao=campo_diff.descricao,
+            sequencia_campo=getattr(campo_diff, 'sequencia_campo', 0)
+        ))
+
+    return DiferencaEstruturalLinhaResponse(
+        numero_linha=diferenca_linha.numero_linha,
+        tipo_registro=diferenca_linha.tipo_registro,
+        arquivo_base_linha=diferenca_linha.arquivo_base_linha,
+        arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
+        diferencas_campos=campos_response,
+        total_diferencas=diferenca_linha.total_diferencas,
+        linha_numeracao=getattr(diferenca_linha, 'linha_numeracao', '')
+    )
+
+
 def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparacaoEstruturalResponse:
     """Converte resultado de comparação estrutural para response da API"""
-    diferencas_response = []
+    diferencas_response = [_converter_linha_para_response(d) for d in resultado.diferencas_por_linha]
 
-    for diferenca_linha in resultado.diferencas_por_linha:
-        campos_response = []
-        for campo_diff in diferenca_linha.diferencas_campos:
-            campos_response.append(DiferencaEstruturalCampoResponse(
-                nome_campo=campo_diff.nome_campo,
-                posicao_inicio=campo_diff.posicao_inicio,
-                posicao_fim=campo_diff.posicao_fim,
-                valor_base=campo_diff.valor_base,
-                valor_validado=campo_diff.valor_validado,
-                tipo_diferenca=campo_diff.tipo_diferenca,
-                descricao=campo_diff.descricao,
-                sequencia_campo=getattr(campo_diff, 'sequencia_campo', 0)
-            ))
-
-        diferencas_response.append(DiferencaEstruturalLinhaResponse(
-            numero_linha=diferenca_linha.numero_linha,
-            tipo_registro=diferenca_linha.tipo_registro,
-            arquivo_base_linha=diferenca_linha.arquivo_base_linha,
-            arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
-            diferencas_campos=campos_response,
-            total_diferencas=diferenca_linha.total_diferencas,
-            linha_numeracao=getattr(diferenca_linha, 'linha_numeracao', '')
-        ))
+    todas_linhas_response = None
+    if hasattr(resultado, 'todas_linhas') and resultado.todas_linhas:
+        todas_linhas_response = [_converter_linha_para_response(d) for d in resultado.todas_linhas]
 
     return ResultadoComparacaoEstruturalResponse(
         total_linhas_comparadas=resultado.total_linhas_comparadas,
         linhas_com_diferencas=resultado.linhas_com_diferencas,
         linhas_identicas=resultado.linhas_identicas,
         diferencas_por_linha=diferencas_response,
+        todas_linhas=todas_linhas_response,
         taxa_identidade=resultado.taxa_identidade
     )
+    
 
 
 @app.get("/")
@@ -1081,21 +1089,67 @@ async def get_printcenter_config():
     }
 
 
-# Mapeamento de tipos de registro: PRODUÇÃO → DEV
-# Na produção, os tipos 10-14 correspondem a tipos diferentes no DEV
-MAPA_TIPOS_PROD_PARA_DEV = {
+# ===== Modelo 62 (DEV usa tipos 40,42,46,48,50) vs Modelo 22 (PROD usa 10,11,12,13,14) =====
+# Mapeamento de tipos de registro: PRODUÇÃO (modelo 22) → DEV (modelo 62)
+MAPA_TIPOS_MODELO62 = {
     '10': '40',   # Endereço/dados do cliente
     '11': '46',   # Descrição do serviço
     '12': '48',   # Valores
     '13': '50',   # Somatórios
-    '14': '86',   # Informações legais (não comparar)
 }
 
-# Tipos DEV que NÃO existem na produção (ignorar na comparação)
-TIPOS_DEV_SEM_CORRESPONDENCIA = {'42', '85'}
+# Tipos DEV modelo 62 que NÃO existem na produção (ignorar na comparação)
+TIPOS_DEV_SEM_CORRESPONDENCIA_M62 = {'42', '85'}
 
-# Tipos PROD que NÃO devem ser comparados
-TIPOS_PROD_SEM_COMPARACAO = {'14'}
+# Tipos PROD modelo 22 que NÃO devem ser comparados
+TIPOS_PROD_SEM_COMPARACAO_M22 = {'14'}
+
+# Tipos exclusivos do modelo 62 DEV (para detecção automática)
+TIPOS_MODELO_62 = {'40', '42', '44', '46', '48', '50', '52'}
+
+# Tipos de cobilling (existem iguais em ambos os modelos)
+TIPOS_COBILLING = {'15', '16', '17', '18', '19'}
+
+# Campos a ignorar por modelo (mudam naturalmente entre DEV e PROD)
+CAMPOS_IGNORADOS_MODELO62 = {
+    'NFCOM01-Nº CPS/Fatura',
+    'NFCOM01-Dt Emissão',
+    'NFCOM00-Data Geração',
+    'NFCOM40-Dt Emissão',
+    # Tipo de Registro muda entre PROD (10→40, etc) nos tipos mapeados
+    'NFCOM40-Tipo = 40',
+    'NFCOM46-Tipo = 46',
+    'NFCOM48-Tipo = 48',
+    'NFCOM50-Tipo = 50',
+    'NFCOM50-Filler',
+}
+
+CAMPOS_IGNORADOS_MODELO22 = {
+    'NFCOM01-Nº CPS/Fatura',
+    'NFCOM01-Dt Emissão',
+    'NFCOM00-Data Geração',
+    'NFCOM10-Dt Emissão',
+    'NFCOM10-Nº CPS',
+    'NFCOM15-Dt Emissão',
+    'NFCOM15-Nº CPS',
+}
+
+
+def _detectar_modelo(linhas: list) -> str:
+    """Detecta se o arquivo DEV é modelo 62 (tipos 40,46,48,50) ou modelo 22 (tipos 10,11,12,13).
+    Retorna 'modelo62' ou 'modelo22'.
+    """
+    tipos_encontrados = set()
+    for linha in linhas:
+        if len(linha) >= 2:
+            tipos_encontrados.add(linha[:2])
+    
+    # Se tem tipos exclusivos do modelo 62, é modelo 62
+    if tipos_encontrados & TIPOS_MODELO_62:
+        return 'modelo62'
+    
+    # Senão é modelo 22 (mesmo tipos que produção)
+    return 'modelo22'
 
 
 def _ler_arquivo_com_encoding(caminho: str) -> list:
@@ -1122,70 +1176,118 @@ def _agrupar_linhas_por_tipo(linhas: list) -> dict:
     return grupos
 
 
-def _construir_arquivo_alinhado(linhas_dev: list, linhas_prod: list) -> tuple:
+def _construir_arquivo_alinhado(linhas_dev: list, linhas_prod: list, modelo: str = 'modelo62') -> tuple:
     """
     Constrói dois arrays de linhas alinhados para comparação lado a lado.
-    
-    Regras:
-    - Tipos iguais (00,01,02,03,04,05,06,99): compara diretamente
-    - DEV 40 ↔ PROD 10
-    - DEV 46 ↔ PROD 11
-    - DEV 48 ↔ PROD 12
-    - DEV 50 ↔ PROD 13
+    Mantém a ordem natural das faturas (não agrupa por tipo).
+
+    Modelo 62 (DEV com tipos 40,46,48,50):
+    - PROD 10 ↔ DEV 40, PROD 11 ↔ DEV 46, PROD 12 ↔ DEV 48, PROD 13 ↔ DEV 50
     - DEV 42, 85: ignorar (sem correspondência na PROD)
     - PROD 14: não comparar
     
+    Modelo 22 (DEV com tipos 10,11,12,13 + cobilling 15-19):
+    - Tipos são iguais entre DEV e PROD, sem mapeamento necessário
+
     Retorna (linhas_prod_alinhadas, linhas_dev_alinhadas) prontas para comparação.
     """
-    grupos_dev = _agrupar_linhas_por_tipo(linhas_dev)
-    grupos_prod = _agrupar_linhas_por_tipo(linhas_prod)
-    
-    # Mapeamento reverso: DEV → PROD
-    MAPA_DEV_PARA_PROD = {v: k for k, v in MAPA_TIPOS_PROD_PARA_DEV.items()}
-    
-    resultado_base = []    # linhas da produção (base)
-    resultado_validado = []  # linhas do dev (validado)
-    
-    # Processar na ordem dos tipos do DEV
-    tipos_dev_ordenados = []
-    for linha in linhas_dev:
-        if len(linha) >= 2:
-            tipo = linha[:2]
-            if tipo not in tipos_dev_ordenados:
-                tipos_dev_ordenados.append(tipo)
-    
-    tipos_processados_prod = set()
-    
-    for tipo_dev in tipos_dev_ordenados:
-        # Ignorar tipos DEV sem correspondência
-        if tipo_dev in TIPOS_DEV_SEM_CORRESPONDENCIA:
-            continue
-        
-        # Determinar qual tipo da PROD corresponde
-        tipo_prod = MAPA_DEV_PARA_PROD.get(tipo_dev, tipo_dev)
-        
-        linhas_d = grupos_dev.get(tipo_dev, [])
-        linhas_p = grupos_prod.get(tipo_prod, [])
-        
-        tipos_processados_prod.add(tipo_prod)
-        
-        # Alinhar usando zip_longest-like: emparelhar linhas na ordem
-        max_linhas = max(len(linhas_d), len(linhas_p))
-        for i in range(max_linhas):
-            if i < len(linhas_p):
-                # Manter a linha da produção como está (não converter tipo)
-                linha_prod = linhas_p[i][1]
+    if modelo == 'modelo62':
+        MAPA_DEV_PARA_PROD = {v: k for k, v in MAPA_TIPOS_MODELO62.items()}
+        tipos_dev_ignorar = TIPOS_DEV_SEM_CORRESPONDENCIA_M62
+        tipos_prod_ignorar = TIPOS_PROD_SEM_COMPARACAO_M22
+    else:
+        # Modelo 22: sem mapeamento, tipos são iguais
+        MAPA_DEV_PARA_PROD = {}
+        tipos_dev_ignorar = set()
+        tipos_prod_ignorar = set()
+
+    # Filtrar linhas DEV removendo tipos sem correspondência
+    linhas_dev_filtradas = [
+        l for l in linhas_dev
+        if len(l) < 2 or l[:2] not in tipos_dev_ignorar
+    ]
+
+    # Filtrar linhas PROD removendo tipos sem comparação
+    linhas_prod_filtradas = [
+        l for l in linhas_prod
+        if len(l) < 2 or l[:2] not in tipos_prod_ignorar
+    ]
+
+    # Normalizar tipo DEV para tipo PROD (para casamento)
+    def _tipo_normalizado_dev(linha):
+        if len(linha) < 2:
+            return ''
+        tipo = linha[:2]
+        return MAPA_DEV_PARA_PROD.get(tipo, tipo)
+
+    def _tipo_prod(linha):
+        if len(linha) < 2:
+            return ''
+        return linha[:2]
+
+    # Alinhar linha a linha na ordem natural
+    # Quando tipos não casam, olha adiante para descobrir qual lado tem linhas extras
+    resultado_base = []
+    resultado_validado = []
+    i_dev = 0
+    i_prod = 0
+
+    while i_dev < len(linhas_dev_filtradas) or i_prod < len(linhas_prod_filtradas):
+        if i_dev < len(linhas_dev_filtradas) and i_prod < len(linhas_prod_filtradas):
+            tipo_d = _tipo_normalizado_dev(linhas_dev_filtradas[i_dev])
+            tipo_p = _tipo_prod(linhas_prod_filtradas[i_prod])
+
+            if tipo_d == tipo_p:
+                # Tipos casam: emparelhar
+                resultado_base.append(linhas_prod_filtradas[i_prod])
+                resultado_validado.append(linhas_dev_filtradas[i_dev])
+                i_dev += 1
+                i_prod += 1
             else:
-                linha_prod = ''
+                # Tipos não casam: olhar adiante para descobrir qual lado tem extras
+                # Procurar o tipo_p no DEV adiante (dentro de janela de lookahead)
+                # Procurar o tipo_d na PROD adiante
+                lookahead = 20
                 
-            if i < len(linhas_d):
-                linha_dev = linhas_d[i][1]
-            else:
-                linha_dev = ''
-            
-            resultado_base.append(linha_prod)
-            resultado_validado.append(linha_dev)
-    
+                # Quanto longe está tipo_p no DEV?
+                dist_dev = None
+                for k in range(1, min(lookahead, len(linhas_dev_filtradas) - i_dev)):
+                    if _tipo_normalizado_dev(linhas_dev_filtradas[i_dev + k]) == tipo_p:
+                        dist_dev = k
+                        break
+
+                # Quanto longe está tipo_d na PROD?
+                dist_prod = None
+                for k in range(1, min(lookahead, len(linhas_prod_filtradas) - i_prod)):
+                    if _tipo_prod(linhas_prod_filtradas[i_prod + k]) == tipo_d:
+                        dist_prod = k
+                        break
+
+                if dist_prod is not None and (dist_dev is None or dist_prod <= dist_dev):
+                    # PROD tem linhas extras antes de encontrar o tipo_d: avançar PROD
+                    resultado_base.append(linhas_prod_filtradas[i_prod])
+                    resultado_validado.append('')
+                    i_prod += 1
+                elif dist_dev is not None:
+                    # DEV tem linhas extras antes de encontrar o tipo_p: avançar DEV
+                    resultado_base.append('')
+                    resultado_validado.append(linhas_dev_filtradas[i_dev])
+                    i_dev += 1
+                else:
+                    # Nenhum encontrou o tipo do outro: avançar ambos
+                    resultado_base.append(linhas_prod_filtradas[i_prod])
+                    resultado_validado.append(linhas_dev_filtradas[i_dev])
+                    i_dev += 1
+                    i_prod += 1
+        elif i_dev < len(linhas_dev_filtradas):
+            resultado_base.append('')
+            resultado_validado.append(linhas_dev_filtradas[i_dev])
+            i_dev += 1
+        else:
+            resultado_base.append(linhas_prod_filtradas[i_prod])
+            resultado_validado.append('')
+            i_prod += 1
+
     return resultado_base, resultado_validado
 
 
@@ -1406,8 +1508,21 @@ async def printcenter_comparar(
         else:
             linhas_prod = linhas_prod_completo
 
-        # Alinhar os arquivos por tipo de registro (com mapeamento PROD→DEV)
-        linhas_base_alinhadas, linhas_validado_alinhadas = _construir_arquivo_alinhado(linhas_dev, linhas_prod)
+        # Detectar modelo automaticamente pelo arquivo DEV
+        modelo = _detectar_modelo(linhas_dev)
+        print(f"[PrintCenter] Modelo detectado: {modelo}")
+
+        # Configurar mapeamento e campos ignorados com base no modelo
+        if modelo == 'modelo62':
+            mapa_tipos = MAPA_TIPOS_MODELO62
+            campos_ignorados = CAMPOS_IGNORADOS_MODELO62
+        else:
+            # Modelo 22 / cobilling: tipos são iguais, sem mapeamento
+            mapa_tipos = {}
+            campos_ignorados = CAMPOS_IGNORADOS_MODELO22
+
+        # Alinhar os arquivos por tipo de registro
+        linhas_base_alinhadas, linhas_validado_alinhadas = _construir_arquivo_alinhado(linhas_dev, linhas_prod, modelo)
 
         # Salvar arquivos alinhados para comparação
         temp_base_alinhado = UPLOAD_DIR / f"printcenter_base_alinhado_{timestamp}.txt"
@@ -1422,27 +1537,27 @@ async def printcenter_comparar(
                 f.write(linha + '\n')
 
         # Executar comparação estrutural nos arquivos alinhados
-        # Passar mapeamento de tipos PROD→DEV para o comparador saber qual layout usar
-        # e campos a ignorar (mudam naturalmente entre DEV e PROD)
+        # Usar mapeamento e campos ignorados conforme modelo detectado
+        # Campos que só reportam erro se DEV estiver vazio (valores são naturalmente diferentes)
+        campos_ignorar_se_preenchido = {
+            'NFCOM13-Hash-Code',
+            'NFCOM19-Hash-Code',
+            'NFCOM50-Hash-Code',
+        }
+
         comparador = ComparadorEstruturalArquivos(
             layout,
-            mapa_tipos=MAPA_TIPOS_PROD_PARA_DEV,
-            campos_ignorados={
-                'NFCOM01-Número da CPS/Fatura',
-                'NFCOM01-Data da Emissão',
-                # Tipo de Registro muda entre PROD e DEV nos tipos mapeados (10→40, etc)
-                'NFCOM40-Tipo de Registro = 40',
-                'NFCOM46-Tipo de Registro = 46',
-                'NFCOM48-Tipo de Registro = 48',
-                'NFCOM50-Tipo de Registro = 50',
-            }
+            mapa_tipos=mapa_tipos,
+            campos_ignorados=campos_ignorados,
+            campos_ignorar_se_preenchido=campos_ignorar_se_preenchido
         )
         resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(
             str(temp_base_alinhado), str(temp_val_alinhado)
         )
 
-        # Extrair mapa de faturas do arquivo do usuário (para navegação no frontend)
-        mapa_faturas = faturas_usuario
+        # Extrair mapa de faturas do arquivo ALINHADO (não do original)
+        # pois o alinhamento pode inserir linhas extras, mudando a numeração
+        mapa_faturas = _extrair_mapa_faturas(str(temp_val_alinhado))
 
         # Gerar relatório textual
         relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
@@ -1458,6 +1573,7 @@ async def printcenter_comparar(
             'data_comparacao': datetime.now().isoformat(),
             'relatorio_texto': relatorio_texto + info_extra,
             'layout_nome': layout.nome,
+            'modelo_detectado': modelo,
             'faturas_usuario': len(faturas_usuario),
             'clientes_usuario': len(codigos_cliente_dev),
             'clientes_producao': len(codigos_cliente_prod),

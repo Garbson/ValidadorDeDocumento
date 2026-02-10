@@ -87,6 +87,7 @@ class ResultadoComparacaoEstrutural:
     linhas_com_diferencas: int
     linhas_identicas: int
     diferencas_por_linha: List[DiferencaEstruturalLinha]
+    todas_linhas: List[DiferencaEstruturalLinha]
     taxa_identidade: float
 
     def __post_init__(self):

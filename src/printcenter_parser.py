@@ -73,7 +73,9 @@ def parse_printcenter_layout(excel_path: str, sheet_name=0) -> Layout:
     header_row = None
     for idx, row in df_raw.iterrows():
         row_values = [_normalize(str(v)) for v in row.values if pd.notna(v)]
-        if 'campo' in row_values and any('posic' in v for v in row_values):
+        # Aceita "Posicao De/Ate" ou simplesmente "De/Ate" como colunas de posição
+        has_posicao = any('posic' in v for v in row_values) or ('de' in row_values and 'ate' in row_values)
+        if 'campo' in row_values and has_posicao:
             header_row = idx
             break
 
@@ -94,6 +96,10 @@ def parse_printcenter_layout(excel_path: str, sheet_name=0) -> Layout:
         elif 'posic' in col_norm and 'de' in col_norm:
             col_map[col] = 'Posicao_De'
         elif 'posic' in col_norm and 'ate' in col_norm:
+            col_map[col] = 'Posicao_Ate'
+        elif col_norm == 'de':
+            col_map[col] = 'Posicao_De'
+        elif col_norm == 'ate':
             col_map[col] = 'Posicao_Ate'
         elif col_norm == 'picture':
             col_map[col] = 'Picture'

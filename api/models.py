@@ -146,6 +146,7 @@ class ResultadoComparacaoEstruturalResponse(BaseModel):
     linhas_com_diferencas: int
     linhas_identicas: int
     diferencas_por_linha: List[DiferencaEstruturalLinhaResponse]
+    todas_linhas: Optional[List[DiferencaEstruturalLinhaResponse]] = None
     taxa_identidade: float
 
 
