@@ -4,7 +4,7 @@
   "private": true,
   "description": "Validador de Documentos Sequenciais - Root package",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
+    "build": "cd frontend && npm install && npm run build && cp -r dist ../dist",
     "dev": "cd frontend && npm run dev",
     "install:frontend": "cd frontend && npm install"
   }
