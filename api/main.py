@@ -40,8 +40,7 @@ from .models import (
     StatusResponse, ErrorResponse, RegistroPreviewResponse,
     DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
     ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta,
-    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse,
-    FaturaInfo
+    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse
 )
 
 app = FastAPI(
@@ -355,46 +354,37 @@ def gerar_estatisticas(resultado) -> EstatisticasResponse:
     )
 
 
-def _converter_linha_para_response(diferenca_linha) -> DiferencaEstruturalLinhaResponse:
-    """Converte uma linha de diferença estrutural para response da API"""
-    campos_response = []
-    for campo_diff in diferenca_linha.diferencas_campos:
-        campos_response.append(DiferencaEstruturalCampoResponse(
-            nome_campo=campo_diff.nome_campo,
-            posicao_inicio=campo_diff.posicao_inicio,
-            posicao_fim=campo_diff.posicao_fim,
-            valor_base=campo_diff.valor_base,
-            valor_validado=campo_diff.valor_validado,
-            tipo_diferenca=campo_diff.tipo_diferenca,
-            descricao=campo_diff.descricao,
-            sequencia_campo=getattr(campo_diff, 'sequencia_campo', 0)
-        ))
-
-    return DiferencaEstruturalLinhaResponse(
-        numero_linha=diferenca_linha.numero_linha,
-        tipo_registro=diferenca_linha.tipo_registro,
-        arquivo_base_linha=diferenca_linha.arquivo_base_linha,
-        arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
-        diferencas_campos=campos_response,
-        total_diferencas=diferenca_linha.total_diferencas,
-        linha_numeracao=getattr(diferenca_linha, 'linha_numeracao', '')
-    )
-
-
 def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparacaoEstruturalResponse:
     """Converte resultado de comparação estrutural para response da API"""
-    diferencas_response = [_converter_linha_para_response(d) for d in resultado.diferencas_por_linha]
+    diferencas_response = []
 
-    todas_linhas_response = None
-    if hasattr(resultado, 'todas_linhas') and resultado.todas_linhas:
-        todas_linhas_response = [_converter_linha_para_response(d) for d in resultado.todas_linhas]
+    for diferenca_linha in resultado.diferencas_por_linha:
+        campos_response = []
+        for campo_diff in diferenca_linha.diferencas_campos:
+            campos_response.append(DiferencaEstruturalCampoResponse(
+                nome_campo=campo_diff.nome_campo,
+                posicao_inicio=campo_diff.posicao_inicio,
+                posicao_fim=campo_diff.posicao_fim,
+                valor_base=campo_diff.valor_base,
+                valor_validado=campo_diff.valor_validado,
+                tipo_diferenca=campo_diff.tipo_diferenca,
+                descricao=campo_diff.descricao
+            ))
+
+        diferencas_response.append(DiferencaEstruturalLinhaResponse(
+            numero_linha=diferenca_linha.numero_linha,
+            tipo_registro=diferenca_linha.tipo_registro,
+            arquivo_base_linha=diferenca_linha.arquivo_base_linha,
+            arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
+            diferencas_campos=campos_response,
+            total_diferencas=diferenca_linha.total_diferencas
+        ))
 
     return ResultadoComparacaoEstruturalResponse(
         total_linhas_comparadas=resultado.total_linhas_comparadas,
         linhas_com_diferencas=resultado.linhas_com_diferencas,
         linhas_identicas=resultado.linhas_identicas,
         diferencas_por_linha=diferencas_response,
-        todas_linhas=todas_linhas_response,
         taxa_identidade=resultado.taxa_identidade
     )
     
@@ -1073,7 +1063,7 @@ async def get_printcenter_config():
                 arquivo_rel = f"lotes/{arquivo.name}"
                 if arquivo_rel not in lotes_config:
                     lotes.append({
-                        "nome": arquivo.name,
+                        "nome": arquivo.stem,
                         "arquivo": arquivo_rel
                     })
 
@@ -1089,350 +1079,12 @@ async def get_printcenter_config():
     }
 
 
-# ===== Modelo 62 (DEV usa tipos 40,42,46,48,50) vs Modelo 22 (PROD usa 10,11,12,13,14) =====
-# Mapeamento de tipos de registro: PRODUÇÃO (modelo 22) → DEV (modelo 62)
-MAPA_TIPOS_MODELO62 = {
-    '10': '40',   # Endereço/dados do cliente
-    '11': '46',   # Descrição do serviço
-    '12': '48',   # Valores
-    '13': '50',   # Somatórios
-}
-
-# Tipos DEV modelo 62 que NÃO existem na produção (ignorar na comparação)
-TIPOS_DEV_SEM_CORRESPONDENCIA_M62 = {'42', '85'}
-
-# Tipos PROD modelo 22 que NÃO devem ser comparados
-TIPOS_PROD_SEM_COMPARACAO_M22 = {'14'}
-
-# Tipos exclusivos do modelo 62 DEV (para detecção automática)
-TIPOS_MODELO_62 = {'40', '42', '44', '46', '48', '50', '52'}
-
-# Tipos de cobilling (existem iguais em ambos os modelos)
-TIPOS_COBILLING = {'15', '16', '17', '18', '19'}
-
-# Campos a ignorar por modelo (mudam naturalmente entre DEV e PROD)
-CAMPOS_IGNORADOS_MODELO62 = {
-    'NFCOM01-Nº CPS/Fatura',
-    'NFCOM01-Dt Emissão',
-    'NFCOM00-Data Geração',
-    'NFCOM40-Dt Emissão',
-    # Tipo de Registro muda entre PROD (10→40, etc) nos tipos mapeados
-    'NFCOM40-Tipo = 40',
-    'NFCOM46-Tipo = 46',
-    'NFCOM48-Tipo = 48',
-    'NFCOM50-Tipo = 50',
-    'NFCOM50-Filler',
-}
-
-CAMPOS_IGNORADOS_MODELO22 = {
-    'NFCOM01-Nº CPS/Fatura',
-    'NFCOM01-Dt Emissão',
-    'NFCOM00-Data Geração',
-    'NFCOM10-Dt Emissão',
-    'NFCOM10-Nº CPS',
-    'NFCOM15-Dt Emissão',
-    'NFCOM15-Nº CPS',
-}
-
-
-def _detectar_modelo(linhas: list) -> str:
-    """Detecta se o arquivo DEV é modelo 62 (tipos 40,46,48,50) ou modelo 22 (tipos 10,11,12,13).
-    Retorna 'modelo62' ou 'modelo22'.
-    """
-    tipos_encontrados = set()
-    for linha in linhas:
-        if len(linha) >= 2:
-            tipos_encontrados.add(linha[:2])
-    
-    # Se tem tipos exclusivos do modelo 62, é modelo 62
-    if tipos_encontrados & TIPOS_MODELO_62:
-        return 'modelo62'
-    
-    # Senão é modelo 22 (mesmo tipos que produção)
-    return 'modelo22'
-
-
-def _ler_arquivo_com_encoding(caminho: str) -> list:
-    """Lê arquivo tentando utf-8 primeiro, depois latin-1. Retorna lista de linhas sem \\n."""
-    for enc in ('utf-8', 'latin-1'):
-        try:
-            with open(caminho, 'r', encoding=enc) as f:
-                return [linha.rstrip('\n\r') for linha in f]
-        except UnicodeDecodeError:
-            continue
-    raise ValueError(f"Não foi possível ler o arquivo: {caminho}")
-
-
-def _agrupar_linhas_por_tipo(linhas: list) -> dict:
-    """Agrupa linhas por tipo de registro (2 primeiros chars). Retorna dict tipo -> [(num_linha, conteudo)]."""
-    grupos = {}
-    for i, linha in enumerate(linhas, 1):
-        if len(linha) < 2:
-            continue
-        tipo = linha[:2]
-        if tipo not in grupos:
-            grupos[tipo] = []
-        grupos[tipo].append((i, linha))
-    return grupos
-
-
-def _construir_arquivo_alinhado(linhas_dev: list, linhas_prod: list, modelo: str = 'modelo62') -> tuple:
-    """
-    Constrói dois arrays de linhas alinhados para comparação lado a lado.
-    Mantém a ordem natural das faturas (não agrupa por tipo).
-
-    Modelo 62 (DEV com tipos 40,46,48,50):
-    - PROD 10 ↔ DEV 40, PROD 11 ↔ DEV 46, PROD 12 ↔ DEV 48, PROD 13 ↔ DEV 50
-    - DEV 42, 85: ignorar (sem correspondência na PROD)
-    - PROD 14: não comparar
-    
-    Modelo 22 (DEV com tipos 10,11,12,13 + cobilling 15-19):
-    - Tipos são iguais entre DEV e PROD, sem mapeamento necessário
-
-    Retorna (linhas_prod_alinhadas, linhas_dev_alinhadas) prontas para comparação.
-    """
-    if modelo == 'modelo62':
-        MAPA_DEV_PARA_PROD = {v: k for k, v in MAPA_TIPOS_MODELO62.items()}
-        tipos_dev_ignorar = TIPOS_DEV_SEM_CORRESPONDENCIA_M62
-        tipos_prod_ignorar = TIPOS_PROD_SEM_COMPARACAO_M22
-    else:
-        # Modelo 22: sem mapeamento, tipos são iguais
-        MAPA_DEV_PARA_PROD = {}
-        tipos_dev_ignorar = set()
-        tipos_prod_ignorar = set()
-
-    # Filtrar linhas DEV removendo tipos sem correspondência
-    linhas_dev_filtradas = [
-        l for l in linhas_dev
-        if len(l) < 2 or l[:2] not in tipos_dev_ignorar
-    ]
-
-    # Filtrar linhas PROD removendo tipos sem comparação
-    linhas_prod_filtradas = [
-        l for l in linhas_prod
-        if len(l) < 2 or l[:2] not in tipos_prod_ignorar
-    ]
-
-    # Normalizar tipo DEV para tipo PROD (para casamento)
-    def _tipo_normalizado_dev(linha):
-        if len(linha) < 2:
-            return ''
-        tipo = linha[:2]
-        return MAPA_DEV_PARA_PROD.get(tipo, tipo)
-
-    def _tipo_prod(linha):
-        if len(linha) < 2:
-            return ''
-        return linha[:2]
-
-    # Alinhar linha a linha na ordem natural
-    # Quando tipos não casam, olha adiante para descobrir qual lado tem linhas extras
-    resultado_base = []
-    resultado_validado = []
-    i_dev = 0
-    i_prod = 0
-
-    while i_dev < len(linhas_dev_filtradas) or i_prod < len(linhas_prod_filtradas):
-        if i_dev < len(linhas_dev_filtradas) and i_prod < len(linhas_prod_filtradas):
-            tipo_d = _tipo_normalizado_dev(linhas_dev_filtradas[i_dev])
-            tipo_p = _tipo_prod(linhas_prod_filtradas[i_prod])
-
-            if tipo_d == tipo_p:
-                # Tipos casam: emparelhar
-                resultado_base.append(linhas_prod_filtradas[i_prod])
-                resultado_validado.append(linhas_dev_filtradas[i_dev])
-                i_dev += 1
-                i_prod += 1
-            else:
-                # Tipos não casam: olhar adiante para descobrir qual lado tem extras
-                # Procurar o tipo_p no DEV adiante (dentro de janela de lookahead)
-                # Procurar o tipo_d na PROD adiante
-                lookahead = 20
-                
-                # Quanto longe está tipo_p no DEV?
-                dist_dev = None
-                for k in range(1, min(lookahead, len(linhas_dev_filtradas) - i_dev)):
-                    if _tipo_normalizado_dev(linhas_dev_filtradas[i_dev + k]) == tipo_p:
-                        dist_dev = k
-                        break
-
-                # Quanto longe está tipo_d na PROD?
-                dist_prod = None
-                for k in range(1, min(lookahead, len(linhas_prod_filtradas) - i_prod)):
-                    if _tipo_prod(linhas_prod_filtradas[i_prod + k]) == tipo_d:
-                        dist_prod = k
-                        break
-
-                if dist_prod is not None and (dist_dev is None or dist_prod <= dist_dev):
-                    # PROD tem linhas extras antes de encontrar o tipo_d: avançar PROD
-                    resultado_base.append(linhas_prod_filtradas[i_prod])
-                    resultado_validado.append('')
-                    i_prod += 1
-                elif dist_dev is not None:
-                    # DEV tem linhas extras antes de encontrar o tipo_p: avançar DEV
-                    resultado_base.append('')
-                    resultado_validado.append(linhas_dev_filtradas[i_dev])
-                    i_dev += 1
-                else:
-                    # Nenhum encontrou o tipo do outro: avançar ambos
-                    resultado_base.append(linhas_prod_filtradas[i_prod])
-                    resultado_validado.append(linhas_dev_filtradas[i_dev])
-                    i_dev += 1
-                    i_prod += 1
-        elif i_dev < len(linhas_dev_filtradas):
-            resultado_base.append('')
-            resultado_validado.append(linhas_dev_filtradas[i_dev])
-            i_dev += 1
-        else:
-            resultado_base.append(linhas_prod_filtradas[i_prod])
-            resultado_validado.append('')
-            i_prod += 1
-
-    return resultado_base, resultado_validado
-
-
-def _extrair_mapa_faturas(caminho_arquivo: str) -> List[FaturaInfo]:
-    """
-    Percorre o arquivo e identifica cada fatura.
-    Toda fatura começa em um registro tipo '01'.
-    O número da fatura está nas posições 18-30 (índice 17:30) do tipo 01.
-    Retorna uma lista de FaturaInfo com numero_fatura, linha_inicio e linha_fim.
-    """
-    faturas = []
-    fatura_atual = None
-
-    try:
-        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
-
-        for numero_linha, linha in enumerate(linhas, 1):
-            if len(linha) < 2:
-                continue
-
-            tipo_registro = linha[:2]
-
-            if tipo_registro == '01':
-                # Fechar fatura anterior
-                if fatura_atual:
-                    fatura_atual['linha_fim'] = numero_linha - 1
-                    faturas.append(FaturaInfo(**fatura_atual))
-
-                # Extrair número da fatura: posições 18-30 (índice 17:30)
-                num_fatura = ''
-                if len(linha) >= 30:
-                    num_fatura = linha[17:30].strip()
-
-                fatura_atual = {
-                    'numero_fatura': num_fatura or f'Fatura-L{numero_linha}',
-                    'linha_inicio': numero_linha,
-                    'linha_fim': numero_linha
-                }
-            elif fatura_atual:
-                fatura_atual['linha_fim'] = numero_linha
-
-        # Fechar última fatura
-        if fatura_atual:
-            faturas.append(FaturaInfo(**fatura_atual))
-
-    except Exception as e:
-        print(f"Aviso: Erro ao extrair mapa de faturas: {e}")
-
-    return faturas
-
-
-def _extrair_codigos_cliente(caminho_arquivo: str) -> set:
-    """
-    Extrai os códigos de cliente do arquivo (posições 3-17 do tipo 01, índice [2:17]).
-    Usado para comparação inteligente, pois o número da fatura muda entre DEV e PROD
-    mas o código do cliente permanece o mesmo.
-    """
-    codigos = set()
-    try:
-        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
-        for linha in linhas:
-            if len(linha) >= 17 and linha[:2] == '01':
-                codigo = linha[2:17].strip()
-                if codigo:
-                    codigos.add(codigo)
-    except Exception as e:
-        print(f"Aviso: Erro ao extrair códigos de cliente: {e}")
-    return codigos
-
-
-def _detectar_tipos_no_arquivo(caminho_arquivo: str) -> set:
-    """Detecta quais tipos de registro existem em um arquivo."""
-    tipos = set()
-    try:
-        encoding = 'utf-8'
-        try:
-            with open(caminho_arquivo, 'r', encoding='utf-8') as f:
-                f.read(100)
-        except UnicodeDecodeError:
-            encoding = 'latin-1'
-
-        with open(caminho_arquivo, 'r', encoding=encoding) as f:
-            for linha in f:
-                linha_raw = linha.rstrip('\n\r')
-                if len(linha_raw) >= 2:
-                    tipos.add(linha_raw[:2])
-    except Exception as e:
-        print(f"Aviso: Erro ao detectar tipos no arquivo: {e}")
-    return tipos
-
-
-def _extrair_linhas_de_faturas(caminho_arquivo: str, codigos_cliente: set) -> List[str]:
-    """
-    Dado um arquivo e um conjunto de códigos de cliente, extrai apenas as linhas
-    pertencentes às faturas desses clientes (bloco completo do tipo 01 até próximo 01 ou fim).
-    Sempre inclui header (00) e trailer (90/99).
-    
-    Usa código do cliente (posições 3-17, índice [2:17]) para identificar a fatura,
-    pois o número da fatura muda entre DEV e PROD mas o código do cliente não.
-    """
-    linhas_resultado = []
-    dentro_fatura_desejada = False
-
-    try:
-        linhas = _ler_arquivo_com_encoding(caminho_arquivo)
-
-        for linha_raw in linhas:
-            if len(linha_raw) < 2:
-                continue
-
-            tipo_registro = linha_raw[:2]
-
-            # Header e trailer sempre incluídos
-            if tipo_registro in ['00', '90', '99']:
-                linhas_resultado.append(linha_raw)
-                continue
-
-            if tipo_registro == '01':
-                # Verificar se este cliente é um dos desejados
-                codigo_cliente = ''
-                if len(linha_raw) >= 17:
-                    codigo_cliente = linha_raw[2:17].strip()
-                dentro_fatura_desejada = codigo_cliente in codigos_cliente
-                if dentro_fatura_desejada:
-                    linhas_resultado.append(linha_raw)
-            elif dentro_fatura_desejada:
-                linhas_resultado.append(linha_raw)
-
-    except Exception as e:
-        print(f"Aviso: Erro ao extrair linhas de faturas: {e}")
-
-    return linhas_resultado
-
-
 @app.post("/api/printcenter/comparar")
 async def printcenter_comparar(
     arquivo_usuario: UploadFile = File(...),
-    lote_arquivo: Optional[str] = Form(None),
-    arquivo_producao: Optional[UploadFile] = File(None)
+    lote_arquivo: str = Form(...)
 ):
-    """Compara arquivo do usuário com arquivo de produção (lote da pasta ou upload direto).
-    
-    Se o arquivo do usuário tiver menos faturas que o de produção,
-    busca automaticamente apenas as faturas correspondentes no arquivo de produção.
-    """
+    """Compara arquivo do usuário com arquivo de produção do lote selecionado"""
     config_path = PRINTCENTER_DIR / "config.json"
 
     if not config_path.exists():
@@ -1447,19 +1099,15 @@ async def printcenter_comparar(
     if not layout_path.exists():
         raise HTTPException(status_code=400, detail=f"Arquivo de layout não encontrado: {layout_file_rel}. Coloque o arquivo na pasta printcenter/layout/")
 
-    # Determinar arquivo de produção: upload tem prioridade, senão usa lote
-    lote_arquivo_val = lote_arquivo.strip() if lote_arquivo else ''
-    tem_upload_producao = arquivo_producao is not None and arquivo_producao.filename
-    
-    if not tem_upload_producao and not lote_arquivo_val:
-        raise HTTPException(status_code=400, detail="Informe um lote ou faça upload do arquivo de produção")
+    # Validar arquivo do lote
+    lote_path = PRINTCENTER_DIR / lote_arquivo
+    if not lote_path.exists():
+        raise HTTPException(status_code=400, detail=f"Arquivo do lote não encontrado: {lote_arquivo}")
 
     if not arquivo_usuario.filename:
         raise HTTPException(status_code=400, detail="Arquivo do usuário é obrigatório")
 
     temp_usuario = None
-    temp_producao = None
-    temp_producao_filtrado = None
 
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1470,114 +1118,23 @@ async def printcenter_comparar(
             content = await arquivo_usuario.read()
             buffer.write(content)
 
-        # Determinar caminho do arquivo de produção
-        if tem_upload_producao:
-            # Upload direto do arquivo de produção
-            temp_producao = UPLOAD_DIR / f"printcenter_prod_{timestamp}_{arquivo_producao.filename}"
-            with open(temp_producao, "wb") as buffer:
-                content = await arquivo_producao.read()
-                buffer.write(content)
-            producao_path = temp_producao
-        else:
-            # Usar lote da pasta
-            lote_path = PRINTCENTER_DIR / lote_arquivo_val
-            if not lote_path.exists():
-                raise HTTPException(status_code=400, detail=f"Arquivo do lote não encontrado: {lote_arquivo_val}")
-            producao_path = lote_path
-
         sheet_index = config.get("sheet_index", 0)
 
         # Carregar layout usando parser PrintCenter (formato COBOL Picture)
         layout = parse_printcenter_layout(str(layout_path), sheet_name=sheet_index)
 
-        # Extrair faturas do arquivo do usuário (para navegação no frontend)
-        faturas_usuario = _extrair_mapa_faturas(str(temp_usuario))
-
-        # Ler ambos os arquivos
-        linhas_dev = _ler_arquivo_com_encoding(str(temp_usuario))
-        linhas_prod_completo = _ler_arquivo_com_encoding(str(producao_path))
-
-        # Comparação inteligente: usa código do cliente (pos 3-17 do tipo 01)
-        # para casar faturas entre DEV e PROD, pois o número da fatura muda
-        codigos_cliente_dev = _extrair_codigos_cliente(str(temp_usuario))
-        codigos_cliente_prod = _extrair_codigos_cliente(str(producao_path))
-
-        # Se produção tem mais clientes/faturas, filtrar para os clientes do usuário
-        if codigos_cliente_dev and len(codigos_cliente_prod) > len(codigos_cliente_dev):
-            linhas_prod = _extrair_linhas_de_faturas(str(producao_path), codigos_cliente_dev)
-        else:
-            linhas_prod = linhas_prod_completo
-
-        # Detectar modelo automaticamente pelo arquivo DEV
-        modelo = _detectar_modelo(linhas_dev)
-        print(f"[PrintCenter] Modelo detectado: {modelo}")
-
-        # Configurar mapeamento e campos ignorados com base no modelo
-        if modelo == 'modelo62':
-            mapa_tipos = MAPA_TIPOS_MODELO62
-            campos_ignorados = CAMPOS_IGNORADOS_MODELO62
-        else:
-            # Modelo 22 / cobilling: tipos são iguais, sem mapeamento
-            mapa_tipos = {}
-            campos_ignorados = CAMPOS_IGNORADOS_MODELO22
-
-        # Alinhar os arquivos por tipo de registro
-        linhas_base_alinhadas, linhas_validado_alinhadas = _construir_arquivo_alinhado(linhas_dev, linhas_prod, modelo)
-
-        # Salvar arquivos alinhados para comparação
-        temp_base_alinhado = UPLOAD_DIR / f"printcenter_base_alinhado_{timestamp}.txt"
-        temp_val_alinhado = UPLOAD_DIR / f"printcenter_val_alinhado_{timestamp}.txt"
-
-        with open(temp_base_alinhado, 'w', encoding='utf-8') as f:
-            for linha in linhas_base_alinhadas:
-                f.write(linha + '\n')
-
-        with open(temp_val_alinhado, 'w', encoding='utf-8') as f:
-            for linha in linhas_validado_alinhadas:
-                f.write(linha + '\n')
-
-        # Executar comparação estrutural nos arquivos alinhados
-        # Usar mapeamento e campos ignorados conforme modelo detectado
-        # Campos que só reportam erro se DEV estiver vazio (valores são naturalmente diferentes)
-        campos_ignorar_se_preenchido = {
-            'NFCOM13-Hash-Code',
-            'NFCOM19-Hash-Code',
-            'NFCOM50-Hash-Code',
-        }
-
-        comparador = ComparadorEstruturalArquivos(
-            layout,
-            mapa_tipos=mapa_tipos,
-            campos_ignorados=campos_ignorados,
-            campos_ignorar_se_preenchido=campos_ignorar_se_preenchido
-        )
-        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(
-            str(temp_base_alinhado), str(temp_val_alinhado)
-        )
-
-        # Extrair mapa de faturas do arquivo ALINHADO (não do original)
-        # pois o alinhamento pode inserir linhas extras, mudando a numeração
-        mapa_faturas = _extrair_mapa_faturas(str(temp_val_alinhado))
+        # Executar comparação estrutural (lote = base, arquivo_usuario = validado)
+        comparador = ComparadorEstruturalArquivos(layout)
+        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(str(lote_path), str(temp_usuario))
 
         # Gerar relatório textual
         relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
 
-        # Info sobre clientes encontrados/não encontrados
-        clientes_nao_encontrados = codigos_cliente_dev - codigos_cliente_prod
-        info_extra = ""
-        if clientes_nao_encontrados:
-            info_extra = f"\n⚠️ Clientes do seu arquivo NÃO encontrados na produção: {', '.join(sorted(clientes_nao_encontrados))}"
-
         dados_comparacao = {
             'timestamp': timestamp,
             'data_comparacao': datetime.now().isoformat(),
-            'relatorio_texto': relatorio_texto + info_extra,
-            'layout_nome': layout.nome,
-            'modelo_detectado': modelo,
-            'faturas_usuario': len(faturas_usuario),
-            'clientes_usuario': len(codigos_cliente_dev),
-            'clientes_producao': len(codigos_cliente_prod),
-            'clientes_comparados': len(codigos_cliente_dev - clientes_nao_encontrados)
+            'relatorio_texto': relatorio_texto,
+            'layout_nome': layout.nome
         }
 
         layout_response = converter_layout_para_response(layout)
@@ -1586,10 +1143,9 @@ async def printcenter_comparar(
         return ComparacaoEstruturalCompleta(
             layout=layout_response,
             resultado_comparacao=resultado_response,
-            relatorio_texto=relatorio_texto + info_extra,
+            relatorio_texto=relatorio_texto,
             timestamp=timestamp,
-            dados_comparacao=dados_comparacao,
-            mapa_faturas=mapa_faturas
+            dados_comparacao=dados_comparacao
         )
 
     except HTTPException:
@@ -1598,20 +1154,8 @@ async def printcenter_comparar(
         raise HTTPException(status_code=400, detail=f"Erro na comparação PrintCenter: {str(e)}")
 
     finally:
-        for temp_file in [temp_usuario, temp_producao, temp_producao_filtrado]:
-            try:
-                if temp_file and Path(temp_file).exists():
-                    os.remove(temp_file)
-            except:
-                pass
-        # Limpar arquivos alinhados
-        for nome in [f"printcenter_base_alinhado_{timestamp}.txt", f"printcenter_val_alinhado_{timestamp}.txt"]:
-            try:
-                p = UPLOAD_DIR / nome
-                if p.exists():
-                    os.remove(p)
-            except:
-                pass
+        if temp_usuario and temp_usuario.exists():
+            os.remove(temp_usuario)
 
 
 if __name__ == "__main__":

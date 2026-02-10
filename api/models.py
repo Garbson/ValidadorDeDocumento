@@ -128,7 +128,6 @@ class DiferencaEstruturalCampoResponse(BaseModel):
     valor_validado: str
     tipo_diferenca: str
     descricao: str
-    sequencia_campo: int = 0
 
 
 class DiferencaEstruturalLinhaResponse(BaseModel):
@@ -138,7 +137,6 @@ class DiferencaEstruturalLinhaResponse(BaseModel):
     arquivo_validado_linha: str
     diferencas_campos: List[DiferencaEstruturalCampoResponse]
     total_diferencas: int
-    linha_numeracao: str = ""
 
 
 class ResultadoComparacaoEstruturalResponse(BaseModel):
@@ -150,16 +148,9 @@ class ResultadoComparacaoEstruturalResponse(BaseModel):
     taxa_identidade: float
 
 
-class FaturaInfo(BaseModel):
-    numero_fatura: str
-    linha_inicio: int
-    linha_fim: int
-
-
 class ComparacaoEstruturalCompleta(BaseModel):
     layout: LayoutResponse
     resultado_comparacao: ResultadoComparacaoEstruturalResponse
     relatorio_texto: str
     timestamp: str
     dados_comparacao: Optional[Dict] = None  # Dados para localStorage
-    mapa_faturas: Optional[List[FaturaInfo]] = None  # Mapeamento de faturas (tipo 01) encontradas no arquivo

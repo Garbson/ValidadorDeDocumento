@@ -35,78 +35,32 @@
       </div>
       <div class="card-body space-y-6">
         <form @submit.prevent="handleComparison" class="space-y-6">
-
-          <!-- Modo de seleção do arquivo de produção -->
+          <!-- Seleção de Lote -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Arquivo de Produção (Referência)
+              Selecionar Lote
               <span class="text-red-500">*</span>
             </label>
-
-            <!-- Toggle Lote / Upload -->
-            <div class="flex gap-2 mb-3">
-              <button
-                type="button"
-                @click="modoProducao = 'lote'"
-                :class="[
-                  'px-4 py-2 text-sm rounded-md border transition-colors',
-                  modoProducao === 'lote'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                ]"
+            <select
+              v-model="selectedLote"
+              class="select-input"
+              required
+            >
+              <option value="" disabled>Selecione um lote...</option>
+              <option
+                v-for="lote in config.lotes"
+                :key="lote.arquivo"
+                :value="lote.arquivo"
               >
-                Selecionar Lote
-              </button>
-              <button
-                type="button"
-                @click="modoProducao = 'upload'"
-                :class="[
-                  'px-4 py-2 text-sm rounded-md border transition-colors',
-                  modoProducao === 'upload'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                ]"
-              >
-                Upload de Arquivo
-              </button>
-            </div>
-
-            <!-- Opção 1: Selecionar Lote -->
-            <div v-if="modoProducao === 'lote'">
-              <select
-                v-model="selectedLote"
-                class="select-input"
-              >
-                <option value="" disabled>Selecione um lote...</option>
-                <option
-                  v-for="lote in config.lotes"
-                  :key="lote.arquivo"
-                  :value="lote.arquivo"
-                >
-                  {{ lote.nome }}
-                </option>
-              </select>
-              <p class="text-sm text-gray-500 mt-1">
-                Arquivo de produção da pasta de lotes
-              </p>
-              <p v-if="config.lotes.length === 0" class="text-sm text-yellow-600 mt-1">
-                Nenhum lote encontrado. Coloque arquivos na pasta <code class="bg-yellow-100 px-1 rounded">printcenter/lotes/</code>
-              </p>
-            </div>
-
-            <!-- Opção 2: Upload -->
-            <div v-else>
-              <input
-                ref="producaoFileInput"
-                type="file"
-                accept=".txt,*"
-                @change="handleProducaoFileChange"
-                class="file-input"
-              />
-              <p class="text-sm text-gray-500 mt-1">
-                Faça upload do arquivo de produção completo (pode ter muitas faturas)
-              </p>
-            </div>
+                {{ lote.nome }}
+              </option>
+            </select>
+            <p class="text-sm text-gray-500 mt-1">
+              Arquivo de produção que será usado como referência
+            </p>
+            <p v-if="config.lotes.length === 0" class="text-sm text-yellow-600 mt-1">
+              Nenhum lote encontrado. Coloque arquivos na pasta <code class="bg-yellow-100 px-1 rounded">printcenter/lotes/</code>
+            </p>
           </div>
 
           <!-- Upload do Arquivo do Usuário -->
@@ -126,7 +80,7 @@
               />
             </div>
             <p class="text-sm text-gray-500 mt-1">
-              Arquivo que será comparado. Se tiver menos faturas que o de produção, o sistema buscará automaticamente as faturas correspondentes.
+              Arquivo sequencial que será comparado com o arquivo de produção do lote
             </p>
           </div>
 
@@ -198,331 +152,133 @@
         </div>
       </div>
 
-      <!-- Navegação por Fatura -->
-      <div v-if="comparisonResult?.diferencas_por_linha?.length > 0" class="space-y-4">
-
-        <!-- Resumo por Fatura -->
-        <div class="card">
-          <div class="card-header flex items-center justify-between">
-            <h3 class="text-lg font-semibold flex items-center">
-              <AlertCircle class="w-5 h-5 mr-2 text-red-500" />
-              Diferenças por Fatura ({{ faturasComErro.length }} fatura{{ faturasComErro.length !== 1 ? 's' : '' }} com erros)
-            </h3>
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-500">
-                Fatura {{ faturaSelecionadaIndex + 1 }} de {{ faturasComErro.length }}
-              </span>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <!-- Barra de navegação entre faturas -->
-            <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <button
-                @click="faturaSelecionadaIndex = Math.max(0, faturaSelecionadaIndex - 1)"
-                :disabled="faturaSelecionadaIndex === 0"
-                class="btn-outline text-sm disabled:opacity-40"
-              >
-                <ChevronLeft class="w-4 h-4 mr-1" />
-                Fatura Anterior
-              </button>
-
-              <!-- Seletor de fatura -->
-              <div class="flex items-center gap-2 overflow-x-auto px-2" style="max-width: 60%;">
-                <button
-                  v-for="(fatura, idx) in faturasComErro"
-                  :key="fatura.key"
-                  @click="faturaSelecionadaIndex = idx"
-                  :class="[
-                    'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all',
-                    idx === faturaSelecionadaIndex
-                      ? 'bg-red-600 text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                  ]"
-                >
-                  {{ fatura.label }}
-                  <span class="ml-1 opacity-75">({{ fatura.totalErros }})</span>
-                </button>
+      <!-- Diferenças Detalhadas -->
+      <div v-if="comparisonResult?.diferencas_por_linha?.length > 0" class="card">
+        <div class="card-header">
+          <h3 class="text-lg font-semibold">Diferenças Encontradas</h3>
+        </div>
+        <div class="card-body">
+          <div class="space-y-6">
+            <div
+              v-for="(diferenca, index) in comparisonResult.diferencas_por_linha"
+              :key="index"
+              class="border border-gray-200 rounded-lg p-4"
+            >
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="font-semibold text-gray-900">
+                  Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
+                </h4>
+                <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                  {{ diferenca.total_diferencas }} diferença(s)
+                </span>
               </div>
 
-              <button
-                @click="faturaSelecionadaIndex = Math.min(faturasComErro.length - 1, faturaSelecionadaIndex + 1)"
-                :disabled="faturaSelecionadaIndex >= faturasComErro.length - 1"
-                class="btn-outline text-sm disabled:opacity-40"
-              >
-                Próxima Fatura
-                <ChevronRight class="w-4 h-4 ml-1" />
-              </button>
-            </div>
-
-            <!-- Info da fatura selecionada -->
-            <div v-if="faturaAtual" class="px-4 py-3 bg-red-50 border-b border-red-100">
-              <div class="flex items-center justify-between">
-                <div>
-                  <span class="text-lg font-bold text-red-800">{{ faturaAtual.label }}</span>
-                  <span class="ml-3 text-sm text-red-600">
-                    {{ faturaAtual.diferencas.length }} linha{{ faturaAtual.diferencas.length !== 1 ? 's' : '' }} com diferenças
-                    · {{ faturaAtual.totalErros }} campo{{ faturaAtual.totalErros !== 1 ? 's' : '' }} divergente{{ faturaAtual.totalErros !== 1 ? 's' : '' }}
-                  </span>
+              <!-- Visualização das Linhas -->
+              <div class="space-y-1 mb-4 text-sm font-mono">
+                <div v-if="diferenca.linha_numeracao">
+                  <span class="text-gray-600">Campos:</span>
+                  <div
+                    :data-ref="`numeracao-linha-${index}`"
+                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold"
+                    style="white-space: pre;"
+                  >{{ diferenca.linha_numeracao }}</div>
                 </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-xs text-red-500">
-                    Linhas {{ faturaAtual.linhaInicio }} – {{ faturaAtual.linhaFim }}
-                  </span>
-                  <!-- Toggle modo de visualização -->
-                  <button
-                    v-if="todasLinhas.length > 0"
-                    @click="modoVisualizacao = modoVisualizacao === 'erros' ? 'completa' : 'erros'"
+
+                <div>
+                  <span class="text-gray-600">Produção (Lote):</span>
+                  <div
+                    :data-ref="`base-linha-${index}`"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    style="white-space: pre;"
+                    @scroll="sincronizarScroll($event, `validado-linha-${index}`, `numeracao-linha-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
+                    @mouseleave="esconderTooltip"
+                  >{{ diferenca.arquivo_base_linha }}</div>
+                </div>
+                <div>
+                  <span class="text-gray-600">Seu Arquivo:</span>
+                  <div
+                    :data-ref="`validado-linha-${index}`"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    style="white-space: pre;"
+                    @scroll="sincronizarScroll($event, `base-linha-${index}`, `numeracao-linha-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
+                    @mouseleave="esconderTooltip"
+                  >{{ diferenca.arquivo_validado_linha }}</div>
+                </div>
+              </div>
+
+              <!-- Diferenças por Campo -->
+              <div class="space-y-2">
+                <h5 class="font-medium text-gray-700">Campos com Diferenças:</h5>
+                <div class="grid gap-2">
+                  <div
+                    v-for="(campo, campIndex) in diferenca.diferencas_campos"
+                    :key="campIndex"
                     :class="[
-                      'inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors',
-                      modoVisualizacao === 'completa'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      'p-3 rounded-lg border-l-4',
+                      campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
+                        ? 'bg-orange-50 border-orange-400'
+                        : 'bg-red-50 border-red-400'
                     ]"
                   >
-                    <Eye v-if="modoVisualizacao === 'completa'" class="w-3.5 h-3.5 mr-1" />
-                    <EyeOff v-else class="w-3.5 h-3.5 mr-1" />
-                    {{ modoVisualizacao === 'completa' ? 'Fatura Completa' : 'Apenas Erros' }}
-                  </button>
+                    <div class="flex justify-between items-start">
+                      <div class="flex-1">
+                        <div class="flex items-center">
+                          <span class="font-medium">
+                            Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
+                          </span>
+                          <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                                class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
+                            Calculo do imposto
+                          </span>
+                          <span v-else-if="campo.tipo_diferenca"
+                                class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
+                            {{ campo.tipo_diferenca }}
+                          </span>
+                        </div>
+                        <span class="text-sm text-gray-600">
+                          (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
+                         class="mt-3 p-3 bg-orange-100 rounded">
+                      <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
+                      <div class="text-sm text-orange-900 font-mono">
+                        {{ campo.descricao }}
+                      </div>
+                    </div>
+
+                    <div v-else-if="campo.descricao"
+                         class="mt-2 p-2 bg-gray-100 rounded">
+                      <div class="text-sm text-gray-700">
+                        {{ campo.descricao }}
+                      </div>
+                    </div>
+
+                    <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')"
+                         class="mt-2 text-sm">
+                      <div class="grid grid-cols-2 gap-2">
+                        <div class="text-gray-600">
+                          Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
+                        </div>
+                        <div class="text-gray-600">
+                          Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Conteúdo da fatura selecionada -->
-        <div v-if="faturaAtual" class="card">
-          <div class="card-header">
-            <h3 class="text-lg font-semibold">
-              {{ modoVisualizacao === 'completa' ? 'Fatura Completa' : 'Diferenças' }} — {{ faturaAtual.label }}
-            </h3>
-          </div>
-          <div class="card-body">
-            <div class="space-y-6">
-
-              <!-- MODO FATURA COMPLETA -->
-              <template v-if="modoVisualizacao === 'completa'">
-                <div
-                  v-for="(linha, lIdx) in linhasFaturaCompleta"
-                  :key="'completa-' + lIdx"
-                  :class="[
-                    'rounded-lg p-4 border',
-                    linha.total_diferencas > 0
-                      ? 'border-red-300 bg-red-50'
-                      : 'border-gray-200 bg-gray-50'
-                  ]"
-                >
-                  <div class="flex justify-between items-center mb-2">
-                    <h4 :class="['font-semibold', linha.total_diferencas > 0 ? 'text-red-900' : 'text-gray-700']">
-                      Linha {{ linha.numero_linha }} - Tipo {{ linha.tipo_registro }}
-                    </h4>
-                    <span v-if="linha.total_diferencas > 0" class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                      {{ linha.total_diferencas }} diferença(s)
-                    </span>
-                    <span v-else class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      OK
-                    </span>
-                  </div>
-
-                  <!-- Linhas lado a lado -->
-                  <div class="space-y-1 text-sm font-mono">
-                    <div>
-                      <span class="text-gray-600">Produção:</span>
-                      <div
-                        :data-ref="`completa-base-${lIdx}`"
-                        class="bg-white p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                        style="white-space: pre;"
-                        @scroll="sincronizarScroll($event, `completa-val-${lIdx}`)"
-                        @mousemove="mostrarTooltipThrottled($event, linha, linha.arquivo_base_linha, 'base')"
-                        @mouseleave="esconderTooltip"
-                      >{{ linha.arquivo_base_linha }}</div>
-                    </div>
-                    <div>
-                      <span class="text-gray-600">Seu Arquivo:</span>
-                      <div
-                        :data-ref="`completa-val-${lIdx}`"
-                        class="bg-white p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                        style="white-space: pre;"
-                        @scroll="sincronizarScroll($event, `completa-base-${lIdx}`)"
-                        @mousemove="mostrarTooltipThrottled($event, linha, linha.arquivo_validado_linha, 'validado')"
-                        @mouseleave="esconderTooltip"
-                      >{{ linha.arquivo_validado_linha }}</div>
-                    </div>
-                  </div>
-
-                  <!-- Detalhes dos campos divergentes (se houver) -->
-                  <div v-if="linha.total_diferencas > 0" class="mt-3 space-y-2">
-                    <h5 class="font-medium text-red-700">Campos com Diferenças:</h5>
-                    <div class="grid gap-2">
-                      <div
-                        v-for="(campo, campIndex) in linha.diferencas_campos"
-                        :key="campIndex"
-                        :class="[
-                          'p-3 rounded-lg border-l-4',
-                          campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
-                            ? 'bg-orange-50 border-orange-400'
-                            : 'bg-red-50 border-red-400'
-                        ]"
-                      >
-                        <div class="flex justify-between items-start">
-                          <div class="flex-1">
-                            <div class="flex items-center">
-                              <span class="font-medium">
-                                Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
-                              </span>
-                              <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                                    class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
-                                Calculo do imposto
-                              </span>
-                              <span v-else-if="campo.tipo_diferenca"
-                                    class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
-                                {{ campo.tipo_diferenca }}
-                              </span>
-                            </div>
-                            <span class="text-sm text-gray-600">
-                              (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
-                            </span>
-                          </div>
-                        </div>
-                        <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                             class="mt-3 p-3 bg-orange-100 rounded">
-                          <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
-                          <div class="text-sm text-orange-900 font-mono">{{ campo.descricao }}</div>
-                        </div>
-                        <div v-else-if="campo.descricao" class="mt-2 p-2 bg-gray-100 rounded">
-                          <div class="text-sm text-gray-700">{{ campo.descricao }}</div>
-                        </div>
-                        <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')" class="mt-2 text-sm">
-                          <div class="grid grid-cols-2 gap-2">
-                            <div class="text-gray-600">
-                              Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
-                            </div>
-                            <div class="text-gray-600">
-                              Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <!-- MODO APENAS ERROS (original) -->
-              <template v-else>
-                <div
-                  v-for="(diferenca, dIdx) in faturaAtual.diferencas"
-                  :key="dIdx"
-                  class="border border-gray-200 rounded-lg p-4"
-                >
-                  <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-semibold text-gray-900">
-                      Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
-                    </h4>
-                    <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                      {{ diferenca.total_diferencas }} diferença(s)
-                    </span>
-                  </div>
-
-                  <!-- Visualização das Linhas -->
-                  <div class="space-y-1 mb-4 text-sm font-mono">
-                    <div>
-                      <span class="text-gray-600">Produção (Lote):</span>
-                      <div
-                        :data-ref="`base-linha-${faturaSelecionadaIndex}-${dIdx}`"
-                        class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                        style="white-space: pre;"
-                        @scroll="sincronizarScroll($event, `validado-linha-${faturaSelecionadaIndex}-${dIdx}`)"
-                        @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
-                        @mouseleave="esconderTooltip"
-                      >{{ diferenca.arquivo_base_linha }}</div>
-                    </div>
-                    <div>
-                      <span class="text-gray-600">Seu Arquivo:</span>
-                      <div
-                        :data-ref="`validado-linha-${faturaSelecionadaIndex}-${dIdx}`"
-                        class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
-                        style="white-space: pre;"
-                        @scroll="sincronizarScroll($event, `base-linha-${faturaSelecionadaIndex}-${dIdx}`)"
-                        @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
-                        @mouseleave="esconderTooltip"
-                      >{{ diferenca.arquivo_validado_linha }}</div>
-                    </div>
-                  </div>
-
-                  <!-- Diferenças por Campo -->
-                  <div class="space-y-2">
-                    <h5 class="font-medium text-gray-700">Campos com Diferenças:</h5>
-                    <div class="grid gap-2">
-                      <div
-                        v-for="(campo, campIndex) in diferenca.diferencas_campos"
-                        :key="campIndex"
-                        :class="[
-                          'p-3 rounded-lg border-l-4',
-                          campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')
-                            ? 'bg-orange-50 border-orange-400'
-                            : 'bg-red-50 border-red-400'
-                        ]"
-                      >
-                        <div class="flex justify-between items-start">
-                          <div class="flex-1">
-                            <div class="flex items-center">
-                              <span class="font-medium">
-                                Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
-                              </span>
-                              <span v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                                    class="ml-2 px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
-                                Calculo do imposto
-                              </span>
-                              <span v-else-if="campo.tipo_diferenca"
-                                    class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full">
-                                {{ campo.tipo_diferenca }}
-                              </span>
-                            </div>
-                            <span class="text-sm text-gray-600">
-                              (Pos {{ campo.posicao_inicio }}-{{ campo.posicao_fim }})
-                            </span>
-                          </div>
-                        </div>
-
-                        <div v-if="campo.tipo_diferenca && campo.tipo_diferenca.startsWith('CALCULO_')"
-                             class="mt-3 p-3 bg-orange-100 rounded">
-                          <h6 class="font-semibold text-orange-800 mb-2">Detalhes do Calculo:</h6>
-                          <div class="text-sm text-orange-900 font-mono">
-                            {{ campo.descricao }}
-                          </div>
-                        </div>
-
-                        <div v-else-if="campo.descricao"
-                             class="mt-2 p-2 bg-gray-100 rounded">
-                          <div class="text-sm text-gray-700">
-                            {{ campo.descricao }}
-                          </div>
-                        </div>
-
-                        <div v-if="!campo.tipo_diferenca || !campo.tipo_diferenca.startsWith('CALCULO_')"
-                             class="mt-2 text-sm">
-                          <div class="grid grid-cols-2 gap-2">
-                            <div class="text-gray-600">
-                              Produção: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_base }}</span>
-                            </div>
-                            <div class="text-gray-600">
-                              Seu arquivo: <span class="font-mono bg-white px-1 rounded">{{ campo.valor_validado }}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
             </div>
           </div>
         </div>
       </div>
 
       <!-- Sem diferenças -->
-      <div v-else-if="comparisonResult" class="card border-green-200 bg-green-50">
+      <div v-else class="card border-green-200 bg-green-50">
         <div class="card-body text-center py-8">
           <CheckCircle class="w-12 h-12 text-green-500 mx-auto mb-3" />
           <h3 class="text-green-800 font-medium text-lg">Arquivos idênticos!</h3>
@@ -597,7 +353,7 @@
 </template>
 
 <script setup>
-import { AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Loader2, Printer, RotateCcw } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle, Download, Loader2, Printer, RotateCcw } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import localStorageService from '../services/localStorage'
@@ -610,9 +366,6 @@ const configLoaded = ref(false)
 const selectedLote = ref('')
 const userFile = ref(null)
 const userFileInput = ref(null)
-const producaoFile = ref(null)
-const producaoFileInput = ref(null)
-const modoProducao = ref('lote') // 'lote' ou 'upload'
 
 // State
 const isLoading = ref(false)
@@ -634,81 +387,15 @@ const tooltipInfo = ref({
   tipoLinha: 'base'
 })
 
-// Navegação por fatura
-const faturaSelecionadaIndex = ref(0)
-const mapaFaturas = ref([])
-const modoVisualizacao = ref('erros') // 'erros' ou 'completa'
-const todasLinhas = ref([])
-
 // Computed
 const hasResults = computed(() => comparisonResult.value !== null)
-const canSubmit = computed(() => {
-  if (!userFile.value || !config.value.layout_exists) return false
-  if (modoProducao.value === 'lote') return !!selectedLote.value
-  return !!producaoFile.value
-})
+const canSubmit = computed(() => selectedLote.value && userFile.value && config.value.layout_exists)
 
 const taxaIdentidadeClass = computed(() => {
   const taxa = comparisonResult.value?.taxa_identidade || 0
   if (taxa >= 95) return 'text-green-600'
   if (taxa >= 80) return 'text-yellow-600'
   return 'text-red-600'
-})
-
-/**
- * Agrupa as diferenças por fatura usando o mapa_faturas do backend.
- * O backend identifica cada fatura pelo tipo de registro '01' e extrai
- * o número da fatura nas posições 18-30.
- * Cada diferença é associada à fatura cuja faixa de linhas a contém.
- */
-const faturasComErro = computed(() => {
-  const diferencas = comparisonResult.value?.diferencas_por_linha
-  if (!diferencas?.length) return []
-
-  const faturas = mapaFaturas.value
-  if (!faturas?.length) {
-    // Fallback: sem mapa, agrupar tudo numa única "fatura"
-    const total = diferencas.reduce((acc, d) => acc + d.total_diferencas, 0)
-    return [{
-      key: 'todas',
-      label: 'Todas as diferenças',
-      diferencas: diferencas,
-      totalErros: total,
-      linhaInicio: diferencas[0].numero_linha,
-      linhaFim: diferencas[diferencas.length - 1].numero_linha
-    }]
-  }
-
-  // Criar grupo para cada fatura
-  const grupos = faturas.map(f => ({
-    key: f.numero_fatura,
-    label: `Fatura ${f.numero_fatura.replace(/^0+/, '') || '0'}`,
-    numeroFatura: f.numero_fatura,
-    linhaInicio: f.linha_inicio,
-    linhaFim: f.linha_fim,
-    diferencas: [],
-    totalErros: 0
-  }))
-
-  // Distribuir diferenças nas faturas correspondentes
-  for (const diff of diferencas) {
-    const linha = diff.numero_linha
-    // Encontrar a fatura que contém esta linha
-    const grupo = grupos.find(g => linha >= g.linhaInicio && linha <= g.linhaFim)
-    if (grupo) {
-      grupo.diferencas.push(diff)
-      grupo.totalErros += diff.total_diferencas
-    }
-  }
-
-  // Retornar apenas faturas que têm erros
-  return grupos.filter(g => g.diferencas.length > 0)
-})
-
-const faturaAtual = computed(() => {
-  if (!faturasComErro.value.length) return null
-  const idx = Math.min(faturaSelecionadaIndex.value, faturasComErro.value.length - 1)
-  return faturasComErro.value[idx]
 })
 
 /**
@@ -736,14 +423,9 @@ onMounted(async () => {
   }
 })
 
-// File handlers
+// File handler
 function handleUserFileChange(event) {
   userFile.value = event.target.files[0]
-  error.value = ''
-}
-
-function handleProducaoFileChange(event) {
-  producaoFile.value = event.target.files[0]
   error.value = ''
 }
 
@@ -757,13 +439,7 @@ async function handleComparison() {
   try {
     const formData = new FormData()
     formData.append('arquivo_usuario', userFile.value)
-
-    if (modoProducao.value === 'lote') {
-      formData.append('lote_arquivo', selectedLote.value)
-    } else {
-      formData.append('lote_arquivo', '') // Enviar vazio para satisfazer o Form field
-      formData.append('arquivo_producao', producaoFile.value)
-    }
+    formData.append('lote_arquivo', selectedLote.value)
 
     const response = await api.post('/printcenter/comparar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -773,9 +449,6 @@ async function handleComparison() {
     reportText.value = response.data.relatorio_texto
     timestamp.value = response.data.timestamp
     layoutData.value = response.data.layout
-    mapaFaturas.value = response.data.mapa_faturas || []
-    todasLinhas.value = response.data.resultado_comparacao?.todas_linhas || []
-    faturaSelecionadaIndex.value = 0
   } catch (err) {
     console.error('Erro na comparação:', err)
     error.value = err.response?.data?.detail || 'Erro interno do servidor'
@@ -797,15 +470,8 @@ function resetComparison() {
   reportText.value = ''
   timestamp.value = ''
   userFile.value = null
-  producaoFile.value = null
-  selectedLote.value = ''
   error.value = ''
-  faturaSelecionadaIndex.value = 0
-  mapaFaturas.value = []
-  todasLinhas.value = []
-  modoVisualizacao.value = 'erros'
   if (userFileInput.value) userFileInput.value.value = ''
-  if (producaoFileInput.value) producaoFileInput.value.value = ''
 }
 
 // Tooltip functions
