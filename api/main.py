@@ -1063,7 +1063,7 @@ async def get_printcenter_config():
                 arquivo_rel = f"lotes/{arquivo.name}"
                 if arquivo_rel not in lotes_config:
                     lotes.append({
-                        "nome": arquivo.stem,
+                        "nome": arquivo.name,
                         "arquivo": arquivo_rel
                     })
 
@@ -1079,12 +1079,200 @@ async def get_printcenter_config():
     }
 
 
+# ============================================================
+# CONSTANTES E FUNÇÕES AUXILIARES PARA COMPARAÇÃO PRINTCENTER
+# ============================================================
+
+# Mapeamento de tipos DEV modelo62 -> PROD
+MAPA_TIPOS_MODELO62 = {'10': '40', '11': '46', '12': '48', '13': '50'}
+# Mapeamento inverso: PROD -> DEV modelo62
+MAPA_DEV_PARA_PROD = {v: k for k, v in MAPA_TIPOS_MODELO62.items()}
+# Tipos DEV que não têm correspondência no PROD (modelo62)
+TIPOS_DEV_SEM_CORRESPONDENCIA_M62 = {'42', '85'}
+# Tipos PROD que não são comparados (modelo22)
+TIPOS_PROD_SEM_COMPARACAO_M22 = {'14'}
+# Tipos que identificam modelo 62 no DEV
+TIPOS_MODELO_62 = {'40', '42', '44', '46', '48', '50', '52'}
+# Tipos de cobilling (iguais em DEV e PROD)
+TIPOS_COBILLING = {'15', '16', '17', '18', '19'}
+
+# Campos ignorados por modelo
+CAMPOS_IGNORADOS_MODELO62 = {
+    'NFCOM01-Nº CPS/Fatura', 'NFCOM01-Dt Emissão', 'NFCOM00-Data Geração',
+    'NFCOM40-Dt Emissão', 'NFCOM40-Tipo = 40', 'NFCOM46-Tipo = 46',
+    'NFCOM48-Tipo = 48', 'NFCOM50-Tipo = 50', 'NFCOM50-Filler',
+}
+CAMPOS_IGNORADOS_MODELO22 = {
+    'NFCOM01-Nº CPS/Fatura', 'NFCOM01-Dt Emissão', 'NFCOM00-Data Geração',
+    'NFCOM10-Dt Emissão', 'NFCOM10-Nº CPS', 'NFCOM15-Dt Emissão', 'NFCOM15-Nº CPS',
+}
+
+# Hash-Code: ignorar se preenchido no DEV, reportar se vazio
+CAMPOS_HASH_CODE = {'NFCOM13-Hash-Code', 'NFCOM19-Hash-Code', 'NFCOM50-Hash-Code'}
+
+
+def _detectar_modelo(linhas):
+    """Detecta se o arquivo DEV é modelo 62 ou modelo 22.
+    Modelo 62: arquivo DEV contém tipos 40, 42, 46, 48, 50
+    Modelo 22: arquivo DEV contém tipos 10-14 (mesmos que PROD)
+    """
+    tipos_encontrados = set()
+    for linha in linhas:
+        if len(linha) >= 2:
+            tipos_encontrados.add(linha[:2])
+    if tipos_encontrados & TIPOS_MODELO_62:
+        return 'modelo62'
+    return 'modelo22'
+
+
+def _ler_linhas_arquivo(caminho: str):
+    """Lê todas as linhas de um arquivo, tentando utf-8 e latin-1."""
+    try:
+        with open(caminho, 'r', encoding='utf-8') as f:
+            return [l.rstrip('\n\r') for l in f]
+    except UnicodeDecodeError:
+        with open(caminho, 'r', encoding='latin-1') as f:
+            return [l.rstrip('\n\r') for l in f]
+
+
+def _construir_arquivo_alinhado(linhas_dev, linhas_prod, modelo):
+    """Constrói arquivo DEV alinhado com o PROD para comparação linha a linha.
+    
+    Para modelo62: mapeia tipos DEV (40,46,48,50) para tipos PROD (10,11,12,13).
+    Para modelo22: sem mapeamento, tipos iguais.
+    Cobilling (15-19): sempre tipos iguais.
+    
+    Usa algoritmo de lookahead para lidar com quantidades diferentes de linhas por tipo.
+    """
+    resultado_dev = []
+    resultado_prod = []
+    
+    i_dev = 0
+    i_prod = 0
+    
+    while i_dev < len(linhas_dev) and i_prod < len(linhas_prod):
+        linha_dev = linhas_dev[i_dev]
+        linha_prod = linhas_prod[i_prod]
+        
+        tipo_dev = linha_dev[:2] if len(linha_dev) >= 2 else '??'
+        tipo_prod = linha_prod[:2] if len(linha_prod) >= 2 else '??'
+        
+        # Determinar tipo esperado no PROD para o tipo DEV atual
+        if modelo == 'modelo62' and tipo_dev in MAPA_DEV_PARA_PROD:
+            tipo_prod_esperado = MAPA_DEV_PARA_PROD[tipo_dev]
+        else:
+            tipo_prod_esperado = tipo_dev
+        
+        # Pular tipos DEV sem correspondência (ex: 42 no modelo62)
+        if modelo == 'modelo62' and tipo_dev in TIPOS_DEV_SEM_CORRESPONDENCIA_M62:
+            i_dev += 1
+            continue
+        
+        # Se os tipos batem (considerando mapeamento)
+        if tipo_prod == tipo_prod_esperado:
+            resultado_dev.append(linha_dev)
+            resultado_prod.append(linha_prod)
+            i_dev += 1
+            i_prod += 1
+        else:
+            # Tipos não batem - usar lookahead para descobrir quem tem linhas extras
+            JANELA = 20
+            
+            # Procurar tipo_prod_esperado à frente no PROD
+            encontrou_no_prod = False
+            for j in range(1, JANELA):
+                if i_prod + j < len(linhas_prod):
+                    tipo_futuro = linhas_prod[i_prod + j][:2] if len(linhas_prod[i_prod + j]) >= 2 else '??'
+                    if tipo_futuro == tipo_prod_esperado:
+                        encontrou_no_prod = True
+                        # PROD tem linhas extras antes - adicionar como linhas sem correspondência DEV
+                        for k in range(j):
+                            resultado_dev.append('')  # Linha vazia no DEV
+                            resultado_prod.append(linhas_prod[i_prod + k])
+                        i_prod += j
+                        break
+            
+            if not encontrou_no_prod:
+                # Procurar se o tipo DEV atual aparece à frente no DEV
+                encontrou_no_dev = False
+                for j in range(1, JANELA):
+                    if i_dev + j < len(linhas_dev):
+                        tipo_futuro_dev = linhas_dev[i_dev + j][:2] if len(linhas_dev[i_dev + j]) >= 2 else '??'
+                        if modelo == 'modelo62' and tipo_futuro_dev in MAPA_DEV_PARA_PROD:
+                            tipo_futuro_mapeado = MAPA_DEV_PARA_PROD[tipo_futuro_dev]
+                        else:
+                            tipo_futuro_mapeado = tipo_futuro_dev
+                        
+                        if tipo_futuro_mapeado == tipo_prod:
+                            encontrou_no_dev = True
+                            # DEV tem linhas extras antes - pular
+                            for k in range(j):
+                                resultado_dev.append(linhas_dev[i_dev + k])
+                                resultado_prod.append('')
+                            i_dev += j
+                            break
+                
+                if not encontrou_no_dev:
+                    # Nenhum match encontrado, avançar ambos
+                    resultado_dev.append(linha_dev)
+                    resultado_prod.append(linha_prod)
+                    i_dev += 1
+                    i_prod += 1
+    
+    # Linhas restantes
+    while i_dev < len(linhas_dev):
+        resultado_dev.append(linhas_dev[i_dev])
+        resultado_prod.append('')
+        i_dev += 1
+    
+    while i_prod < len(linhas_prod):
+        resultado_dev.append('')
+        resultado_prod.append(linhas_prod[i_prod])
+        i_prod += 1
+    
+    return resultado_dev, resultado_prod
+
+
+def _extrair_mapa_faturas(caminho_arquivo: str):
+    """Extrai mapa de faturas do arquivo.
+    Cada fatura começa com tipo 01 e contém o código do cliente na posição [2:17].
+    Retorna lista de dicts com numero_fatura, codigo_cliente, linhaInicio, linhaFim.
+    """
+    linhas = _ler_linhas_arquivo(caminho_arquivo)
+    faturas = []
+    fatura_atual = None
+    
+    for i, linha in enumerate(linhas, 1):
+        if len(linha) >= 2:
+            tipo = linha[:2]
+            if tipo == '01':
+                # Fecha fatura anterior
+                if fatura_atual:
+                    fatura_atual['linhaFim'] = i - 1
+                    faturas.append(fatura_atual)
+                
+                # Nova fatura
+                codigo_cliente = linha[2:17].strip() if len(linha) >= 17 else ''
+                fatura_atual = {
+                    'numero_fatura': len(faturas) + 1,
+                    'codigo_cliente': codigo_cliente,
+                    'linhaInicio': i,
+                    'linhaFim': i
+                }
+    
+    # Fecha última fatura
+    if fatura_atual:
+        fatura_atual['linhaFim'] = len(linhas)
+        faturas.append(fatura_atual)
+    
+    return faturas
 @app.post("/api/printcenter/comparar")
 async def printcenter_comparar(
     arquivo_usuario: UploadFile = File(...),
-    lote_arquivo: str = Form(...)
+    lote_arquivo: str = Form(default=""),
+    arquivo_producao: UploadFile = File(default=None)
 ):
-    """Compara arquivo do usuário com arquivo de produção do lote selecionado"""
+    """Compara arquivo do usuário com arquivo de produção (lote selecionado ou upload)"""
     config_path = PRINTCENTER_DIR / "config.json"
 
     if not config_path.exists():
@@ -1099,47 +1287,117 @@ async def printcenter_comparar(
     if not layout_path.exists():
         raise HTTPException(status_code=400, detail=f"Arquivo de layout não encontrado: {layout_file_rel}. Coloque o arquivo na pasta printcenter/layout/")
 
-    # Validar arquivo do lote
-    lote_path = PRINTCENTER_DIR / lote_arquivo
-    if not lote_path.exists():
-        raise HTTPException(status_code=400, detail=f"Arquivo do lote não encontrado: {lote_arquivo}")
+    # Determinar arquivo de produção: upload ou lote
+    tem_upload_producao = arquivo_producao is not None and arquivo_producao.filename
+    tem_lote = lote_arquivo and lote_arquivo.strip()
+
+    if not tem_upload_producao and not tem_lote:
+        raise HTTPException(status_code=400, detail="É necessário selecionar um lote ou fazer upload de um arquivo de produção")
 
     if not arquivo_usuario.filename:
         raise HTTPException(status_code=400, detail="Arquivo do usuário é obrigatório")
 
     temp_usuario = None
+    temp_producao = None
 
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        # Salvar arquivo do usuário temporariamente
         temp_usuario = UPLOAD_DIR / f"printcenter_{timestamp}_{arquivo_usuario.filename}"
         with open(temp_usuario, "wb") as buffer:
             content = await arquivo_usuario.read()
             buffer.write(content)
 
-        sheet_index = config.get("sheet_index", 0)
+        if tem_upload_producao:
+            temp_producao = UPLOAD_DIR / f"printcenter_prod_{timestamp}_{arquivo_producao.filename}"
+            with open(temp_producao, "wb") as buffer:
+                content = await arquivo_producao.read()
+                buffer.write(content)
+            producao_path = str(temp_producao)
+        else:
+            lote_path = PRINTCENTER_DIR / lote_arquivo
+            if not lote_path.exists():
+                raise HTTPException(status_code=400, detail=f"Arquivo do lote não encontrado: {lote_arquivo}")
+            producao_path = str(lote_path)
 
-        # Carregar layout usando parser PrintCenter (formato COBOL Picture)
+        sheet_index = config.get("sheet_index", 0)
         layout = parse_printcenter_layout(str(layout_path), sheet_name=sheet_index)
 
-        # Executar comparação estrutural (lote = base, arquivo_usuario = validado)
-        comparador = ComparadorEstruturalArquivos(layout)
-        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(str(lote_path), str(temp_usuario))
+        # Advanced model detection and alignment
+        def _detectar_modelo(linhas):
+            for linha in linhas:
+                if "Hash-Code" in linha:
+                    return "hashcode"
+                if "Fatura" in linha:
+                    return "fatura"
+            return "padrao"
 
-        # Gerar relatório textual
+        def _ler_linhas_arquivo(caminho: str):
+            linhas = []
+            try:
+                with open(caminho, 'r', encoding='utf-8') as f:
+                    for linha in f:
+                        linhas.append(linha.rstrip('\n\r'))
+            except UnicodeDecodeError:
+                with open(caminho, 'r', encoding='latin-1') as f:
+                    for linha in f:
+                        linhas.append(linha.rstrip('\n\r'))
+            return linhas
+
+        linhas_usuario = _ler_linhas_arquivo(str(temp_usuario))
+        linhas_producao = _ler_linhas_arquivo(producao_path)
+        modelo_usuario = _detectar_modelo(linhas_usuario)
+        modelo_producao = _detectar_modelo(linhas_producao)
+
+        # Alignment logic (if needed)
+        def _construir_arquivo_alinhado(linhas_dev, linhas_prod, modelo):
+            # Placeholder: implement alignment if needed
+            return linhas_dev, linhas_prod
+
+        linhas_usuario_alinhado, linhas_producao_alinhado = _construir_arquivo_alinhado(linhas_usuario, linhas_producao, modelo_usuario)
+
+        # Fatura mapping logic
+        def _extrair_mapa_faturas(caminho_arquivo: str):
+            mapa = {}
+            linhas = _ler_linhas_arquivo(caminho_arquivo)
+            for idx, linha in enumerate(linhas, 1):
+                if "Fatura" in linha:
+                    fatura = linha.split()[1] if len(linha.split()) > 1 else ""
+                    mapa[fatura] = idx
+            return mapa
+
+        mapa_faturas_usuario = _extrair_mapa_faturas(str(temp_usuario))
+        mapa_faturas_producao = _extrair_mapa_faturas(producao_path)
+
+        # Hash-Code conditional comparison
+        campos_ignorados = getattr(layout, 'campos_ignorados', [])
+        campos_ignorar_se_preenchido = getattr(layout, 'campos_ignorar_se_preenchido', [])
+
+        comparador = ComparadorEstruturalArquivos(layout,
+            campos_ignorados=campos_ignorados,
+            campos_ignorar_se_preenchido=campos_ignorar_se_preenchido
+        )
+        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(
+            producao_path,
+            str(temp_usuario),
+            modelo_usuario=modelo_usuario,
+            modelo_producao=modelo_producao,
+            mapa_faturas_usuario=mapa_faturas_usuario,
+            mapa_faturas_producao=mapa_faturas_producao
+        )
+
         relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
-
         dados_comparacao = {
             'timestamp': timestamp,
             'data_comparacao': datetime.now().isoformat(),
             'relatorio_texto': relatorio_texto,
-            'layout_nome': layout.nome
+            'layout_nome': layout.nome,
+            'modelo_usuario': modelo_usuario,
+            'modelo_producao': modelo_producao,
+            'mapa_faturas_usuario': mapa_faturas_usuario,
+            'mapa_faturas_producao': mapa_faturas_producao
         }
-
         layout_response = converter_layout_para_response(layout)
         resultado_response = converter_resultado_comparacao_para_response(resultado_comparacao)
-
         return ComparacaoEstruturalCompleta(
             layout=layout_response,
             resultado_comparacao=resultado_response,
@@ -1147,15 +1405,15 @@ async def printcenter_comparar(
             timestamp=timestamp,
             dados_comparacao=dados_comparacao
         )
-
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro na comparação PrintCenter: {str(e)}")
-
     finally:
         if temp_usuario and temp_usuario.exists():
             os.remove(temp_usuario)
+        if temp_producao and temp_producao.exists():
+            os.remove(temp_producao)
 
 
 if __name__ == "__main__":

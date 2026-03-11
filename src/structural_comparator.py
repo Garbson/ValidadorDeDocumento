@@ -16,8 +16,10 @@ except ImportError:
 class ComparadorEstruturalArquivos:
     """Comparador estrutural que analisa diferenças entre arquivo base e arquivo a ser validado"""
 
-    def __init__(self, layout: Layout):
+    def __init__(self, layout: Layout, campos_ignorados: set = None, campos_ignorar_se_preenchido: set = None):
         self.layout = layout
+        self.campos_ignorados = campos_ignorados or set()
+        self.campos_ignorar_se_preenchido = campos_ignorar_se_preenchido or set()
 
     def extrair_campos_linha(self, linha: str, tipo_registro: Optional[str] = None) -> Dict[str, str]:
         """Extrai os campos de uma linha baseado no layout, filtrado por tipo de registro se especificado"""
@@ -87,6 +89,32 @@ class ComparadorEstruturalArquivos:
         for sequencia, campo in enumerate(campos_do_tipo, 1):
             valor_base = campos_base.get(campo.nome, '')
             valor_validado = campos_validado.get(campo.nome, '')
+
+            # Verificar se o campo deve ser ignorado completamente
+            if campo.nome in self.campos_ignorados:
+                continue
+
+            # Verificar campos_ignorar_se_preenchido (ex: Hash-Code)
+            # Se DEV (validado) tem valor preenchido -> ignorar
+            # Se DEV (validado) está vazio -> reportar erro
+            if campo.nome in self.campos_ignorar_se_preenchido:
+                validado_eh_vazio = not valor_validado or valor_validado.isspace()
+                if not validado_eh_vazio:
+                    continue  # DEV preenchido, ignorar diferença
+                else:
+                    # DEV vazio para campo que deveria ter valor
+                    diferenca = DiferencaEstruturalCampo(
+                        nome_campo=campo.nome,
+                        posicao_inicio=campo.posicao_inicio,
+                        posicao_fim=campo.posicao_fim,
+                        valor_base=valor_base,
+                        valor_validado=valor_validado,
+                        tipo_diferenca="CAMPO_VAZIO_NO_DEV",
+                        descricao=f"Campo '{campo.nome}' está vazio no arquivo DEV mas deveria ter valor",
+                        sequencia_campo=sequencia
+                    )
+                    diferencas.append(diferenca)
+                    continue
 
             # Analisar diferenças estruturais (formato, obrigatoriedade, tamanho)
             tipo_diferenca, descricao = self._analisar_tipo_diferenca(
