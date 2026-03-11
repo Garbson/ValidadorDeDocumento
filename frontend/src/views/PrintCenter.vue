@@ -220,6 +220,38 @@
         </div>
       </div>
 
+      <!-- Contas Não Encontradas -->
+      <div
+        v-if="comparisonResult?.contas_nao_encontradas?.length > 0"
+        class="card border-yellow-200 bg-yellow-50 mb-4"
+      >
+        <div class="card-body">
+          <div class="flex items-start">
+            <AlertCircle
+              class="w-5 h-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0"
+            />
+            <div>
+              <h3 class="text-yellow-800 font-medium">
+                Contas Nao Encontradas no Arquivo de Producao
+              </h3>
+              <p class="text-yellow-700 mt-2">
+                Infelizmente {{ comparisonResult.contas_nao_encontradas.length }}
+                conta(s) nao foi/foram encontrada(s) no arquivo de producao:
+              </p>
+              <ul class="text-yellow-700 mt-2 ml-4">
+                <li
+                  v-for="(conta, index) in comparisonResult.contas_nao_encontradas"
+                  :key="index"
+                  class="list-disc font-mono"
+                >
+                  {{ conta }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Diferenças Detalhadas -->
       <div
         v-if="comparisonResult?.diferencas_por_linha?.length > 0"

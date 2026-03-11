@@ -385,7 +385,8 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
         linhas_com_diferencas=resultado.linhas_com_diferencas,
         linhas_identicas=resultado.linhas_identicas,
         diferencas_por_linha=diferencas_response,
-        taxa_identidade=resultado.taxa_identidade
+        taxa_identidade=resultado.taxa_identidade,
+        contas_nao_encontradas=getattr(resultado, 'contas_nao_encontradas', [])
     )
     
 
@@ -1369,20 +1370,20 @@ async def printcenter_comparar(
         mapa_faturas_producao = _extrair_mapa_faturas(producao_path)
 
         # Hash-Code conditional comparison
-        campos_ignorados = getattr(layout, 'campos_ignorados', [])
+        campos_ignorados = set(getattr(layout, 'campos_ignorados', []))
         campos_ignorar_se_preenchido = getattr(layout, 'campos_ignorar_se_preenchido', [])
+
+        # Campos que sempre serão diferentes entre arquivos (CPS e Data Emissão)
+        campos_ignorados.add('NFCOM01-Nº CPS/Fatura')
+        campos_ignorados.add('NFCOM01-Dt Emissão')
 
         comparador = ComparadorEstruturalArquivos(layout,
             campos_ignorados=campos_ignorados,
             campos_ignorar_se_preenchido=campos_ignorar_se_preenchido
         )
-        resultado_comparacao = comparador.comparar_arquivos_linha_a_linha(
+        resultado_comparacao = comparador.comparar_arquivos_por_tipo_registro(
             producao_path,
-            str(temp_usuario),
-            modelo_usuario=modelo_usuario,
-            modelo_producao=modelo_producao,
-            mapa_faturas_usuario=mapa_faturas_usuario,
-            mapa_faturas_producao=mapa_faturas_producao
+            str(temp_usuario)
         )
 
         relatorio_texto = comparador.gerar_relatorio_completo(resultado_comparacao)
@@ -1414,6 +1415,20 @@ async def printcenter_comparar(
             os.remove(temp_usuario)
         if temp_producao and temp_producao.exists():
             os.remove(temp_producao)
+
+
+# Catch-all: qualquer rota que não seja /api/* serve o index.html do frontend (Vue Router)
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """Serve o frontend para qualquer rota não-API (suporte ao Vue Router)"""
+    if frontend_path.exists():
+        # Se o arquivo existe no dist, servir diretamente
+        file_path = frontend_path / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
+        # Caso contrário, servir index.html (Vue Router cuida do roteamento)
+        return FileResponse(str(frontend_path / "index.html"))
+    return {"message": "Frontend não encontrado"}
 
 
 if __name__ == "__main__":

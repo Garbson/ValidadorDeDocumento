@@ -16,10 +16,11 @@ except ImportError:
 class ComparadorEstruturalArquivos:
     """Comparador estrutural que analisa diferenças entre arquivo base e arquivo a ser validado"""
 
-    def __init__(self, layout: Layout, campos_ignorados: set = None, campos_ignorar_se_preenchido: set = None):
+    def __init__(self, layout: Layout, campos_ignorados: set = None, campos_ignorar_se_preenchido: set = None, mapeamento_tipos: dict = None):
         self.layout = layout
         self.campos_ignorados = campos_ignorados or set()
         self.campos_ignorar_se_preenchido = campos_ignorar_se_preenchido or set()
+        self.mapeamento_tipos = mapeamento_tipos or {'88': '05', '87': '09'}
 
     def extrair_campos_linha(self, linha: str, tipo_registro: Optional[str] = None) -> Dict[str, str]:
         """Extrai os campos de uma linha baseado no layout, filtrado por tipo de registro se especificado"""
@@ -116,12 +117,36 @@ class ComparadorEstruturalArquivos:
                     diferencas.append(diferenca)
                     continue
 
-            # Analisar diferenças estruturais (formato, obrigatoriedade, tamanho)
+            # 1. Comparar valores diretamente (qualquer diferença de conteúdo)
+            if valor_base != valor_validado:
+                # Verificar se é problema estrutural específico
+                tipo_diferenca, descricao = self._analisar_tipo_diferenca(
+                    campo, valor_base, valor_validado
+                )
+
+                # Se não é um problema estrutural específico, registrar como diferença de valor
+                if not tipo_diferenca:
+                    tipo_diferenca = "VALOR_DIFERENTE"
+                    descricao = f"Campo '{campo.nome}' diferente: base='{valor_base.strip()}', validado='{valor_validado.strip()}'"
+
+                diferenca = DiferencaEstruturalCampo(
+                    nome_campo=campo.nome,
+                    posicao_inicio=campo.posicao_inicio,
+                    posicao_fim=campo.posicao_fim,
+                    valor_base=valor_base,
+                    valor_validado=valor_validado,
+                    tipo_diferenca=tipo_diferenca,
+                    descricao=descricao,
+                    sequencia_campo=sequencia
+                )
+                diferencas.append(diferenca)
+                continue
+
+            # 2. Mesmo valor, mas verificar problemas estruturais (formato, obrigatoriedade)
             tipo_diferenca, descricao = self._analisar_tipo_diferenca(
                 campo, valor_base, valor_validado
             )
 
-            # Só adicionar se houver problema estrutural real
             if tipo_diferenca and descricao:
                 diferenca = DiferencaEstruturalCampo(
                     nome_campo=campo.nome,
@@ -245,6 +270,208 @@ class ComparadorEstruturalArquivos:
                     registros_por_tipo[tipo_registro].append((numero_linha, linha))
 
         return registros_por_tipo
+
+    def _ler_linhas_arquivo(self, caminho_arquivo: str) -> List[Tuple[int, str]]:
+        """Lê todas as linhas de um arquivo com tratamento de encoding, retorna [(num_linha, linha)]"""
+        linhas = []
+        try:
+            with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    linha = linha.rstrip('\n\r')
+                    if len(linha) < 2:
+                        continue
+                    if len(linha) < self.layout.tamanho_linha:
+                        linha = linha.ljust(self.layout.tamanho_linha)
+                    linhas.append((numero_linha, linha))
+        except UnicodeDecodeError:
+            with open(caminho_arquivo, 'r', encoding='latin-1') as arquivo:
+                for numero_linha, linha in enumerate(arquivo, 1):
+                    linha = linha.rstrip('\n\r')
+                    if len(linha) < 2:
+                        continue
+                    if len(linha) < self.layout.tamanho_linha:
+                        linha = linha.ljust(self.layout.tamanho_linha)
+                    linhas.append((numero_linha, linha))
+        return linhas
+
+    def agrupar_por_fatura(self, caminho_arquivo: str) -> Dict[str, Dict[str, List[Tuple[int, str]]]]:
+        """Agrupa linhas do arquivo por fatura (Conta do Cliente) e dentro de cada fatura por tipo de registro.
+
+        Cada fatura começa com uma linha tipo '01'. A Conta do Cliente são os caracteres nas posições 3-17 (15 chars).
+        Ignora tipo '99' (trailer). Inclui tipo '00' (header) como chave separada.
+
+        Retorna: { conta_cliente: { tipo_registro: [(num_linha, linha), ...] } }
+        """
+        todas_linhas = self._ler_linhas_arquivo(caminho_arquivo)
+        faturas = {}  # conta_cliente -> { tipo_registro -> [(num_linha, linha)] }
+        conta_atual = None
+
+        for numero_linha, linha in todas_linhas:
+            tipo_registro = self.detectar_tipo_registro(linha)
+
+            # Ignorar trailer
+            if tipo_registro == '99':
+                continue
+
+            # Header vai em chave especial
+            if tipo_registro == '00':
+                if '__header__' not in faturas:
+                    faturas['__header__'] = {}
+                if '00' not in faturas['__header__']:
+                    faturas['__header__']['00'] = []
+                faturas['__header__']['00'].append((numero_linha, linha))
+                continue
+
+            # Tipo 01 inicia nova fatura
+            if tipo_registro == '01':
+                conta_atual = linha[2:17]  # Conta do Cliente: posições 3-17 (0-indexed: 2:17)
+                if conta_atual not in faturas:
+                    faturas[conta_atual] = {}
+
+            # Se não temos fatura atual, pular
+            if conta_atual is None:
+                continue
+
+            if tipo_registro not in faturas[conta_atual]:
+                faturas[conta_atual][tipo_registro] = []
+            faturas[conta_atual][tipo_registro].append((numero_linha, linha))
+
+        return faturas
+
+    def _resolver_tipo_canonico(self, tipo: str) -> str:
+        """Resolve um tipo de registro para seu tipo canônico usando mapeamento_tipos"""
+        return self.mapeamento_tipos.get(tipo, tipo)
+
+    def _comparar_fatura(self, registros_base: Dict[str, List[Tuple[int, str]]],
+                         registros_validado: Dict[str, List[Tuple[int, str]]],
+                         conta_cliente: str) -> List[DiferencaEstruturalLinha]:
+        """Compara uma fatura entre base e validado, agrupando por tipo de registro.
+
+        Aplica mapeamento de tipos (88↔05, 87↔09) para parear tipos equivalentes.
+        Dentro de cada tipo, compara linha a linha (1ª com 1ª, 2ª com 2ª).
+        """
+        resultados = []
+
+        # Agrupar por tipo canônico
+        canonico_base = {}
+        for tipo, linhas in registros_base.items():
+            canonico = self._resolver_tipo_canonico(tipo)
+            if canonico not in canonico_base:
+                canonico_base[canonico] = []
+            canonico_base[canonico].extend(linhas)
+
+        canonico_validado = {}
+        for tipo, linhas in registros_validado.items():
+            canonico = self._resolver_tipo_canonico(tipo)
+            if canonico not in canonico_validado:
+                canonico_validado[canonico] = []
+            canonico_validado[canonico].extend(linhas)
+
+        todos_tipos = sorted(set(canonico_base.keys()) | set(canonico_validado.keys()))
+
+        for tipo_canonico in todos_tipos:
+            linhas_base = canonico_base.get(tipo_canonico, [])
+            linhas_val = canonico_validado.get(tipo_canonico, [])
+            max_linhas = max(len(linhas_base), len(linhas_val))
+
+            for i in range(max_linhas):
+                if i < len(linhas_base) and i < len(linhas_val):
+                    num_base, linha_base = linhas_base[i]
+                    num_val, linha_val = linhas_val[i]
+                    numero_linha = num_val
+                elif i < len(linhas_base):
+                    num_base, linha_base = linhas_base[i]
+                    linha_val = ' ' * self.layout.tamanho_linha
+                    numero_linha = num_base
+                else:
+                    num_val, linha_val = linhas_val[i]
+                    linha_base = ' ' * self.layout.tamanho_linha
+                    numero_linha = num_val
+
+                diferencas_campos = self.comparar_campos_linha(
+                    linha_base, linha_val, numero_linha, tipo_canonico
+                )
+
+                linha_base_fmt, linha_numeracao = self._gerar_linha_com_barras_e_numeracao(
+                    linha_base, tipo_canonico
+                )
+                linha_val_fmt, _ = self._gerar_linha_com_barras_e_numeracao(
+                    linha_val, tipo_canonico
+                )
+
+                resultados.append(DiferencaEstruturalLinha(
+                    numero_linha=numero_linha,
+                    tipo_registro=tipo_canonico,
+                    arquivo_base_linha=linha_base_fmt,
+                    arquivo_validado_linha=linha_val_fmt,
+                    diferencas_campos=diferencas_campos,
+                    total_diferencas=len(diferencas_campos),
+                    linha_numeracao=linha_numeracao
+                ))
+
+        return resultados
+
+    def comparar_arquivos_por_tipo_registro(self, caminho_base: str, caminho_validado: str) -> ResultadoComparacaoEstrutural:
+        """Compara dois arquivos pareando faturas por Conta do Cliente e dentro de cada fatura por tipo de registro.
+
+        Fluxo:
+        1. Agrupa ambos os arquivos em faturas (cada bloco começa com tipo '01')
+        2. Identifica faturas pelo campo Conta do Cliente (posições 3-17)
+        3. Para cada conta que existe no arquivo validado, busca a mesma conta na base
+        4. Dentro de cada fatura pareada, compara por tipo de registro com mapeamento (88↔05, 87↔09)
+        """
+        faturas_base = self.agrupar_por_fatura(caminho_base)
+        faturas_validado = self.agrupar_por_fatura(caminho_validado)
+
+        total_linhas = 0
+        linhas_com_diferencas = 0
+        todas_diferencas = []
+        todas_linhas = []
+
+        # Comparar header (tipo 00) se existir em ambos
+        if '__header__' in faturas_base and '__header__' in faturas_validado:
+            resultados_header = self._comparar_fatura(
+                faturas_base['__header__'], faturas_validado['__header__'], '__header__'
+            )
+            for diff in resultados_header:
+                total_linhas += 1
+                todas_linhas.append(diff)
+                if diff.total_diferencas > 0:
+                    linhas_com_diferencas += 1
+                    todas_diferencas.append(diff)
+
+        # Para cada fatura no arquivo validado (usuário), buscar a correspondente na base (produção)
+        contas_validado = [c for c in faturas_validado.keys() if c != '__header__']
+        contas_nao_encontradas = []
+
+        for conta in contas_validado:
+            if conta in faturas_base:
+                # Fatura encontrada em ambos os arquivos: comparar
+                resultados_fatura = self._comparar_fatura(
+                    faturas_base[conta], faturas_validado[conta], conta
+                )
+
+                for diff in resultados_fatura:
+                    total_linhas += 1
+                    todas_linhas.append(diff)
+                    if diff.total_diferencas > 0:
+                        linhas_com_diferencas += 1
+                        todas_diferencas.append(diff)
+            else:
+                # Fatura não encontrada no arquivo de produção
+                contas_nao_encontradas.append(conta)
+
+        linhas_identicas = total_linhas - linhas_com_diferencas
+
+        return ResultadoComparacaoEstrutural(
+            total_linhas_comparadas=total_linhas,
+            linhas_com_diferencas=linhas_com_diferencas,
+            linhas_identicas=linhas_identicas,
+            diferencas_por_linha=todas_diferencas,
+            todas_linhas=todas_linhas,
+            taxa_identidade=0.0,
+            contas_nao_encontradas=contas_nao_encontradas
+        )
 
     def gerar_representacao_visual_com_contagem(self, linha_base: str, linha_validado: str, diferencas: List[DiferencaEstruturalCampo], tipo_registro: str) -> str:
         """Gera representação visual das diferenças usando separador | de forma compacta"""

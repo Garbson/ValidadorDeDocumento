@@ -89,9 +89,12 @@ class ResultadoComparacaoEstrutural:
     diferencas_por_linha: List[DiferencaEstruturalLinha]
     todas_linhas: List[DiferencaEstruturalLinha]
     taxa_identidade: float
+    contas_nao_encontradas: List[str] = None
 
     def __post_init__(self):
         """Calcula taxa de identidade"""
+        if self.contas_nao_encontradas is None:
+            self.contas_nao_encontradas = []
         if self.total_linhas_comparadas > 0:
             self.taxa_identidade = (self.linhas_identicas / self.total_linhas_comparadas) * 100
         else:
