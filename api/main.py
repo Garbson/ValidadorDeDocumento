@@ -1100,6 +1100,81 @@ async def get_printcenter_config():
     }
 
 
+@app.post("/api/printcenter/upload-lote")
+async def upload_lote_producao(
+    arquivo: UploadFile = File(...)
+):
+    """Faz upload de um arquivo de produção para a pasta lotes/
+
+    Permite que o usuário envie arquivos de produção grandes separadamente,
+    sem precisar fazer upload durante a comparação. O arquivo fica salvo
+    no servidor e aparece no dropdown de lotes.
+    """
+    lotes_dir = PRINTCENTER_DIR / "lotes"
+    lotes_dir.mkdir(parents=True, exist_ok=True)
+
+    if not arquivo.filename:
+        raise HTTPException(status_code=400, detail="Arquivo é obrigatório")
+
+    destino = lotes_dir / arquivo.filename
+
+    try:
+        # Salvar o arquivo em chunks para não sobrecarregar a memória
+        chunk_size = 1024 * 1024  # 1MB por chunk
+        total_bytes = 0
+        with open(destino, "wb") as buffer:
+            while True:
+                chunk = await arquivo.read(chunk_size)
+                if not chunk:
+                    break
+                buffer.write(chunk)
+                total_bytes += len(chunk)
+
+        # Contar linhas e faturas para feedback
+        total_linhas = 0
+        total_faturas = 0
+        with open(destino, 'r', encoding='utf-8', errors='replace') as f:
+            for linha in f:
+                total_linhas += 1
+                if linha.startswith('01'):
+                    total_faturas += 1
+
+        tamanho_mb = total_bytes / (1024 * 1024)
+
+        return {
+            "sucesso": True,
+            "mensagem": f"Arquivo '{arquivo.filename}' salvo com sucesso na pasta lotes/",
+            "arquivo": f"lotes/{arquivo.filename}",
+            "nome": arquivo.filename,
+            "tamanho_mb": round(tamanho_mb, 2),
+            "total_linhas": total_linhas,
+            "total_faturas": total_faturas
+        }
+    except Exception as e:
+        # Limpar arquivo parcialmente salvo em caso de erro
+        if destino.exists():
+            os.remove(destino)
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar arquivo: {str(e)}")
+
+
+@app.delete("/api/printcenter/lote/{nome_arquivo:path}")
+async def remover_lote(nome_arquivo: str):
+    """Remove um arquivo de lote da pasta lotes/"""
+    lote_path = PRINTCENTER_DIR / "lotes" / nome_arquivo
+
+    if not lote_path.exists():
+        raise HTTPException(status_code=404, detail=f"Arquivo '{nome_arquivo}' não encontrado")
+
+    if lote_path.name == ".gitkeep":
+        raise HTTPException(status_code=400, detail="Não é possível remover o arquivo .gitkeep")
+
+    try:
+        os.remove(lote_path)
+        return {"sucesso": True, "mensagem": f"Arquivo '{nome_arquivo}' removido com sucesso"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao remover arquivo: {str(e)}")
+
+
 # ============================================================
 # CONSTANTES E FUNÇÕES AUXILIARES PARA COMPARAÇÃO PRINTCENTER
 # ============================================================

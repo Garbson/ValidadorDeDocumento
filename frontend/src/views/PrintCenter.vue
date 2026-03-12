@@ -76,7 +76,7 @@
                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
                 ]"
               >
-                ⬆️ Upload da Minha Máquina
+                ⬆️ Enviar Novo Lote
               </button>
             </div>
 
@@ -99,26 +99,56 @@
                 v-if="config.lotes.length === 0"
                 class="text-sm text-yellow-600 mt-1"
               >
-                Nenhum lote encontrado. Coloque arquivos na pasta
-                <code class="bg-yellow-100 px-1 rounded"
-                  >printcenter/lotes/</code
-                >
+                Nenhum lote encontrado. Use o botão abaixo para enviar um arquivo de produção.
               </p>
             </div>
 
-            <!-- Upload de Arquivo de Produção -->
+            <!-- Upload de Arquivo de Produção (salva no servidor) -->
             <div v-if="modoProducao === 'upload'">
-              <input
-                ref="producaoFileInput"
-                type="file"
-                accept=".txt,*"
-                @change="handleProducaoFileChange"
-                class="file-input"
-              />
-              <p class="text-sm text-gray-500 mt-1">
-                Selecione o arquivo de produção da sua máquina para usar como
-                referência
-              </p>
+              <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
+                :class="{ 'border-blue-400 bg-blue-50': uploadingLote }">
+                <input
+                  ref="loteUploadInput"
+                  type="file"
+                  accept=".txt,*"
+                  @change="handleLoteUpload"
+                  class="hidden"
+                  :disabled="uploadingLote"
+                />
+                <div v-if="!uploadingLote && !loteUploadResult">
+                  <Upload class="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <button
+                    type="button"
+                    @click="$refs.loteUploadInput.click()"
+                    class="text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Selecionar arquivo de produção
+                  </button>
+                  <p class="text-sm text-gray-500 mt-1">
+                    O arquivo será salvo no servidor e ficará disponível no dropdown de lotes
+                  </p>
+                </div>
+                <div v-if="uploadingLote" class="py-2">
+                  <Loader2 class="w-6 h-6 text-blue-500 animate-spin mx-auto mb-2" />
+                  <p class="text-sm text-blue-600">Enviando arquivo... ({{ loteUploadProgress }})</p>
+                  <p class="text-xs text-gray-500 mt-1">Arquivos grandes podem demorar alguns minutos</p>
+                </div>
+                <div v-if="loteUploadResult" class="py-2">
+                  <CheckCircle2 class="w-6 h-6 text-green-500 mx-auto mb-2" />
+                  <p class="text-sm text-green-700 font-medium">{{ loteUploadResult.mensagem }}</p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {{ loteUploadResult.tamanho_mb }}MB · {{ loteUploadResult.total_linhas }} linhas · {{ loteUploadResult.total_faturas }} faturas
+                  </p>
+                  <button
+                    type="button"
+                    @click="loteUploadResult = null; loadConfig()"
+                    class="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    ✓ Arquivo disponível no dropdown — clique para atualizar lista
+                  </button>
+                </div>
+              </div>
+              <p v-if="loteUploadError" class="text-sm text-red-600 mt-1">{{ loteUploadError }}</p>
             </div>
           </div>
 
@@ -591,10 +621,12 @@
 import {
   AlertCircle,
   CheckCircle,
+  CheckCircle2,
   Download,
   Loader2,
   Printer,
   RotateCcw,
+  Upload,
 } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import api from "../services/api";
@@ -613,9 +645,15 @@ const configLoaded = ref(false);
 const selectedLote = ref("");
 const userFile = ref(null);
 const userFileInput = ref(null);
-const modoProducao = ref("upload");
-const producaoFile = ref(null);
-const producaoFileInput = ref(null);
+const modoProducao = ref("lote");
+const producaoFile = ref(null); // mantido para reset
+
+// Upload de lote
+const loteUploadInput = ref(null);
+const uploadingLote = ref(false);
+const loteUploadProgress = ref("");
+const loteUploadResult = ref(null);
+const loteUploadError = ref("");
 
 // State
 const isLoading = ref(false);
@@ -643,9 +681,8 @@ const hasResults = computed(() => comparisonResult.value !== null);
 const canSubmit = computed(() => {
   const temArquivoUsuario = !!userFile.value;
   const temLayoutConfigurado = config.value.layout_exists;
-  const temProducao =
-    modoProducao.value === "lote" ? !!selectedLote.value : !!producaoFile.value;
-  return temArquivoUsuario && temLayoutConfigurado && temProducao;
+  const temLoteSelecionado = !!selectedLote.value;
+  return temArquivoUsuario && temLayoutConfigurado && temLoteSelecionado;
 });
 
 const taxaIdentidadeClass = computed(() => {
@@ -681,11 +718,15 @@ const linhasFaturaCompleta = computed(() => {
   );
 });
 
-// Load config on mount
-onMounted(async () => {
+// Load config
+async function loadConfig() {
   try {
     const response = await api.get("/printcenter/config");
     config.value = response.data;
+    // Se tem lotes disponíveis, default para modo lote
+    if (config.value.lotes.length > 0) {
+      modoProducao.value = "lote";
+    }
   } catch (err) {
     console.error("Erro ao carregar configuração PrintCenter:", err);
     error.value =
@@ -693,7 +734,9 @@ onMounted(async () => {
   } finally {
     configLoaded.value = true;
   }
-});
+}
+
+onMounted(loadConfig);
 
 // File handler
 function handleUserFileChange(event) {
@@ -701,9 +744,53 @@ function handleUserFileChange(event) {
   error.value = "";
 }
 
-function handleProducaoFileChange(event) {
-  producaoFile.value = event.target.files[0];
-  error.value = "";
+// Upload de lote (salva no servidor)
+async function handleLoteUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  uploadingLote.value = true;
+  loteUploadError.value = "";
+  loteUploadResult.value = null;
+  loteUploadProgress.value = `${(file.size / (1024 * 1024)).toFixed(1)}MB`;
+
+  try {
+    const formData = new FormData();
+    formData.append("arquivo", file);
+
+    const response = await api.post("/printcenter/upload-lote", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 600000, // 10 minutos para arquivos muito grandes
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          loteUploadProgress.value = `${percent}% de ${(progressEvent.total / (1024 * 1024)).toFixed(1)}MB`;
+        }
+      },
+    });
+
+    loteUploadResult.value = response.data;
+
+    // Recarregar config para atualizar lista de lotes
+    await loadConfig();
+
+    // Selecionar automaticamente o lote que acabou de ser enviado
+    if (response.data.arquivo) {
+      selectedLote.value = response.data.arquivo;
+      modoProducao.value = "lote";
+    }
+  } catch (err) {
+    console.error("Erro no upload do lote:", err);
+    if (err.response?.status === 504 || err.code === 'ECONNABORTED') {
+      loteUploadError.value = "Timeout no upload. Tente novamente ou coloque o arquivo diretamente na pasta printcenter/lotes/ no servidor.";
+    } else {
+      loteUploadError.value = err.response?.data?.detail || err.message || "Erro ao enviar arquivo";
+    }
+  } finally {
+    uploadingLote.value = false;
+    // Limpar o input para permitir re-upload do mesmo arquivo
+    if (loteUploadInput.value) loteUploadInput.value.value = "";
+  }
 }
 
 // Main comparison
@@ -716,13 +803,7 @@ async function handleComparison() {
   try {
     const formData = new FormData();
     formData.append("arquivo_usuario", userFile.value);
-
-    if (modoProducao.value === "lote") {
-      formData.append("lote_arquivo", selectedLote.value);
-    } else {
-      formData.append("lote_arquivo", "");
-      formData.append("arquivo_producao", producaoFile.value);
-    }
+    formData.append("lote_arquivo", selectedLote.value);
 
     const response = await api.post("/printcenter/comparar", formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -735,7 +816,11 @@ async function handleComparison() {
     paginaFaturaAtual.value = 0;
   } catch (err) {
     console.error("Erro na comparação:", err);
-    error.value = err.response?.data?.detail || "Erro interno do servidor";
+    if (err.response?.status === 504 || err.code === 'ECONNABORTED') {
+      error.value = "Timeout: o servidor demorou demais para responder. Tente novamente.";
+    } else {
+      error.value = err.response?.data?.detail || err.message || "Erro interno do servidor";
+    }
   } finally {
     isLoading.value = false;
   }
@@ -755,10 +840,11 @@ function resetComparison() {
   timestamp.value = "";
   userFile.value = null;
   producaoFile.value = null;
+  loteUploadResult.value = null;
+  loteUploadError.value = "";
   error.value = "";
   paginaFaturaAtual.value = 0;
   if (userFileInput.value) userFileInput.value.value = "";
-  if (producaoFileInput.value) producaoFileInput.value.value = "";
 }
 
 // Tooltip functions

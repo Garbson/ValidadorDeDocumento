@@ -47,6 +47,10 @@ api.interceptors.response.use(
       error.message = 'Arquivo muito grande. Tente com um arquivo menor.'
     } else if (error.response?.status === 422) {
       error.message = 'Dados inválidos. Verifique os arquivos enviados.'
+    } else if (error.response?.status === 504) {
+      error.message = 'Timeout do servidor. Para arquivos grandes, coloque o arquivo de produção na pasta printcenter/lotes/ e selecione pelo dropdown ao invés de fazer upload.'
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      error.message = 'A requisição excedeu o tempo limite. Para arquivos grandes, use o lote local ao invés de upload.'
     } else if (error.response?.status >= 500) {
       error.message = 'Erro interno do servidor. Tente novamente mais tarde.'
     }
