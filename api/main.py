@@ -1119,17 +1119,17 @@ TIPOS_COBILLING = {'15', '16', '17', '18', '19'}
 
 # Campos ignorados por modelo
 CAMPOS_IGNORADOS_MODELO62 = {
-    'NFCOM01-Nº CPS/Fatura', 'NFCOM01-Dt Emissão', 'NFCOM00-Data Geração',
-    'NFCOM40-Dt Emissão', 'NFCOM40-Tipo = 40', 'NFCOM46-Tipo = 46',
-    'NFCOM48-Tipo = 48', 'NFCOM50-Tipo = 50', 'NFCOM50-Filler',
+    'NFCOM01-Número da CPS/Fatura', 'NFCOM01-Data da Emissão', 'NFCOM00-Data da Geração do Arquivo',
+    'NFCOM40-Data Emissão da Nota Fiscal', 'NFCOM40-Tipo de Registro = 40', 'NFCOM46-Tipo de Registro = 46',
+    'NFCOM48-Tipo de Registro = 48', 'NFCOM50-Tipo de Registro = 50', 'NFCOM50-Filler',
 }
 CAMPOS_IGNORADOS_MODELO22 = {
-    'NFCOM01-Nº CPS/Fatura', 'NFCOM01-Dt Emissão', 'NFCOM00-Data Geração',
-    'NFCOM10-Dt Emissão', 'NFCOM10-Nº CPS', 'NFCOM15-Dt Emissão', 'NFCOM15-Nº CPS',
+    'NFCOM01-Número da CPS/Fatura', 'NFCOM01-Data da Emissão', 'NFCOM00-Data da Geração do Arquivo',
+    'NFCOM10-Data Emissão da Nota Fiscal', 'NFCOM10-Número da CPS/Fatura', 'NFCOM15-Data Emissão da Nota Fiscal', 'NFCOM15-Número da CPS/Fatura',
 }
 
 # Hash-Code: ignorar se preenchido no DEV, reportar se vazio
-CAMPOS_HASH_CODE = {'NFCOM13-Hash-Code', 'NFCOM19-Hash-Code', 'NFCOM50-Hash-Code'}
+CAMPOS_HASH_CODE = {'NFCOM13-Hash-Code editado', 'NFCOM19-Hash-Code operadora', 'NFCOM50-Hash-Code editado'}
 
 
 def _detectar_modelo(linhas):
@@ -1394,10 +1394,10 @@ async def printcenter_comparar(
         campos_ignorar_se_preenchido = getattr(layout, 'campos_ignorar_se_preenchido', [])
 
         # Campos que sempre serão diferentes entre arquivos
-        campos_ignorados.add('NFCOM01-Nº CPS/Fatura')
-        campos_ignorados.add('NFCOM01-Dt Emissão')
-        campos_ignorados.add('NFCOM00-Data Geração')
-        campos_ignorados.add('NFCOM01-Tipo: 1=Fat, 2=DANFE, 3=Ambos')
+        campos_ignorados.add('NFCOM01-Número da CPS/Fatura')
+        campos_ignorados.add('NFCOM01-Data da Emissão')
+        campos_ignorados.add('NFCOM00-Data da Geração do Arquivo')
+        campos_ignorados.add('NFCOM01-Indicador do tipo de cobrança : Fatura')
 
         comparador = ComparadorEstruturalArquivos(layout,
             campos_ignorados=campos_ignorados,
