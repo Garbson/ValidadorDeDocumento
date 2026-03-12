@@ -1418,51 +1418,45 @@ async def printcenter_comparar(
         sheet_index = config.get("sheet_index", 0)
         layout = parse_printcenter_layout(str(layout_path), sheet_name=sheet_index)
 
-        # Advanced model detection and alignment
-        def _detectar_modelo(linhas):
-            for linha in linhas:
-                if "Hash-Code" in linha:
-                    return "hashcode"
-                if "Fatura" in linha:
-                    return "fatura"
+        # Detecção de modelo lendo apenas as primeiras linhas (economiza memória)
+        def _detectar_modelo_streaming(caminho: str, max_linhas=100):
+            for enc in ['utf-8', 'latin-1']:
+                try:
+                    with open(caminho, 'r', encoding=enc) as f:
+                        for i, linha in enumerate(f):
+                            if i >= max_linhas:
+                                break
+                            if "Hash-Code" in linha:
+                                return "hashcode"
+                            if "Fatura" in linha:
+                                return "fatura"
+                    return "padrao"
+                except UnicodeDecodeError:
+                    continue
             return "padrao"
 
-        def _ler_linhas_arquivo(caminho: str):
-            linhas = []
-            try:
-                with open(caminho, 'r', encoding='utf-8') as f:
-                    for linha in f:
-                        linhas.append(linha.rstrip('\n\r'))
-            except UnicodeDecodeError:
-                with open(caminho, 'r', encoding='latin-1') as f:
-                    for linha in f:
-                        linhas.append(linha.rstrip('\n\r'))
-            return linhas
+        modelo_usuario = _detectar_modelo_streaming(str(temp_usuario))
+        modelo_producao = _detectar_modelo_streaming(producao_path)
 
-        linhas_usuario = _ler_linhas_arquivo(str(temp_usuario))
-        linhas_producao = _ler_linhas_arquivo(producao_path)
-        modelo_usuario = _detectar_modelo(linhas_usuario)
-        modelo_producao = _detectar_modelo(linhas_producao)
-
-        # Alignment logic (if needed)
-        def _construir_arquivo_alinhado(linhas_dev, linhas_prod, modelo):
-            # Placeholder: implement alignment if needed
-            return linhas_dev, linhas_prod
-
-        linhas_usuario_alinhado, linhas_producao_alinhado = _construir_arquivo_alinhado(linhas_usuario, linhas_producao, modelo_usuario)
-
-        # Fatura mapping logic
-        def _extrair_mapa_faturas(caminho_arquivo: str):
+        # Mapa de faturas lendo em streaming (não carrega arquivo inteiro)
+        def _extrair_mapa_faturas_streaming(caminho_arquivo: str):
             mapa = {}
-            linhas = _ler_linhas_arquivo(caminho_arquivo)
-            for idx, linha in enumerate(linhas, 1):
-                if "Fatura" in linha:
-                    fatura = linha.split()[1] if len(linha.split()) > 1 else ""
-                    mapa[fatura] = idx
+            for enc in ['utf-8', 'latin-1']:
+                try:
+                    with open(caminho_arquivo, 'r', encoding=enc) as f:
+                        for idx, linha in enumerate(f, 1):
+                            linha = linha.rstrip('\n\r')
+                            if "Fatura" in linha:
+                                partes = linha.split()
+                                fatura = partes[1] if len(partes) > 1 else ""
+                                mapa[fatura] = idx
+                    break
+                except UnicodeDecodeError:
+                    continue
             return mapa
 
-        mapa_faturas_usuario = _extrair_mapa_faturas(str(temp_usuario))
-        mapa_faturas_producao = _extrair_mapa_faturas(producao_path)
+        mapa_faturas_usuario = _extrair_mapa_faturas_streaming(str(temp_usuario))
+        mapa_faturas_producao = _extrair_mapa_faturas_streaming(producao_path)
 
         # Hash-Code conditional comparison
         campos_ignorados = set(getattr(layout, 'campos_ignorados', []))

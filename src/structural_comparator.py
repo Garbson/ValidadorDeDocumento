@@ -294,47 +294,69 @@ class ComparadorEstruturalArquivos:
                     linhas.append((numero_linha, linha))
         return linhas
 
-    def agrupar_por_fatura(self, caminho_arquivo: str) -> Dict[str, Dict[str, List[Tuple[int, str]]]]:
+    def agrupar_por_fatura(self, caminho_arquivo: str, contas_filtro: set = None) -> Dict[str, Dict[str, List[Tuple[int, str]]]]:
         """Agrupa linhas do arquivo por fatura (Conta do Cliente) e dentro de cada fatura por tipo de registro.
 
         Cada fatura começa com uma linha tipo '01'. A Conta do Cliente são os caracteres nas posições 3-17 (15 chars).
         Ignora tipo '99' (trailer). Inclui tipo '00' (header) como chave separada.
 
+        Args:
+            caminho_arquivo: Caminho do arquivo a ser lido
+            contas_filtro: Se fornecido, só carrega faturas dessas contas (otimização de memória para arquivos grandes)
+
         Retorna: { conta_cliente: { tipo_registro: [(num_linha, linha), ...] } }
         """
-        todas_linhas = self._ler_linhas_arquivo(caminho_arquivo)
         faturas = {}  # conta_cliente -> { tipo_registro -> [(num_linha, linha)] }
         conta_atual = None
+        conta_ativa = True  # Se a conta atual deve ser carregada
 
-        for numero_linha, linha in todas_linhas:
-            tipo_registro = self.detectar_tipo_registro(linha)
+        # Ler arquivo linha por linha (streaming) para economizar memória
+        encodings = ['utf-8', 'latin-1']
+        for encoding in encodings:
+            try:
+                with open(caminho_arquivo, 'r', encoding=encoding) as arquivo:
+                    for numero_linha, linha_raw in enumerate(arquivo, 1):
+                        linha = linha_raw.rstrip('\n\r')
+                        if len(linha) < 2:
+                            continue
+                        if len(linha) < self.layout.tamanho_linha:
+                            linha = linha.ljust(self.layout.tamanho_linha)
 
-            # Ignorar trailer
-            if tipo_registro == '99':
+                        tipo_registro = self.detectar_tipo_registro(linha)
+
+                        # Ignorar trailer
+                        if tipo_registro == '99':
+                            continue
+
+                        # Header vai em chave especial
+                        if tipo_registro == '00':
+                            if '__header__' not in faturas:
+                                faturas['__header__'] = {}
+                            if '00' not in faturas['__header__']:
+                                faturas['__header__']['00'] = []
+                            faturas['__header__']['00'].append((numero_linha, linha))
+                            continue
+
+                        # Tipo 01 inicia nova fatura
+                        if tipo_registro == '01':
+                            conta_atual = linha[2:17]  # Conta do Cliente: posições 3-17
+                            # Se temos filtro, só carregar contas que interessam
+                            conta_ativa = contas_filtro is None or conta_atual in contas_filtro
+                            if conta_ativa and conta_atual not in faturas:
+                                faturas[conta_atual] = {}
+
+                        # Se não temos fatura atual ou conta não interessa, pular
+                        if conta_atual is None or not conta_ativa:
+                            continue
+
+                        if tipo_registro not in faturas[conta_atual]:
+                            faturas[conta_atual][tipo_registro] = []
+                        faturas[conta_atual][tipo_registro].append((numero_linha, linha))
+                break  # Encoding funcionou
+            except UnicodeDecodeError:
+                if encoding == encodings[-1]:
+                    raise
                 continue
-
-            # Header vai em chave especial
-            if tipo_registro == '00':
-                if '__header__' not in faturas:
-                    faturas['__header__'] = {}
-                if '00' not in faturas['__header__']:
-                    faturas['__header__']['00'] = []
-                faturas['__header__']['00'].append((numero_linha, linha))
-                continue
-
-            # Tipo 01 inicia nova fatura
-            if tipo_registro == '01':
-                conta_atual = linha[2:17]  # Conta do Cliente: posições 3-17 (0-indexed: 2:17)
-                if conta_atual not in faturas:
-                    faturas[conta_atual] = {}
-
-            # Se não temos fatura atual, pular
-            if conta_atual is None:
-                continue
-
-            if tipo_registro not in faturas[conta_atual]:
-                faturas[conta_atual][tipo_registro] = []
-            faturas[conta_atual][tipo_registro].append((numero_linha, linha))
 
         return faturas
 
@@ -483,8 +505,14 @@ class ComparadorEstruturalArquivos:
         4. Dentro de cada fatura pareada, compara por tipo de registro com mapeamento (88↔05, 87↔09)
         5. Tipos 02/03 são pareados por Sigla Serviço para garantir comparação correta
         """
-        faturas_base = self.agrupar_por_fatura(caminho_base)
+        # Primeiro ler o arquivo do usuário (pequeno) para saber quais contas buscar
         faturas_validado = self.agrupar_por_fatura(caminho_validado)
+
+        # Extrair contas do usuário para filtrar o arquivo de produção (otimização de memória)
+        contas_usuario = {c for c in faturas_validado.keys() if c != '__header__'}
+
+        # Ler arquivo de produção carregando APENAS as contas do usuário + header
+        faturas_base = self.agrupar_por_fatura(caminho_base, contas_filtro=contas_usuario)
 
         total_linhas = 0
         linhas_com_diferencas = 0
