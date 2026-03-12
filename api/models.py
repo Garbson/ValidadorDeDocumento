@@ -139,6 +139,16 @@ class DiferencaEstruturalLinhaResponse(BaseModel):
     total_diferencas: int
 
 
+class FaturaComparadaResponse(BaseModel):
+    conta_cliente: str
+    cps_fatura: str
+    todas_linhas: List[DiferencaEstruturalLinhaResponse]
+    diferencas_por_linha: List[DiferencaEstruturalLinhaResponse]
+    total_linhas: int
+    linhas_com_diferencas: int
+    linhas_identicas: int
+
+
 class ResultadoComparacaoEstruturalResponse(BaseModel):
     total_linhas_comparadas: int
     linhas_com_diferencas: int
@@ -147,6 +157,7 @@ class ResultadoComparacaoEstruturalResponse(BaseModel):
     todas_linhas: Optional[List[DiferencaEstruturalLinhaResponse]] = None
     taxa_identidade: float
     contas_nao_encontradas: List[str] = []
+    faturas_comparadas: List[FaturaComparadaResponse] = []
 
 
 class ComparacaoEstruturalCompleta(BaseModel):

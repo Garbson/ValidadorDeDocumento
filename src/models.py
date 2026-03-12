@@ -81,6 +81,18 @@ class DiferencaEstruturalLinha:
 
 
 @dataclass
+class FaturaComparada:
+    """Resultado da comparação de uma fatura individual"""
+    conta_cliente: str
+    cps_fatura: str
+    todas_linhas: List[DiferencaEstruturalLinha]
+    diferencas_por_linha: List[DiferencaEstruturalLinha]
+    total_linhas: int
+    linhas_com_diferencas: int
+    linhas_identicas: int
+
+
+@dataclass
 class ResultadoComparacaoEstrutural:
     """Resultado completo da comparação estrutural"""
     total_linhas_comparadas: int
@@ -90,11 +102,14 @@ class ResultadoComparacaoEstrutural:
     todas_linhas: List[DiferencaEstruturalLinha]
     taxa_identidade: float
     contas_nao_encontradas: List[str] = None
+    faturas_comparadas: List[FaturaComparada] = None
 
     def __post_init__(self):
         """Calcula taxa de identidade"""
         if self.contas_nao_encontradas is None:
             self.contas_nao_encontradas = []
+        if self.faturas_comparadas is None:
+            self.faturas_comparadas = []
         if self.total_linhas_comparadas > 0:
             self.taxa_identidade = (self.linhas_identicas / self.total_linhas_comparadas) * 100
         else:

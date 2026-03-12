@@ -252,20 +252,56 @@
         </div>
       </div>
 
-      <!-- Diferenças Detalhadas -->
+      <!-- Paginação por Fatura -->
       <div
-        v-if="comparisonResult?.diferencas_por_linha?.length > 0"
+        v-if="faturasComparadas.length > 0 && faturaAtual"
         class="card"
       >
+        <!-- Navegação entre faturas -->
         <div class="card-header">
-          <h3 class="text-lg font-semibold">Diferenças Encontradas</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold">
+                <span v-if="faturaAtual.conta_cliente === 'HEADER'">Header (Tipo 00)</span>
+                <span v-else>
+                  Fatura: CPS {{ faturaAtual.cps_fatura }} | Conta {{ faturaAtual.conta_cliente }}
+                </span>
+              </h3>
+              <p class="text-sm text-gray-500 mt-1">
+                {{ faturaAtual.total_linhas }} linhas |
+                <span class="text-red-600">{{ faturaAtual.linhas_com_diferencas }} com diferenças</span> |
+                <span class="text-green-600">{{ faturaAtual.linhas_identicas }} idênticas</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-3 py-1 rounded border text-sm"
+                :class="paginaFaturaAtual > 0 ? 'bg-white hover:bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                :disabled="paginaFaturaAtual <= 0"
+                @click="faturaAnterior"
+              >
+                Anterior
+              </button>
+              <span class="text-sm font-medium px-2">
+                {{ paginaFaturaAtual + 1 }} / {{ totalFaturas }}
+              </span>
+              <button
+                class="px-3 py-1 rounded border text-sm"
+                :class="paginaFaturaAtual < totalFaturas - 1 ? 'bg-white hover:bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                :disabled="paginaFaturaAtual >= totalFaturas - 1"
+                @click="proximaFatura"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
         </div>
         <div class="card-body">
           <div class="space-y-6">
             <div
               v-for="(
                 diferenca, index
-              ) in comparisonResult.diferencas_por_linha"
+              ) in faturaAtual.diferencas_por_linha"
               :key="index"
               class="border border-gray-200 rounded-lg p-4"
             >
@@ -588,6 +624,7 @@ const comparisonResult = ref(null);
 const reportText = ref("");
 const timestamp = ref("");
 const layoutData = ref({ campos: [] });
+const paginaFaturaAtual = ref(0);
 
 // Tooltip
 const tooltipInfo = ref({
@@ -617,6 +654,19 @@ const taxaIdentidadeClass = computed(() => {
   if (taxa >= 80) return "text-yellow-600";
   return "text-red-600";
 });
+
+// Paginação por fatura
+const faturasComparadas = computed(() => comparisonResult.value?.faturas_comparadas || []);
+const totalFaturas = computed(() => faturasComparadas.value.length);
+const faturaAtual = computed(() => faturasComparadas.value[paginaFaturaAtual.value] || null);
+
+function irParaFatura(index) {
+  if (index >= 0 && index < totalFaturas.value) {
+    paginaFaturaAtual.value = index;
+  }
+}
+function faturaAnterior() { irParaFatura(paginaFaturaAtual.value - 1); }
+function proximaFatura() { irParaFatura(paginaFaturaAtual.value + 1); }
 
 /**
  * Retorna todas as linhas da fatura selecionada (para visualização completa).
@@ -682,6 +732,7 @@ async function handleComparison() {
     reportText.value = response.data.relatorio_texto;
     timestamp.value = response.data.timestamp;
     layoutData.value = response.data.layout;
+    paginaFaturaAtual.value = 0;
   } catch (err) {
     console.error("Erro na comparação:", err);
     error.value = err.response?.data?.detail || "Erro interno do servidor";
@@ -705,6 +756,7 @@ function resetComparison() {
   userFile.value = null;
   producaoFile.value = null;
   error.value = "";
+  paginaFaturaAtual.value = 0;
   if (userFileInput.value) userFileInput.value.value = "";
   if (producaoFileInput.value) producaoFileInput.value.value = "";
 }

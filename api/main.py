@@ -40,6 +40,7 @@ from .models import (
     StatusResponse, ErrorResponse, RegistroPreviewResponse,
     DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
     ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta,
+    FaturaComparadaResponse,
     ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse
 )
 
@@ -354,11 +355,10 @@ def gerar_estatisticas(resultado) -> EstatisticasResponse:
     )
 
 
-def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparacaoEstruturalResponse:
-    """Converte resultado de comparação estrutural para response da API"""
-    diferencas_response = []
-
-    for diferenca_linha in resultado.diferencas_por_linha:
+def _converter_linhas_para_response(linhas) -> List[DiferencaEstruturalLinhaResponse]:
+    """Converte lista de DiferencaEstruturalLinha para response"""
+    response = []
+    for diferenca_linha in linhas:
         campos_response = []
         for campo_diff in diferenca_linha.diferencas_campos:
             campos_response.append(DiferencaEstruturalCampoResponse(
@@ -371,13 +371,32 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
                 descricao=campo_diff.descricao
             ))
 
-        diferencas_response.append(DiferencaEstruturalLinhaResponse(
+        response.append(DiferencaEstruturalLinhaResponse(
             numero_linha=diferenca_linha.numero_linha,
             tipo_registro=diferenca_linha.tipo_registro,
             arquivo_base_linha=diferenca_linha.arquivo_base_linha,
             arquivo_validado_linha=diferenca_linha.arquivo_validado_linha,
             diferencas_campos=campos_response,
             total_diferencas=diferenca_linha.total_diferencas
+        ))
+    return response
+
+
+def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparacaoEstruturalResponse:
+    """Converte resultado de comparação estrutural para response da API"""
+    diferencas_response = _converter_linhas_para_response(resultado.diferencas_por_linha)
+
+    # Converter faturas comparadas
+    faturas_response = []
+    for fatura in getattr(resultado, 'faturas_comparadas', []):
+        faturas_response.append(FaturaComparadaResponse(
+            conta_cliente=fatura.conta_cliente,
+            cps_fatura=fatura.cps_fatura,
+            todas_linhas=_converter_linhas_para_response(fatura.todas_linhas),
+            diferencas_por_linha=_converter_linhas_para_response(fatura.diferencas_por_linha),
+            total_linhas=fatura.total_linhas,
+            linhas_com_diferencas=fatura.linhas_com_diferencas,
+            linhas_identicas=fatura.linhas_identicas
         ))
 
     return ResultadoComparacaoEstruturalResponse(
@@ -386,7 +405,8 @@ def converter_resultado_comparacao_para_response(resultado) -> ResultadoComparac
         linhas_identicas=resultado.linhas_identicas,
         diferencas_por_linha=diferencas_response,
         taxa_identidade=resultado.taxa_identidade,
-        contas_nao_encontradas=getattr(resultado, 'contas_nao_encontradas', [])
+        contas_nao_encontradas=getattr(resultado, 'contas_nao_encontradas', []),
+        faturas_comparadas=faturas_response
     )
     
 
@@ -1373,9 +1393,11 @@ async def printcenter_comparar(
         campos_ignorados = set(getattr(layout, 'campos_ignorados', []))
         campos_ignorar_se_preenchido = getattr(layout, 'campos_ignorar_se_preenchido', [])
 
-        # Campos que sempre serão diferentes entre arquivos (CPS e Data Emissão)
+        # Campos que sempre serão diferentes entre arquivos
         campos_ignorados.add('NFCOM01-Nº CPS/Fatura')
         campos_ignorados.add('NFCOM01-Dt Emissão')
+        campos_ignorados.add('NFCOM00-Data Geração')
+        campos_ignorados.add('NFCOM01-Tipo: 1=Fat, 2=DANFE, 3=Ambos')
 
         comparador = ComparadorEstruturalArquivos(layout,
             campos_ignorados=campos_ignorados,
