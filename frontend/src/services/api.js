@@ -59,4 +59,28 @@ api.interceptors.response.use(
   }
 )
 
+export const identificarCenarios = (arquivo) => {
+  const formData = new FormData()
+  formData.append('arquivo', arquivo)
+  return api.post('/identificar-cenarios', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+export const getCamposLayout = () => {
+  return api.get('/campos-layout')
+}
+
+export const buscarPorCampo = (arquivo, tipoRegistro, posicaoDe, posicaoAte, valorBusca) => {
+  const formData = new FormData()
+  formData.append('arquivo', arquivo)
+  formData.append('tipo_registro', tipoRegistro)
+  formData.append('posicao_de', posicaoDe)
+  formData.append('posicao_ate', posicaoAte)
+  formData.append('valor_busca', valorBusca)
+  return api.post('/buscar-por-campo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
 export default api

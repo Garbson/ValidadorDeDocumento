@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import Counter
 from typing import Dict, Any, Optional, List
+import pandas as pd
 
 # Adicionar src ao path
 # UPDATED: 2024-11-30 - Forçar reload após correção arredondamento
@@ -20,11 +21,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from src.layout_parser import LayoutParser
-from src.layout_normalizer import (
-    map_layout_file, normalize_dataframe, suggest_mapping, analyze_mapping,
-    CANONICAL_COLUMNS, headers_signature, get_cached_mapping, save_cached_mapping,
-    list_excel_sheets, find_header_row
-)
+from src.layout_normalizer import list_excel_sheets
 from src.file_validator import ValidadorArquivo
 from src.enhanced_validator import EnhancedValidator
 from src.multi_record_validator import MultiRecordValidator
@@ -32,6 +29,7 @@ from src.structural_comparator import ComparadorEstruturalArquivos
 from src.report_generator import GeradorRelatorio
 from src.models import TipoCampo, Layout
 from src.printcenter_parser import parse_printcenter_layout
+from src.scenario_identifier import identificar_cenarios, buscar_faturas_por_campo
 
 from .models import (
     LayoutResponse, CampoLayoutResponse, TipoCampoAPI,
@@ -41,7 +39,9 @@ from .models import (
     DiferencaEstruturalCampoResponse, DiferencaEstruturalLinhaResponse,
     ResultadoComparacaoEstruturalResponse, ComparacaoEstruturalCompleta,
     FaturaComparadaResponse,
-    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse
+    ResultadoCalculosResponse, TotaisCalculadosResponse, EstatisticasFaturasResponse,
+    FaturaCenarioResponse, CenarioIdentificadoResponse,
+    CampoLayoutPrintCenterResponse, LayoutPrintCenterResponse,
 )
 
 app = FastAPI(
@@ -521,85 +521,6 @@ async def listar_abas_excel(layout_file: UploadFile = File(...)):
             os.remove(temp_layout)
 
 
-@app.post("/api/mapear-layout")
-async def mapear_layout(
-    layout_file: UploadFile = File(...),
-    sheet_name: Optional[int] = Form(None)
-):
-    """Realiza mapeamento automático das colunas de um layout Excel sem validar estrutura completa.
-    Retorna cache se já existir para a assinatura de cabeçalhos.
-
-    Args:
-        layout_file: Arquivo Excel
-        sheet_name: Índice da aba (0=primeira, 1=segunda, etc.). Se None, usa primeira aba.
-    """
-    if not layout_file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
-    temp_layout = UPLOAD_DIR / f"map_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{layout_file.filename}"
-    try:
-        content = await layout_file.read()
-        with open(temp_layout, "wb") as buffer:
-            buffer.write(content)
-        import pandas as pd
-
-        # Usar sheet_name para ler cabeçalhos
-        sheet_index = sheet_name if sheet_name is not None else 0
-
-        # Detectar linha de cabeçalho automaticamente
-        header_row = find_header_row(str(temp_layout), sheet_index)
-        df_head = pd.read_excel(temp_layout, nrows=0, sheet_name=sheet_index, header=header_row)
-        signature = headers_signature(list(df_head.columns))
-        cached = get_cached_mapping(signature)
-
-        # Se cache não tem normalized_rows ou original_samples, regenerar
-        needs_regen = cached and (not cached.get("normalized_rows") or not cached.get("original_samples"))
-
-        result = map_layout_file(str(temp_layout), sheet_name=sheet_index) if (not cached or needs_regen) else None
-        
-        # Se cached não possui novos campos manter compatibilidade
-        response = {
-            "signature": signature,
-            "cached": cached is not None and not needs_regen,
-            "mapping": cached["mapping"] if (cached and not needs_regen) else result.mapping,
-            "analysis": cached["analysis"] if (cached and not needs_regen) else result.analysis,
-            "warnings": cached.get("warnings", []) if (cached and not needs_regen) else result.warnings,
-            "sample": cached.get("sample", []) if (cached and not needs_regen) else result.sample,
-            "canonical_columns": CANONICAL_COLUMNS,
-            "original_samples": cached.get("original_samples", {}) if (cached and not needs_regen) else result.original_samples,
-            "normalized_rows": cached.get("normalized_rows", []) if (cached and not needs_regen) else result.normalized_rows,
-            "original_headers": list(df_head.columns),
-            "sheet_name": sheet_index,
-            "selected_sheet": sheet_index
-        }
-        return response
-    except Exception as e:
-        import traceback
-        error_detail = f"Erro ao mapear layout: {str(e)}"
-        print(f"Erro no mapeamento de layout: {error_detail}")
-        print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=400, detail=error_detail)
-    finally:
-        if temp_layout.exists():
-            os.remove(temp_layout)
-
-
-class SaveMappingRequest(BaseModel):  # type: ignore
-    signature: str
-    mapping: Dict[str, Optional[str]]
-    analysis: Dict[str, Any]
-    sample: List[Dict[str, Any]] = []
-    warnings: List[str] = []
-    original_samples: Dict[str, List[str]] = {}
-    normalized_rows: List[Dict[str, Any]] = []
-
-
-@app.post("/api/layout-mappings")
-async def salvar_mapping(data: SaveMappingRequest):
-    """Salva mapeamento customizado no cache."""
-    save_cached_mapping(data.signature, data.dict())
-    return {"saved": True}
-
-
 class CustomCampo(BaseModel):  # type: ignore
     nome: str
     posicao_inicio: int
@@ -686,55 +607,6 @@ async def exportar_layout(req: ExportLayoutRequest):
         raise HTTPException(status_code=400, detail=f"Erro ao exportar layout: {str(e)}")
 
 
-
-
-@app.get("/api/layout-mappings/{signature}")
-async def obter_mapping(signature: str):
-    cached = get_cached_mapping(signature)
-    if not cached:
-        raise HTTPException(status_code=404, detail="Mapping não encontrado")
-    return cached
-
-
-class CustomLayoutRequest(BaseModel):  # type: ignore
-    nome: str
-    campos: List[CustomCampo]
-
-
-@app.post("/api/layout-custom")
-async def layout_custom(data: CustomLayoutRequest):
-    """Recebe layout customizado (após usuário editar colunas) e retorna LayoutResponse compatível."""
-    try:
-        # Validar campos básicos
-        if not data.campos:
-            raise HTTPException(status_code=400, detail="Lista de campos vazia")
-        # Construir objeto fake similar ao LayoutParser
-        from types import SimpleNamespace
-        campos_objs = []
-        tamanho_linha = 0
-        for c in data.campos:
-            if c.posicao_inicio <= 0 or c.tamanho <= 0:
-                raise HTTPException(status_code=400, detail=f"Campo {c.nome}: posição e tamanho devem ser > 0")
-            pos_fim = c.posicao_inicio + c.tamanho - 1
-            tamanho_linha = max(tamanho_linha, pos_fim)
-            tipo_upper = c.tipo.upper()
-            if tipo_upper not in [t.value for t in TipoCampo]:
-                raise HTTPException(status_code=400, detail=f"Tipo inválido: {c.tipo}")
-            campos_objs.append(SimpleNamespace(
-                nome=c.nome,
-                posicao_inicio=c.posicao_inicio,
-                posicao_fim=pos_fim,
-                tamanho=c.tamanho,
-                tipo=SimpleNamespace(value=tipo_upper),
-                obrigatorio=c.obrigatorio,
-                formato=c.formato
-            ))
-        layout_fake = SimpleNamespace(nome=data.nome, campos=campos_objs, tamanho_linha=tamanho_linha)
-        return converter_layout_para_response(layout_fake)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao processar layout customizado: {str(e)}")
 
 
 @app.post("/api/validar-arquivo")
@@ -1506,6 +1378,223 @@ async def printcenter_comparar(
             os.remove(temp_usuario)
         if temp_producao and temp_producao.exists():
             os.remove(temp_producao)
+
+
+@app.post("/api/identificar-cenarios")
+async def identificar_cenarios_endpoint(
+    arquivo: UploadFile = File(...),
+):
+    """Identifica cenários (ICMS, ISS, Cobilling, etc.) nas faturas de um arquivo TXT.
+
+    Não necessita de layout Excel - usa posições fixas para identificar
+    tipos de registro e flags.
+    """
+    if not arquivo.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser TXT")
+
+    temp_arquivo = None
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_arquivo = UPLOAD_DIR / f"cenarios_{timestamp}_{arquivo.filename}"
+        with open(temp_arquivo, "wb") as buffer:
+            content = await arquivo.read()
+            buffer.write(content)
+
+        resultado = identificar_cenarios(str(temp_arquivo))
+
+        return CenarioIdentificadoResponse(
+            cenarios_encontrados=resultado.cenarios_encontrados,
+            contagem_por_cenario=resultado.contagem_por_cenario,
+            faturas=[
+                FaturaCenarioResponse(
+                    conta_cliente=f.conta_cliente,
+                    cps_fatura=f.cps_fatura,
+                    cenarios=f.cenarios,
+                    tipos_registro=f.tipos_registro,
+                    linha_inicio=f.linha_inicio,
+                    total_linhas=f.total_linhas,
+                    debito_automatico=f.debito_automatico,
+                    isencao=f.isencao,
+                    aliquota_icms=f.aliquota_icms,
+                    valor_isentos=f.valor_isentos,
+                    retencao={
+                        'percentual': f.retencao.percentual,
+                        'valor': f.retencao.valor,
+                        'tipo': f.retencao.tipo,
+                        'detalhes': f.retencao.detalhes,
+                        'texto_original': f.retencao.texto_original,
+                    } if f.retencao else None,
+                    mensagens=f.mensagens if f.mensagens else None,
+                )
+                for f in resultado.faturas
+            ],
+            total_faturas=resultado.total_faturas,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao identificar cenários: {str(e)}")
+    finally:
+        if temp_arquivo and temp_arquivo.exists():
+            os.remove(temp_arquivo)
+
+
+@app.get("/api/campos-layout")
+async def get_campos_layout():
+    """Retorna todos os campos do layout PrintCenter com código TT.NN.
+
+    Usa o layout padrão em printcenter/layout/.
+    """
+    import re
+
+    layout_dir = Path(__file__).parent.parent / "printcenter" / "layout"
+    layout_files = list(layout_dir.glob("*.xlsx"))
+
+    if not layout_files:
+        raise HTTPException(status_code=404, detail="Nenhum layout PrintCenter encontrado na pasta printcenter/layout/")
+
+    layout_path = layout_files[0]
+
+    try:
+        df_raw = pd.read_excel(str(layout_path), sheet_name=0, header=None)
+
+        # Encontrar linha de cabeçalho
+        header_row = None
+        for idx, row in df_raw.iterrows():
+            vals = [str(v).strip().lower().replace('ã', 'a').replace('á', 'a')
+                    for v in row.values if pd.notna(v)]
+            if 'campo' in vals:
+                header_row = idx
+                break
+
+        if header_row is None:
+            raise ValueError("Cabeçalho não encontrado no layout")
+
+        df = pd.read_excel(str(layout_path), sheet_name=0, header=header_row)
+
+        # Normalizar colunas
+        col_map = {}
+        for col in df.columns:
+            col_norm = str(col).strip().lower().replace('ã', 'a').replace('á', 'a').replace('ç', 'c').replace('é', 'e').replace('ú', 'u')
+            if col_norm == 'campo':
+                col_map[col] = 'Campo'
+            elif 'posic' in col_norm and 'de' in col_norm:
+                col_map[col] = 'De'
+            elif col_norm == 'de':
+                col_map[col] = 'De'
+            elif 'posic' in col_norm and 'ate' in col_norm:
+                col_map[col] = 'Ate'
+            elif col_norm in ('ate', 'ate'):
+                col_map[col] = 'Ate'
+            elif col_norm == 'picture':
+                col_map[col] = 'Picture'
+            elif 'conteudo' in col_norm or 'descri' in col_norm:
+                col_map[col] = 'Conteudo'
+        df = df.rename(columns=col_map)
+
+        campo_pattern = re.compile(r'^(\d{2})\.(\d{2,3})$')
+        campos = []
+        tipos_registro = set()
+
+        for _, row in df.iterrows():
+            campo_val = str(row.get('Campo', '')).strip() if pd.notna(row.get('Campo')) else ''
+            match = campo_pattern.match(campo_val)
+            if not match:
+                continue
+
+            tipo_reg = match.group(1)
+            tipos_registro.add(tipo_reg)
+
+            try:
+                pos_de = int(float(row['De']))
+                pos_ate = int(float(row['Ate']))
+            except (ValueError, TypeError):
+                continue
+
+            if pos_de <= 0 or pos_ate <= 0 or pos_ate < pos_de:
+                continue
+
+            tamanho = pos_ate - pos_de + 1
+            picture = str(row.get('Picture', '')).strip() if pd.notna(row.get('Picture')) else ''
+            conteudo = str(row.get('Conteudo', '')).strip() if pd.notna(row.get('Conteudo')) else f'Campo {campo_val}'
+            nome_limpo = conteudo.split('\n')[0].split('(')[0].strip()
+            if len(nome_limpo) > 80:
+                nome_limpo = nome_limpo[:80]
+
+            # Determinar tipo pelo picture
+            tipo = 'TEXTO'
+            if picture.startswith('9') and 'V' in picture:
+                tipo = 'DECIMAL'
+            elif picture.startswith('9'):
+                tipo = 'NUMERO'
+
+            campos.append(CampoLayoutPrintCenterResponse(
+                codigo=campo_val,
+                nome=nome_limpo,
+                posicao_de=pos_de,
+                posicao_ate=pos_ate,
+                tamanho=tamanho,
+                tipo=tipo,
+                picture=picture,
+                tipo_registro=tipo_reg,
+            ))
+
+        return LayoutPrintCenterResponse(
+            campos=campos,
+            tipos_registro=sorted(tipos_registro),
+            total_campos=len(campos),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao ler layout: {str(e)}")
+
+
+@app.post("/api/buscar-por-campo")
+async def buscar_por_campo_endpoint(
+    arquivo: UploadFile = File(...),
+    tipo_registro: str = Form(...),
+    posicao_de: int = Form(...),
+    posicao_ate: int = Form(...),
+    valor_busca: str = Form(...),
+):
+    """Busca faturas onde um campo específico contém o valor informado.
+
+    Args:
+        arquivo: Arquivo TXT com faturas
+        tipo_registro: Tipo de registro do campo (ex: "01")
+        posicao_de: Posição inicial (1-indexed)
+        posicao_ate: Posição final (1-indexed)
+        valor_busca: Valor a buscar (busca parcial, case-insensitive)
+    """
+    if not arquivo.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser TXT")
+
+    temp_arquivo = None
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_arquivo = UPLOAD_DIR / f"busca_{timestamp}_{arquivo.filename}"
+        with open(temp_arquivo, "wb") as buffer:
+            content = await arquivo.read()
+            buffer.write(content)
+
+        resultados = buscar_faturas_por_campo(
+            str(temp_arquivo), tipo_registro, posicao_de, posicao_ate, valor_busca
+        )
+
+        return {
+            "total_encontradas": len(resultados),
+            "valor_buscado": valor_busca,
+            "campo": f"{tipo_registro}.XX (pos {posicao_de}-{posicao_ate})",
+            "faturas": resultados,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro na busca: {str(e)}")
+    finally:
+        if temp_arquivo and temp_arquivo.exists():
+            os.remove(temp_arquivo)
 
 
 # Catch-all: qualquer rota que não seja /api/* serve o index.html do frontend (Vue Router)

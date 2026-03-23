@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { BarChart3, FileText, Home, Menu, X, GitCompare, Calculator, Printer } from 'lucide-vue-next'
+import { FileText, Home, Menu, X, GitCompare, Calculator, Printer, Search } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const mobileMenuOpen = ref(false)
@@ -86,8 +86,7 @@ const navLinks = [
   { name: 'PrintCenter', path: '/printcenter', label: 'PrintCenter', icon: Printer },
   { name: 'Comparacao', path: '/comparacao', label: 'Comparação', icon: GitCompare },
   { name: 'Calculadora', path: '/calculadora', label: 'Cálculos', icon: Calculator },
-  { name: 'Mapeamento', path: '/mapeamento', label: 'Mapeamento', icon: FileText },
-  { name: 'Reports', path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { name: 'Cenarios', path: '/cenarios', label: 'Cenários', icon: Search },
 ]
 </script>
 

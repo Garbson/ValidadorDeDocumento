@@ -166,3 +166,52 @@ class ComparacaoEstruturalCompleta(BaseModel):
     relatorio_texto: str
     timestamp: str
     dados_comparacao: Optional[Dict] = None  # Dados para localStorage
+
+
+class RetencaoInfoResponse(BaseModel):
+    percentual: str  # Ex: "9,45%", "4,8%", "4,65%"
+    valor: str       # Ex: "R$ 9.210,44"
+    tipo: str = ""   # "CFE LEI", "RBF", "PIS/CSSL/COFINS"
+    detalhes: Optional[Dict] = None  # Para PIS/CSSL/COFINS: breakdown individual
+    texto_original: str = ""
+
+
+class FaturaCenarioResponse(BaseModel):
+    conta_cliente: str
+    cps_fatura: str
+    cenarios: List[str]
+    tipos_registro: List[str]
+    linha_inicio: int
+    total_linhas: int
+    debito_automatico: bool
+    isencao: bool = False
+    aliquota_icms: Optional[str] = None
+    valor_isentos: Optional[str] = None
+    retencao: Optional[RetencaoInfoResponse] = None
+    mensagens: Optional[List[str]] = None
+
+
+class CenarioIdentificadoResponse(BaseModel):
+    cenarios_encontrados: List[str]
+    contagem_por_cenario: Dict[str, int]
+    faturas: List[FaturaCenarioResponse]
+    total_faturas: int
+
+
+class CampoLayoutPrintCenterResponse(BaseModel):
+    """Campo do layout PrintCenter com código TT.NN"""
+    codigo: str  # Ex: "01.02"
+    nome: str  # Ex: "Código de Cliente"
+    posicao_de: int
+    posicao_ate: int
+    tamanho: int
+    tipo: str  # TEXTO, NUMERO, DECIMAL
+    picture: str  # Ex: "9(15)"
+    tipo_registro: str  # Ex: "01"
+
+
+class LayoutPrintCenterResponse(BaseModel):
+    """Lista de campos do layout PrintCenter"""
+    campos: List[CampoLayoutPrintCenterResponse]
+    tipos_registro: List[str]  # Lista de tipos de registro disponíveis
+    total_campos: int
