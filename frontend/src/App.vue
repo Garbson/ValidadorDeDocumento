@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { FileText, Home, Menu, X, GitCompare, Calculator, Printer, Search } from 'lucide-vue-next'
+import { FileText, Home, Menu, X, GitCompare, Calculator, Printer, Search, Clock } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const mobileMenuOpen = ref(false)
@@ -87,6 +87,7 @@ const navLinks = [
   { name: 'Comparacao', path: '/comparacao', label: 'Comparação', icon: GitCompare },
   { name: 'Calculadora', path: '/calculadora', label: 'Cálculos', icon: Calculator },
   { name: 'Cenarios', path: '/cenarios', label: 'Cenários', icon: Search },
+  { name: 'Historico', path: '/historico', label: 'Histórico', icon: Clock },
 ]
 </script>
 

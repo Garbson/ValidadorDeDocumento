@@ -5,6 +5,7 @@ import ErrorReport from '../views/ErrorReport.vue'
 import Calculadora from '../views/Calculadora.vue'
 import PrintCenter from '../views/PrintCenter.vue'
 import Cenarios from '../views/Cenarios.vue'
+import Historico from '../views/Historico.vue'
 
 const routes = [
   {
@@ -36,6 +37,11 @@ const routes = [
     path: '/cenarios',
     name: 'Cenarios',
     component: Cenarios
+  },
+  {
+    path: '/historico',
+    name: 'Historico',
+    component: Historico
   },
 ]
 

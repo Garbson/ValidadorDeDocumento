@@ -121,6 +121,44 @@
             </div>
           </div>
         </div>
+
+        <!-- Classificação SEFAZ -->
+        <div v-if="resumoCriticidade.criticos > 0 || resumoCriticidade.advertencias > 0" class="mt-4">
+          <div :class="[
+            'card border-2',
+            resumoCriticidade.criticos > 0 ? 'border-red-300 bg-red-50' : 'border-yellow-300 bg-yellow-50'
+          ]">
+            <div class="card-body">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <ShieldAlert v-if="resumoCriticidade.criticos > 0" class="w-8 h-8 text-red-600" />
+                  <ShieldCheck v-else class="w-8 h-8 text-yellow-600" />
+                  <div>
+                    <h3 class="font-bold text-lg" :class="resumoCriticidade.criticos > 0 ? 'text-red-800' : 'text-yellow-800'">
+                      {{ resumoCriticidade.criticos > 0 ? 'Arquivo NÃO apto para envio à SEFAZ' : 'Arquivo apto com ressalvas' }}
+                    </h3>
+                    <p class="text-sm" :class="resumoCriticidade.criticos > 0 ? 'text-red-700' : 'text-yellow-700'">
+                      {{ resumoCriticidade.criticos > 0
+                        ? 'Existem erros críticos que impedem o envio. Corrija antes de enviar.'
+                        : 'Não há erros críticos, mas existem advertências que merecem atenção.'
+                      }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex gap-4 text-center">
+                  <div v-if="resumoCriticidade.criticos > 0">
+                    <div class="text-2xl font-bold text-red-600">{{ resumoCriticidade.criticos }}</div>
+                    <div class="text-xs text-red-500 font-medium">CRÍTICOS</div>
+                  </div>
+                  <div v-if="resumoCriticidade.advertencias > 0">
+                    <div class="text-2xl font-bold text-yellow-600">{{ resumoCriticidade.advertencias }}</div>
+                    <div class="text-xs text-yellow-500 font-medium">ADVERTÊNCIAS</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Aba: Cálculos de Impostos -->
@@ -171,6 +209,7 @@
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Linha</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campo</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Erro</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SEFAZ</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                     </tr>
                   </thead>
@@ -183,6 +222,11 @@
                       <td class="px-6 py-4 whitespace-nowrap">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           {{ formatErrorType(erro.erro_tipo) }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold', badgeClasses(classificarCriticidade(erro.erro_tipo))]">
+                          {{ badgeTexto(classificarCriticidade(erro.erro_tipo)) }}
                         </span>
                       </td>
                       <td class="px-6 py-4 text-sm text-gray-900">{{ erro.descricao }}</td>
@@ -217,6 +261,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Linha</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo Registro</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Problema</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SEFAZ</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
                   </tr>
                 </thead>
@@ -230,7 +275,12 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Duplicação
+                        {{ formatErrorType(erro.erro_tipo) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold', badgeClasses(classificarCriticidade(erro.erro_tipo))]">
+                        {{ badgeTexto(classificarCriticidade(erro.erro_tipo)) }}
                       </span>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ erro.descricao }}</td>
@@ -330,6 +380,7 @@
 <script setup>
 import StatCard from "@/components/StatCard.vue";
 import { useValidationStore } from "@/stores/validation";
+import { classificarCriticidade, contarCriticidades, badgeClasses, badgeTexto } from "@/utils/criticidade";
 import {
   AlertTriangle,
   CheckCircle,
@@ -340,7 +391,9 @@ import {
   Calculator,
   Layers,
   BarChart3,
-  Users
+  Users,
+  ShieldAlert,
+  ShieldCheck
 } from "lucide-vue-next";
 import { computed, ref, onMounted } from "vue";
 
@@ -403,6 +456,13 @@ const errosUnicidade = computed(() => {
   return validationStore.currentValidation.resultado.erros.filter(erro =>
     erro.erro_tipo === 'COMBINACAO_DUPLICADA'
   );
+});
+
+const resumoCriticidade = computed(() => {
+  if (!validationStore.currentValidation?.resultado?.erros) {
+    return { criticos: 0, advertencias: 0 };
+  }
+  return contarCriticidades(validationStore.currentValidation.resultado.erros);
 });
 
 onMounted(() => {});

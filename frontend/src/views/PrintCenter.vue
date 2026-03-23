@@ -379,6 +379,19 @@
                     Linha {{ diferenca.numero_linha }} -
                     {{ diferenca.tipo_registro }}
                   </h4>
+                  <!-- Badge de criticidade -->
+                  <span
+                    v-if="linhaTemCritico(diferenca)"
+                    :class="['px-2 py-0.5 text-xs font-bold rounded-full ml-2', badgeClasses('CRITICO')]"
+                  >
+                    {{ badgeTexto('CRITICO') }}
+                  </span>
+                  <span
+                    v-else
+                    :class="['px-2 py-0.5 text-xs font-medium rounded-full ml-2', badgeClasses('ADVERTENCIA')]"
+                  >
+                    {{ badgeTexto('ADVERTENCIA') }}
+                  </span>
                 </div>
                 <span
                   class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
@@ -387,13 +400,21 @@
                 </span>
               </div>
 
+              <!-- Toggle de diff colorido -->
+              <div class="flex items-center justify-end mb-1">
+                <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                  <input type="checkbox" v-model="diffColoridoAtivo" class="w-3 h-3 rounded" />
+                  Diff colorido
+                </label>
+              </div>
+
               <!-- Visualização das Linhas -->
-              <div class="space-y-1 mb-4 text-sm font-mono">
+              <div class="space-y-1 mb-4 text-sm">
                 <div v-if="diferenca.linha_numeracao">
-                  <span class="text-gray-600">Campos:</span>
+                  <span class="text-gray-600 text-xs">Campos:</span>
                   <div
                     :data-ref="`pc-numeracao-linha-${paginaFaturaAtual}-${index}`"
-                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold relative"
+                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold font-mono relative"
                     style="white-space: pre"
                   >
                     <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-numeracao-linha-${paginaFaturaAtual}-${index}`, diferenca.linha_numeracao)"></span>
@@ -402,58 +423,36 @@
                 </div>
 
                 <div>
-                  <span class="text-gray-600">Produção (Lote):</span>
-                  <div
+                  <span class="text-gray-600 text-xs">Produção (Lote):</span>
+                  <DiffLinha
+                    :linha="diferenca.arquivo_base_linha"
+                    :outra-linha="diferenca.arquivo_validado_linha"
+                    tipo="base"
+                    :diff-ativo="diffColoridoAtivo"
                     :data-ref="`pc-base-linha-${paginaFaturaAtual}-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
-                    style="white-space: pre"
-                    @scroll="
-                      sincronizarScroll(
-                        $event,
-                        `pc-validado-linha-${paginaFaturaAtual}-${index}`,
-                        `pc-numeracao-linha-${paginaFaturaAtual}-${index}`,
-                      )
-                    "
-                    @mousemove="
-                      mostrarTooltipThrottled(
-                        $event,
-                        diferenca,
-                        diferenca.arquivo_base_linha,
-                        'base',
-                      )
-                    "
+                    bg-class="bg-gray-50 cursor-help hover:bg-blue-50 transition-colors relative"
+                    :highlight-overlay="campoDestacado?.linhaIndex === index"
+                    :highlight-style="getHighlightStyle(`pc-base-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_base_linha)"
+                    @scroll="sincronizarScroll($event, `pc-validado-linha-${paginaFaturaAtual}-${index}`, `pc-numeracao-linha-${paginaFaturaAtual}-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
                     @mouseleave="esconderTooltip"
-                  >
-                    <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-base-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_base_linha)"></span>
-                    {{ diferenca.arquivo_base_linha }}
-                  </div>
+                  />
                 </div>
                 <div>
-                  <span class="text-gray-600">Seu Arquivo:</span>
-                  <div
+                  <span class="text-gray-600 text-xs">Seu Arquivo:</span>
+                  <DiffLinha
+                    :linha="diferenca.arquivo_validado_linha"
+                    :outra-linha="diferenca.arquivo_base_linha"
+                    tipo="comparado"
+                    :diff-ativo="diffColoridoAtivo"
                     :data-ref="`pc-validado-linha-${paginaFaturaAtual}-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
-                    style="white-space: pre"
-                    @scroll="
-                      sincronizarScroll(
-                        $event,
-                        `pc-base-linha-${paginaFaturaAtual}-${index}`,
-                        `pc-numeracao-linha-${paginaFaturaAtual}-${index}`,
-                      )
-                    "
-                    @mousemove="
-                      mostrarTooltipThrottled(
-                        $event,
-                        diferenca,
-                        diferenca.arquivo_validado_linha,
-                        'validado',
-                      )
-                    "
+                    bg-class="bg-gray-50 cursor-help hover:bg-blue-50 transition-colors relative"
+                    :highlight-overlay="campoDestacado?.linhaIndex === index"
+                    :highlight-style="getHighlightStyle(`pc-validado-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_validado_linha)"
+                    @scroll="sincronizarScroll($event, `pc-base-linha-${paginaFaturaAtual}-${index}`, `pc-numeracao-linha-${paginaFaturaAtual}-${index}`)"
+                    @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
                     @mouseleave="esconderTooltip"
-                  >
-                    <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-validado-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_validado_linha)"></span>
-                    {{ diferenca.arquivo_validado_linha }}
-                  </div>
+                  />
                 </div>
               </div>
 
@@ -504,6 +503,12 @@
                             class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded-full"
                           >
                             {{ campo.tipo_diferenca }}
+                          </span>
+                          <!-- Badge SEFAZ -->
+                          <span
+                            :class="['ml-2 px-2 py-0.5 text-xs font-semibold rounded-full', badgeClasses(classificarCampo(campo))]"
+                          >
+                            {{ badgeTexto(classificarCampo(campo)) }}
                           </span>
                         </div>
                         <span class="text-sm text-gray-600">
@@ -678,6 +683,8 @@ import {
 import { computed, onMounted, ref, nextTick } from "vue";
 import api from "../services/api";
 import localStorageService from "../services/localStorage";
+import DiffLinha from "../components/DiffLinha.vue";
+import { classificarCampo, linhaTemCritico, badgeClasses, badgeTexto } from "../utils/criticidade";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -716,6 +723,9 @@ const paginaFaturaAtual = ref(0);
 // Estado para destaque de campo na linha
 const campoDestacado = ref(null);
 let highlightTimeout = null;
+
+// Diff colorido
+const diffColoridoAtivo = ref(true);
 
 // Estado para seleção de erros no relatório
 // Map: "faturaIndex-diffIndex" => true
