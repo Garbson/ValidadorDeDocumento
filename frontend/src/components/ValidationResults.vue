@@ -4,6 +4,10 @@
     <div class="flex justify-between items-center">
       <h2 class="text-2xl font-bold text-gray-900">Resultados da Validação</h2>
       <div class="flex space-x-3">
+        <button @click="downloadReport('pdf')" class="btn-primary bg-red-600 hover:bg-red-700">
+          <Download class="w-4 h-4 mr-2" />
+          PDF
+        </button>
         <button @click="downloadReport('excel')" class="btn-primary">
           <Download class="w-4 h-4 mr-2" />
           Excel

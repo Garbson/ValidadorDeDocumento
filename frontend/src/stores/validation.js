@@ -179,20 +179,23 @@ export const useValidationStore = defineStore('validation', () => {
 
       // Gerar nome do arquivo
       const layoutNome = validationData.layout_nome || 'layout'
-      const extensions = { excel: 'xlsx', texto: 'txt', csv: 'csv' }
+      const extensions = { excel: 'xlsx', texto: 'txt', csv: 'csv', pdf: 'pdf' }
       const filename = `relatorio_validacao_${layoutNome}_${timestamp}.${extensions[format]}`
 
       // Download baseado no formato
-      if (format === 'excel') {
-        // Para Excel, precisamos gerar o arquivo a partir dos dados
-        // Por enquanto, usar o método de download de texto com resumo
+      if (format === 'pdf') {
+        if (validationData.pdf_blob) {
+          localStorageService.downloadPDF(validationData.pdf_blob, filename)
+        } else {
+          throw new Error('Relatório PDF não disponível')
+        }
+      } else if (format === 'excel') {
         const content = validationData.resumo_texto || 'Relatório não disponível'
         localStorageService.downloadText(content, `relatorio_validacao_${layoutNome}_${timestamp}.txt`)
       } else if (format === 'texto') {
         const content = validationData.resumo_texto || 'Relatório não disponível'
         localStorageService.downloadText(content, filename)
       } else if (format === 'csv') {
-        // Gerar CSV simples dos erros
         let csvContent = 'Linha,Campo,Tipo_Erro,Valor_Encontrado,Descricao\n'
         if (validationData.erros && validationData.erros.length > 0) {
           validationData.erros.forEach(erro => {

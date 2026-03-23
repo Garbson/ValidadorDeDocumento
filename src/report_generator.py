@@ -5,11 +5,29 @@ from typing import Dict, List, Any
 from collections import Counter
 import io
 import base64
+import math
 
 try:
     from .models import ResultadoValidacao, ErroValidacao, Layout
 except ImportError:
     from models import ResultadoValidacao, ErroValidacao, Layout
+
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm, cm
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        PageBreak, HRFlowable, KeepTogether
+    )
+    from reportlab.graphics.shapes import Drawing, Rect, String, Circle, Wedge, Line
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.graphics import renderPDF
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 
 class GeradorRelatorio:
@@ -215,6 +233,12 @@ Taxa de sucesso: {self.resultado.taxa_sucesso:.2f}%
 
             # Adicionar dados do relatório resumo de erros para o frontend
             dados_relatorio['resumo_erros_excel'] = self.gerar_excel_resumo_erros_blob()
+
+        # Gerar PDF bonito
+        try:
+            dados_relatorio['pdf_blob'] = self.gerar_pdf_blob()
+        except (ImportError, Exception):
+            pass  # PDF não disponível se reportlab não estiver instalado
 
         return dados_relatorio
 
@@ -799,3 +823,357 @@ Taxa de sucesso: {self.resultado.taxa_sucesso:.2f}%
                 df_stats.to_excel(writer, sheet_name='Erros_Por_Tipo', index=False)
 
         return caminho_saida
+
+    # ===================== PDF REPORT =====================
+
+    def _cor_taxa(self, taxa: float):
+        """Retorna cor baseada na taxa de sucesso"""
+        if taxa >= 90:
+            return colors.HexColor('#16a34a')
+        elif taxa >= 70:
+            return colors.HexColor('#d97706')
+        else:
+            return colors.HexColor('#dc2626')
+
+    def _criar_card_estatistica(self, titulo: str, valor: str, cor: colors.Color, largura=120, altura=70):
+        """Cria um card visual de estatística como Drawing"""
+        d = Drawing(largura, altura)
+        r = Rect(0, 0, largura, altura, rx=8, ry=8)
+        r.fillColor = cor
+        r.strokeColor = colors.HexColor('#e5e7eb')
+        r.strokeWidth = 0.5
+        d.add(r)
+        s_valor = String(largura / 2, altura - 28, valor, textAnchor='middle')
+        s_valor.fontSize = 22
+        s_valor.fontName = 'Helvetica-Bold'
+        s_valor.fillColor = colors.white
+        d.add(s_valor)
+        s_titulo = String(largura / 2, 18, titulo, textAnchor='middle')
+        s_titulo.fontSize = 9
+        s_titulo.fontName = 'Helvetica'
+        s_titulo.fillColor = colors.HexColor('#f0f0f0')
+        d.add(s_titulo)
+        return d
+
+    def _criar_grafico_pizza(self, dados: dict, largura=480, altura=180):
+        """Cria gráfico de pizza para distribuição de erros"""
+        d = Drawing(largura, altura)
+
+        if not dados:
+            s = String(largura / 2, altura / 2, 'Sem dados', textAnchor='middle')
+            s.fontSize = 12
+            s.fillColor = colors.gray
+            d.add(s)
+            return d
+
+        pie = Pie()
+        pie.x = 30
+        pie.y = 20
+        pie.width = 120
+        pie.height = 120
+        pie.data = list(dados.values())
+        pie.labels = None
+
+        cores_pie = [
+            colors.HexColor('#3b82f6'), colors.HexColor('#ef4444'),
+            colors.HexColor('#f59e0b'), colors.HexColor('#10b981'),
+            colors.HexColor('#8b5cf6'), colors.HexColor('#ec4899'),
+            colors.HexColor('#06b6d4'), colors.HexColor('#84cc16'),
+        ]
+
+        for i in range(len(dados)):
+            pie.slices[i].fillColor = cores_pie[i % len(cores_pie)]
+            pie.slices[i].strokeColor = colors.white
+            pie.slices[i].strokeWidth = 1.5
+
+        d.add(pie)
+
+        total = sum(dados.values())
+        y_legenda = altura - 20
+        for i, (label, valor) in enumerate(dados.items()):
+            if i >= 8:
+                break
+            cor = cores_pie[i % len(cores_pie)]
+            x_leg = 190
+            rect = Rect(x_leg, y_legenda - 4, 10, 10)
+            rect.fillColor = cor
+            rect.strokeColor = None
+            d.add(rect)
+            pct = (valor / total * 100) if total > 0 else 0
+            texto = f'{label[:22]} ({pct:.0f}%)'
+            s = String(x_leg + 14, y_legenda, texto, textAnchor='start')
+            s.fontSize = 8
+            s.fontName = 'Helvetica'
+            s.fillColor = colors.HexColor('#374151')
+            d.add(s)
+            y_legenda -= 18
+
+        return d
+
+    def _criar_barra_progresso(self, taxa: float, largura=460, altura=30):
+        """Cria barra de progresso visual"""
+        d = Drawing(largura, altura)
+        bg = Rect(0, 5, largura, 18, rx=9, ry=9)
+        bg.fillColor = colors.HexColor('#e5e7eb')
+        bg.strokeColor = None
+        d.add(bg)
+        w_barra = max(0, min(largura, largura * taxa / 100))
+        if w_barra > 0:
+            barra = Rect(0, 5, w_barra, 18, rx=9, ry=9)
+            barra.fillColor = self._cor_taxa(taxa)
+            barra.strokeColor = None
+            d.add(barra)
+        texto = String(largura / 2, 10, f'{taxa:.1f}% de sucesso', textAnchor='middle')
+        texto.fontSize = 10
+        texto.fontName = 'Helvetica-Bold'
+        texto.fillColor = colors.white if taxa > 40 else colors.HexColor('#374151')
+        d.add(texto)
+        return d
+
+    def gerar_pdf_blob(self) -> str:
+        """Gera relatório PDF bonito em memória e retorna como base64"""
+        if not HAS_REPORTLAB:
+            raise ImportError(
+                "reportlab não está instalado. Execute: pip install reportlab"
+            )
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=1.5 * cm,
+            leftMargin=1.5 * cm,
+            topMargin=1.5 * cm,
+            bottomMargin=2 * cm,
+            title=f'Relatório de Validação - {self.layout.nome}',
+            author='Validador de Documentos'
+        )
+
+        styles = getSampleStyleSheet()
+        estilo_titulo = ParagraphStyle(
+            'TituloPDF', parent=styles['Title'],
+            fontSize=22, textColor=colors.HexColor('#1e3a5f'),
+            spaceAfter=4 * mm, fontName='Helvetica-Bold', alignment=TA_CENTER,
+        )
+        estilo_subtitulo = ParagraphStyle(
+            'SubtituloPDF', parent=styles['Heading2'],
+            fontSize=14, textColor=colors.HexColor('#1e3a5f'),
+            spaceBefore=8 * mm, spaceAfter=4 * mm, fontName='Helvetica-Bold',
+        )
+        estilo_info = ParagraphStyle(
+            'InfoPDF', parent=styles['Normal'],
+            fontSize=10, textColor=colors.HexColor('#6b7280'),
+            alignment=TA_CENTER, spaceAfter=2 * mm,
+        )
+        estilo_normal = ParagraphStyle(
+            'NormalPDF', parent=styles['Normal'],
+            fontSize=9, textColor=colors.HexColor('#374151'), spaceAfter=2 * mm,
+        )
+        estilo_status = ParagraphStyle(
+            'StatusPDF', parent=styles['Normal'],
+            fontSize=14, alignment=TA_CENTER,
+            spaceAfter=4 * mm, fontName='Helvetica-Bold',
+        )
+
+        elementos = []
+
+        # ========== CABEÇALHO ==========
+        elementos.append(Paragraph('Relatório de Validação', estilo_titulo))
+        elementos.append(Paragraph(f'Layout: <b>{self.layout.nome}</b>', estilo_info))
+        elementos.append(Paragraph(
+            f'Gerado em: {datetime.now().strftime("%d/%m/%Y às %H:%M")}', estilo_info
+        ))
+        elementos.append(Spacer(1, 4 * mm))
+        elementos.append(HRFlowable(
+            width='100%', thickness=2, color=colors.HexColor('#3b82f6'),
+            spaceAfter=6 * mm, spaceBefore=2 * mm
+        ))
+
+        # ========== STATUS GERAL ==========
+        taxa = self.resultado.taxa_sucesso
+        if taxa == 100:
+            status_texto, status_cor = 'APROVADO — Nenhum erro encontrado', '#16a34a'
+        elif taxa >= 90:
+            status_texto, status_cor = 'APROVADO COM RESSALVAS', '#d97706'
+        else:
+            status_texto, status_cor = 'REQUER CORREÇÃO', '#dc2626'
+
+        estilo_status.textColor = colors.HexColor(status_cor)
+        elementos.append(Paragraph(f'Status: {status_texto}', estilo_status))
+        elementos.append(Spacer(1, 2 * mm))
+
+        # ========== BARRA DE PROGRESSO ==========
+        elementos.append(self._criar_barra_progresso(taxa))
+        elementos.append(Spacer(1, 6 * mm))
+
+        # ========== CARDS DE ESTATÍSTICAS ==========
+        cards = Table(
+            [[
+                self._criar_card_estatistica('Total de Linhas',
+                    f'{self.resultado.total_linhas:,}'.replace(',', '.'),
+                    colors.HexColor('#3b82f6')),
+                self._criar_card_estatistica('Linhas Válidas',
+                    f'{self.resultado.linhas_validas:,}'.replace(',', '.'),
+                    colors.HexColor('#16a34a')),
+                self._criar_card_estatistica('Linhas com Erro',
+                    f'{self.resultado.linhas_com_erro:,}'.replace(',', '.'),
+                    colors.HexColor('#dc2626') if self.resultado.linhas_com_erro > 0 else colors.HexColor('#6b7280')),
+                self._criar_card_estatistica('Taxa de Sucesso',
+                    f'{taxa:.1f}%', self._cor_taxa(taxa)),
+            ]],
+            colWidths=[120, 120, 120, 120],
+        )
+        cards.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elementos.append(cards)
+        elementos.append(Spacer(1, 8 * mm))
+
+        if not self.resultado.erros:
+            elementos.append(Paragraph(
+                'Parabéns! O arquivo foi validado com sucesso. Todos os registros '
+                'estão em conformidade com o layout definido.',
+                ParagraphStyle('Sucesso', parent=estilo_normal, fontSize=12,
+                    alignment=TA_CENTER, textColor=colors.HexColor('#16a34a'),
+                    spaceBefore=10 * mm)
+            ))
+            doc.build(elementos, onFirstPage=self._rodape_pdf, onLaterPages=self._rodape_pdf)
+            buffer.seek(0)
+            return base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+        # ========== DISTRIBUIÇÃO DE ERROS POR TIPO ==========
+        elementos.append(Paragraph('Distribuição de Erros por Tipo', estilo_subtitulo))
+        elementos.append(HRFlowable(width='100%', thickness=1,
+            color=colors.HexColor('#e5e7eb'), spaceAfter=4 * mm))
+
+        contador_tipos = Counter(erro.erro_tipo for erro in self.resultado.erros)
+        elementos.append(self._criar_grafico_pizza(dict(contador_tipos.most_common(8)), altura=160))
+        elementos.append(Spacer(1, 3 * mm))
+
+        total_erros = len(self.resultado.erros)
+        dados_tipo_tabela = [['Tipo de Erro', 'Quantidade', 'Percentual']]
+        for tipo, qtd in contador_tipos.most_common():
+            pct = (qtd / total_erros * 100) if total_erros > 0 else 0
+            dados_tipo_tabela.append([tipo, f'{qtd:,}'.replace(',', '.'), f'{pct:.1f}%'])
+
+        elementos.append(self._criar_tabela_estilizada(dados_tipo_tabela, [250, 100, 100]))
+        elementos.append(Spacer(1, 4 * mm))
+
+        # ========== TOP 10 CAMPOS COM MAIS ERROS ==========
+        elementos.append(Paragraph('Campos com Mais Erros', estilo_subtitulo))
+        elementos.append(HRFlowable(width='100%', thickness=1,
+            color=colors.HexColor('#e5e7eb'), spaceAfter=4 * mm))
+
+        contador_campos = Counter(erro.campo for erro in self.resultado.erros)
+        dados_campo_tabela = [['Campo', 'Quantidade', 'Percentual']]
+        for campo, qtd in contador_campos.most_common(10):
+            pct = (qtd / total_erros * 100) if total_erros > 0 else 0
+            dados_campo_tabela.append([campo, f'{qtd:,}'.replace(',', '.'), f'{pct:.1f}%'])
+
+        elementos.append(self._criar_tabela_estilizada(dados_campo_tabela, [250, 120, 80]))
+        elementos.append(Spacer(1, 4 * mm))
+
+        # ========== DETALHES DOS ERROS ==========
+        elementos.append(Paragraph('Detalhes dos Erros', estilo_subtitulo))
+        elementos.append(HRFlowable(width='100%', thickness=1,
+            color=colors.HexColor('#e5e7eb'), spaceAfter=4 * mm))
+
+        max_erros_detalhe = min(len(self.resultado.erros), 200)
+        if len(self.resultado.erros) > max_erros_detalhe:
+            elementos.append(Paragraph(
+                f'Exibindo os primeiros {max_erros_detalhe} de {len(self.resultado.erros):,} erros.',
+                ParagraphStyle('Aviso', parent=estilo_normal,
+                    textColor=colors.HexColor('#d97706'), fontSize=9)
+            ))
+            elementos.append(Spacer(1, 3 * mm))
+
+        estilo_celula = ParagraphStyle(
+            'Celula', parent=estilo_normal,
+            fontSize=7, leading=9, spaceAfter=0, spaceBefore=0,
+        )
+
+        bloco_tamanho = 40
+        erros_detalhe = self.resultado.erros[:max_erros_detalhe]
+
+        for i in range(0, len(erros_detalhe), bloco_tamanho):
+            bloco = erros_detalhe[i:i + bloco_tamanho]
+            dados_detalhe = [['Linha', 'Campo', 'Tipo', 'Valor Encontrado', 'Descrição']]
+
+            for erro in bloco:
+                valor = erro.valor_encontrado[:30] + '...' if len(erro.valor_encontrado) > 30 else erro.valor_encontrado
+                desc = erro.descricao[:60] + '...' if len(erro.descricao) > 60 else erro.descricao
+                dados_detalhe.append([
+                    str(erro.linha),
+                    Paragraph(erro.campo, estilo_celula),
+                    erro.erro_tipo,
+                    Paragraph(valor, estilo_celula),
+                    Paragraph(desc, estilo_celula),
+                ])
+
+            tabela_detalhe = Table(dados_detalhe, colWidths=[40, 100, 80, 90, 150], repeatRows=1)
+            tabela_detalhe.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#d1d5db')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elementos.append(tabela_detalhe)
+            if i + bloco_tamanho < len(erros_detalhe):
+                elementos.append(PageBreak())
+
+        # Rodapé final
+        elementos.append(Spacer(1, 10 * mm))
+        elementos.append(HRFlowable(width='100%', thickness=1,
+            color=colors.HexColor('#e5e7eb'), spaceAfter=3 * mm))
+        elementos.append(Paragraph(
+            'Relatório gerado automaticamente pelo Validador de Documentos',
+            ParagraphStyle('Rodape', parent=estilo_info, fontSize=8)
+        ))
+
+        doc.build(elementos, onFirstPage=self._rodape_pdf, onLaterPages=self._rodape_pdf)
+        buffer.seek(0)
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    def _rodape_pdf(self, canvas, doc):
+        """Desenha rodapé com numeração de páginas"""
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColor(colors.HexColor('#9ca3af'))
+        canvas.drawString(1.5 * cm, 1 * cm, f'Validador de Documentos — {self.layout.nome}')
+        canvas.drawRightString(A4[0] - 1.5 * cm, 1 * cm, f'Página {canvas.getPageNumber()}')
+        canvas.setStrokeColor(colors.HexColor('#e5e7eb'))
+        canvas.setLineWidth(0.5)
+        canvas.line(1.5 * cm, 1.3 * cm, A4[0] - 1.5 * cm, 1.3 * cm)
+        canvas.restoreState()
+
+    def _criar_tabela_estilizada(self, dados, col_widths):
+        """Cria tabela com estilo padrão do relatório"""
+        tabela = Table(dados, colWidths=col_widths)
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        return tabela

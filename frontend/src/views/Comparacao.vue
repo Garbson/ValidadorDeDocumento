@@ -151,20 +151,44 @@
 
       <!-- Diferenças Detalhadas -->
       <div v-if="comparisonResult?.diferencas_por_linha?.length > 0" class="card">
-        <div class="card-header">
+        <div class="card-header flex justify-between items-center">
           <h3 class="text-lg font-semibold">Diferenças Encontradas</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-500">
+              {{ errosSelecionados.size }} de {{ comparisonResult.diferencas_por_linha.length }} selecionados para o relatório
+            </span>
+            <button
+              @click="toggleTodosErros"
+              class="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              {{ errosSelecionados.size === comparisonResult.diferencas_por_linha.length ? 'Desmarcar Todos' : 'Selecionar Todos' }}
+            </button>
+          </div>
         </div>
         <div class="card-body">
           <div class="space-y-6">
             <div
               v-for="(diferenca, index) in comparisonResult.diferencas_por_linha"
               :key="index"
-              class="border border-gray-200 rounded-lg p-4"
+              :class="[
+                'border rounded-lg p-4 transition-all',
+                errosSelecionados.has(index) ? 'border-gray-200' : 'border-dashed border-gray-300 opacity-50'
+              ]"
             >
               <div class="flex justify-between items-center mb-3">
-                <h4 class="font-semibold text-gray-900">
-                  Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
-                </h4>
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center cursor-pointer" @click.stop>
+                    <input
+                      type="checkbox"
+                      :checked="errosSelecionados.has(index)"
+                      @change="toggleErroSelecionado(index)"
+                      class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+                  <h4 class="font-semibold text-gray-900">
+                    Linha {{ diferenca.numero_linha }} - {{ diferenca.tipo_registro }}
+                  </h4>
+                </div>
                 <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
                   {{ diferenca.total_diferencas }} diferença(s)
                 </span>
@@ -177,34 +201,34 @@
                   <span class="text-gray-600">Campos:</span>
                   <div
                     :data-ref="`numeracao-linha-${index}`"
-                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold"
+                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold relative"
                     style="white-space: pre;"
-                  >{{ diferenca.linha_numeracao }}</div>
+                  ><span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`numeracao-linha-${index}`, diferenca.linha_numeracao)"></span>{{ diferenca.linha_numeracao }}</div>
                 </div>
 
                 <div>
                   <span class="text-gray-600">Base:</span>
                   <div
                     :data-ref="`base-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
                     style="white-space: pre;"
                     @scroll="sincronizarScroll($event, `validado-linha-${index}`, `numeracao-linha-${index}`)"
                     @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_base_linha, 'base')"
                     @mouseleave="esconderTooltip"
                     title="Clique para ver detalhes dos campos"
-                  >{{ diferenca.arquivo_base_linha }}</div>
+                  ><span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`base-linha-${index}`, diferenca.arquivo_base_linha)"></span>{{ diferenca.arquivo_base_linha }}</div>
                 </div>
                 <div>
                   <span class="text-gray-600">Comparado:</span>
                   <div
                     :data-ref="`validado-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
                     style="white-space: pre;"
                     @scroll="sincronizarScroll($event, `base-linha-${index}`, `numeracao-linha-${index}`)"
                     @mousemove="mostrarTooltipThrottled($event, diferenca, diferenca.arquivo_validado_linha, 'validado')"
                     @mouseleave="esconderTooltip"
                     title="Clique para ver detalhes dos campos"
-                  >{{ diferenca.arquivo_validado_linha }}</div>
+                  ><span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`validado-linha-${index}`, diferenca.arquivo_validado_linha)"></span>{{ diferenca.arquivo_validado_linha }}</div>
                 </div>
               </div>
 
@@ -226,8 +250,9 @@
                       <div class="flex-1">
                         <div class="flex items-center">
                           <span
-                            class="font-medium cursor-help relative group"
-                            :title="`Campo: ${campo.nome_campo}\nPosição: ${campo.posicao_inicio}-${campo.posicao_fim}\nSequência: ${(campo.sequencia_campo || 0).toString().padStart(2, '0')}`"
+                            class="font-medium cursor-pointer relative group hover:text-blue-700 hover:underline transition-colors"
+                            :title="`Clique para destacar na linha`"
+                            @click="destacarCampoNaLinha(index, campo)"
                           >
                             Campo {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }} - {{ campo.nome_campo }}
                             <!-- Tooltip customizado -->
@@ -235,6 +260,7 @@
                               <div>📋 Campo: {{ campo.nome_campo }}</div>
                               <div>📍 Posição: {{ campo.posicao_inicio }}-{{ campo.posicao_fim }}</div>
                               <div>🔢 Sequência: {{ (campo.sequencia_campo || 0).toString().padStart(2, '0') }}</div>
+                              <div class="text-blue-300 mt-1">Clique para destacar na linha</div>
                               <!-- Seta do tooltip -->
                               <div class="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                             </div>
@@ -389,6 +415,13 @@ const comparisonResult = ref(null)
 const reportText = ref('')
 const timestamp = ref('')
 
+// Estado para destaque de campo na linha
+const campoDestacado = ref(null)
+let highlightTimeout = null
+
+// Estado para seleção de erros no relatório
+const errosSelecionados = ref(new Set())
+
 // Computed properties
 const hasResults = computed(() => comparisonResult.value !== null)
 const canSubmit = computed(() => layoutFile.value && baseFile.value && validationFile.value)
@@ -480,6 +513,9 @@ async function handleComparison() {
     timestamp.value = response.data.timestamp
     layoutData.value = response.data.layout // Salvar dados do layout
 
+    // Inicializar todos os erros como selecionados
+    inicializarSelecaoErros()
+
   } catch (err) {
     console.error('Erro na comparação:', err)
     error.value = err.response?.data?.detail || 'Erro interno do servidor'
@@ -488,31 +524,67 @@ async function handleComparison() {
   }
 }
 
-// Download report
+// Download report - filtra apenas erros selecionados
 async function downloadReport() {
   if (!timestamp.value) return
 
   try {
-    // Buscar dados do localStorage
-    let comparisonData = localStorageService.getComparison(timestamp.value)
-
-    // Se não estiver no localStorage, usar dados atuais
-    if (!comparisonData && reportText.value) {
-      comparisonData = {
-        relatorio_texto: reportText.value,
-        layout_nome: 'layout',
-        timestamp: timestamp.value
-      }
-    }
-
-    if (!comparisonData) {
+    if (!comparisonResult.value?.diferencas_por_linha) {
       throw new Error('Dados da comparação não encontrados')
     }
 
-    // Fazer download do relatório de texto
-    const filename = `comparacao_estrutural_${timestamp.value}.txt`
-    const content = comparisonData.relatorio_texto || reportText.value || 'Relatório não disponível'
+    // Filtrar diferenças selecionadas
+    const diferencasFiltradas = comparisonResult.value.diferencas_por_linha.filter(
+      (_, index) => errosSelecionados.value.has(index)
+    )
 
+    // Gerar relatório em texto com os erros filtrados
+    let content = `=== RELATÓRIO DE COMPARAÇÃO ESTRUTURAL ===\n`
+    content += `Data/Hora: ${new Date().toLocaleString('pt-BR')}\n`
+    content += `\n=== ESTATÍSTICAS ===\n`
+    content += `Total de Linhas Comparadas: ${comparisonResult.value.total_linhas_comparadas}\n`
+    content += `Linhas Idênticas: ${comparisonResult.value.linhas_identicas}\n`
+    content += `Linhas com Diferenças (total): ${comparisonResult.value.linhas_com_diferencas}\n`
+    content += `Linhas incluídas neste relatório: ${diferencasFiltradas.length}\n`
+    content += `Taxa de Identidade: ${(comparisonResult.value.taxa_identidade || 0).toFixed(2)}%\n`
+
+    if (diferencasFiltradas.length === 0) {
+      content += `\nNenhuma diferença selecionada para o relatório.\n`
+    } else {
+      content += `\n${'='.repeat(60)}\n`
+      content += `DIFERENÇAS DETALHADAS\n`
+      content += `${'='.repeat(60)}\n`
+
+      diferencasFiltradas.forEach(dif => {
+        content += `\n--- Linha ${dif.numero_linha} - ${dif.tipo_registro} (${dif.total_diferencas} diferença(s)) ---\n`
+
+        if (dif.arquivo_base_linha) {
+          content += `  Base:      ${dif.arquivo_base_linha}\n`
+        }
+        if (dif.arquivo_validado_linha) {
+          content += `  Comparado: ${dif.arquivo_validado_linha}\n`
+        }
+
+        if (dif.diferencas_campos?.length > 0) {
+          content += `  Campos com diferenças:\n`
+          dif.diferencas_campos.forEach(campo => {
+            content += `    - Campo ${(campo.sequencia_campo || 0).toString().padStart(2, '0')} | ${campo.nome_campo} (Pos ${campo.posicao_inicio}-${campo.posicao_fim})\n`
+            if (campo.tipo_diferenca?.startsWith('CALCULO_')) {
+              content += `      Tipo: ${campo.tipo_diferenca}\n`
+              if (campo.descricao) content += `      Detalhe: ${campo.descricao}\n`
+            } else {
+              content += `      Base: "${campo.valor_base}" | Comparado: "${campo.valor_validado}"\n`
+              if (campo.descricao) content += `      Descrição: ${campo.descricao}\n`
+            }
+          })
+        }
+      })
+    }
+
+    content += `\n${'='.repeat(60)}\n`
+    content += `Fim do Relatório\n`
+
+    const filename = `comparacao_estrutural_${timestamp.value}.txt`
     localStorageService.downloadText(content, filename)
   } catch (err) {
     console.error('Erro ao baixar relatório:', err)
@@ -683,6 +755,149 @@ function mostrarTooltipThrottled(event, diferenca, linha, tipoLinha) {
   }, 50) // 50ms de throttle
 }
 
+// === Funções de destaque de campo na linha ===
+
+function destacarCampoNaLinha(linhaIndex, campo) {
+  // Limpar timeout anterior
+  if (highlightTimeout) {
+    clearTimeout(highlightTimeout)
+  }
+
+  // Definir campo destacado
+  campoDestacado.value = {
+    linhaIndex,
+    posicao_inicio: campo.posicao_inicio,
+    posicao_fim: campo.posicao_fim,
+    nome_campo: campo.nome_campo
+  }
+
+  // Scroll para a área das linhas
+  const baseEl = document.querySelector(`[data-ref="base-linha-${linhaIndex}"]`)
+  if (baseEl) {
+    // Calcular posição de scroll baseada na posição do campo
+    const style = window.getComputedStyle(baseEl)
+    const medidor = document.createElement('span')
+    medidor.style.font = style.font
+    medidor.style.fontSize = style.fontSize
+    medidor.style.fontFamily = style.fontFamily
+    medidor.style.visibility = 'hidden'
+    medidor.style.position = 'absolute'
+    medidor.style.whiteSpace = 'pre'
+    document.body.appendChild(medidor)
+
+    // Medir posição do campo na linha usando pipes
+    const linhaTexto = baseEl.textContent
+    const segments = linhaTexto.split('|')
+    let charPos = 0
+    const seq = campo.sequencia_campo || 0
+
+    for (let i = 0; i < seq - 1 && i < segments.length; i++) {
+      charPos += segments[i].length + 1 // +1 pelo pipe
+    }
+
+    medidor.textContent = linhaTexto.substring(0, charPos)
+    const scrollTarget = medidor.offsetWidth - 100 // 100px de margem
+    document.body.removeChild(medidor)
+
+    // Scroll suave para o campo
+    baseEl.scrollLeft = Math.max(0, scrollTarget)
+
+    // Sincronizar scroll nas outras linhas
+    const validadoEl = document.querySelector(`[data-ref="validado-linha-${linhaIndex}"]`)
+    const numeracaoEl = document.querySelector(`[data-ref="numeracao-linha-${linhaIndex}"]`)
+    if (validadoEl) validadoEl.scrollLeft = baseEl.scrollLeft
+    if (numeracaoEl) numeracaoEl.scrollLeft = baseEl.scrollLeft
+
+    // Scroll a página para mostrar as linhas
+    baseEl.closest('.border')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Remover destaque após 4 segundos
+  highlightTimeout = setTimeout(() => {
+    campoDestacado.value = null
+  }, 4000)
+}
+
+function getHighlightStyle(refName, linhaTexto) {
+  if (!campoDestacado.value || !linhaTexto) return { display: 'none' }
+
+  const campo = campoDestacado.value
+  const el = document.querySelector(`[data-ref="${refName}"]`)
+  if (!el) return { display: 'none' }
+
+  const style = window.getComputedStyle(el)
+  const medidor = document.createElement('span')
+  medidor.style.font = style.font
+  medidor.style.fontSize = style.fontSize
+  medidor.style.fontFamily = style.fontFamily
+  medidor.style.visibility = 'hidden'
+  medidor.style.position = 'absolute'
+  medidor.style.whiteSpace = 'pre'
+  document.body.appendChild(medidor)
+
+  // Calcular posição visual usando posições de caractere
+  const posInicio = campo.posicao_inicio - 1 // Converter para 0-based
+  const posFim = campo.posicao_fim
+
+  medidor.textContent = linhaTexto.substring(0, posInicio)
+  const left = medidor.offsetWidth
+
+  medidor.textContent = linhaTexto.substring(posInicio, posFim)
+  const width = medidor.offsetWidth
+
+  document.body.removeChild(medidor)
+
+  return {
+    position: 'absolute',
+    left: left + 'px',
+    top: '0',
+    width: width + 'px',
+    height: '100%',
+    backgroundColor: 'rgba(59, 130, 246, 0.25)',
+    borderLeft: '2px solid rgb(59, 130, 246)',
+    borderRight: '2px solid rgb(59, 130, 246)',
+    pointerEvents: 'none',
+    zIndex: '10',
+    transition: 'all 0.3s ease',
+    animation: 'highlight-pulse 1.5s ease-in-out infinite'
+  }
+}
+
+// === Funções de seleção de erros para o relatório ===
+
+function toggleErroSelecionado(index) {
+  const newSet = new Set(errosSelecionados.value)
+  if (newSet.has(index)) {
+    newSet.delete(index)
+  } else {
+    newSet.add(index)
+  }
+  errosSelecionados.value = newSet
+}
+
+function toggleTodosErros() {
+  if (!comparisonResult.value?.diferencas_por_linha) return
+
+  if (errosSelecionados.value.size === comparisonResult.value.diferencas_por_linha.length) {
+    errosSelecionados.value = new Set()
+  } else {
+    const allIndexes = new Set()
+    for (let i = 0; i < comparisonResult.value.diferencas_por_linha.length; i++) {
+      allIndexes.add(i)
+    }
+    errosSelecionados.value = allIndexes
+  }
+}
+
+function inicializarSelecaoErros() {
+  if (!comparisonResult.value?.diferencas_por_linha) return
+  const allIndexes = new Set()
+  for (let i = 0; i < comparisonResult.value.diferencas_por_linha.length; i++) {
+    allIndexes.add(i)
+  }
+  errosSelecionados.value = allIndexes
+}
+
 // Reset comparison
 function resetComparison() {
   comparisonResult.value = null
@@ -692,6 +907,8 @@ function resetComparison() {
   baseFile.value = null
   validationFile.value = null
   error.value = ''
+  campoDestacado.value = null
+  errosSelecionados.value = new Set()
 
   // Reset file inputs
   if (layoutFileInput.value) layoutFileInput.value.value = ''
@@ -795,5 +1012,20 @@ const validationFileInput = ref(null)
 /* Ajustar z-index para tooltips */
 .z-50 {
   z-index: 9999 !important;
+}
+
+/* Overlay de destaque do campo */
+.campo-highlight-overlay {
+  display: block;
+  border-radius: 2px;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: rgba(59, 130, 246, 0.25);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.45);
+  }
 }
 </style>
