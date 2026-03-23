@@ -686,7 +686,8 @@ import localStorageService from "../services/localStorage";
 import DiffLinha from "../components/DiffLinha.vue";
 import { classificarCampo, linhaTemCritico, badgeClasses, badgeTexto } from "../utils/criticidade";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { applyPlugin } from "jspdf-autotable";
+applyPlugin(jsPDF);
 
 // Config
 const config = ref({
