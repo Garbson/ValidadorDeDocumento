@@ -211,9 +211,13 @@
           Resultado da Comparação
         </h2>
         <div class="flex gap-3">
+          <button @click="downloadReportPDF" class="btn-primary bg-red-600 hover:bg-red-700">
+            <Download class="w-4 h-4 mr-2" />
+            Baixar PDF
+          </button>
           <button @click="downloadReport" class="btn-secondary">
             <Download class="w-4 h-4 mr-2" />
-            Baixar Relatório
+            Baixar TXT
           </button>
           <button @click="resetComparison" class="btn-outline">
             <RotateCcw class="w-4 h-4 mr-2" />
@@ -327,19 +331,55 @@
           </div>
         </div>
         <div class="card-body">
+          <!-- Controles de Seleção -->
+          <div class="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+            <span class="text-sm text-gray-500">
+              {{ totalErrosSelecionados }} de {{ totalErrosDisponiveis }} diferenças selecionadas para o relatório
+            </span>
+            <div class="flex gap-2">
+              <button
+                @click="toggleTodosDaFatura"
+                class="text-xs px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                {{ todosDaFaturaSelecionados ? 'Desmarcar Fatura' : 'Selecionar Fatura' }}
+              </button>
+              <button
+                @click="toggleTodosErros"
+                class="text-xs px-3 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors"
+              >
+                {{ todosErrosSelecionados ? 'Desmarcar Todos' : 'Selecionar Todos' }}
+              </button>
+            </div>
+          </div>
+
           <div class="space-y-6">
             <div
               v-for="(
                 diferenca, index
               ) in faturaAtual.diferencas_por_linha"
               :key="index"
-              class="border border-gray-200 rounded-lg p-4"
+              :class="[
+                'border rounded-lg p-4 transition-all',
+                isErroSelecionado(paginaFaturaAtual, index)
+                  ? 'border-gray-200'
+                  : 'border-dashed border-gray-300 opacity-50'
+              ]"
             >
               <div class="flex justify-between items-center mb-3">
-                <h4 class="font-semibold text-gray-900">
-                  Linha {{ diferenca.numero_linha }} -
-                  {{ diferenca.tipo_registro }}
-                </h4>
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center cursor-pointer" @click.stop>
+                    <input
+                      type="checkbox"
+                      :checked="isErroSelecionado(paginaFaturaAtual, index)"
+                      @change="toggleErroSelecionado(paginaFaturaAtual, index)"
+                      class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+                  <h4 class="font-semibold text-gray-900">
+                    Linha {{ diferenca.numero_linha }} -
+                    {{ diferenca.tipo_registro }}
+                  </h4>
+                </div>
                 <span
                   class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full"
                 >
@@ -352,10 +392,11 @@
                 <div v-if="diferenca.linha_numeracao">
                   <span class="text-gray-600">Campos:</span>
                   <div
-                    :data-ref="`numeracao-linha-${index}`"
-                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold"
+                    :data-ref="`pc-numeracao-linha-${paginaFaturaAtual}-${index}`"
+                    class="bg-blue-50 p-2 rounded border overflow-x-auto text-blue-800 font-semibold relative"
                     style="white-space: pre"
                   >
+                    <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-numeracao-linha-${paginaFaturaAtual}-${index}`, diferenca.linha_numeracao)"></span>
                     {{ diferenca.linha_numeracao }}
                   </div>
                 </div>
@@ -363,14 +404,14 @@
                 <div>
                   <span class="text-gray-600">Produção (Lote):</span>
                   <div
-                    :data-ref="`base-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    :data-ref="`pc-base-linha-${paginaFaturaAtual}-${index}`"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
                     style="white-space: pre"
                     @scroll="
                       sincronizarScroll(
                         $event,
-                        `validado-linha-${index}`,
-                        `numeracao-linha-${index}`,
+                        `pc-validado-linha-${paginaFaturaAtual}-${index}`,
+                        `pc-numeracao-linha-${paginaFaturaAtual}-${index}`,
                       )
                     "
                     @mousemove="
@@ -383,20 +424,21 @@
                     "
                     @mouseleave="esconderTooltip"
                   >
+                    <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-base-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_base_linha)"></span>
                     {{ diferenca.arquivo_base_linha }}
                   </div>
                 </div>
                 <div>
                   <span class="text-gray-600">Seu Arquivo:</span>
                   <div
-                    :data-ref="`validado-linha-${index}`"
-                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors"
+                    :data-ref="`pc-validado-linha-${paginaFaturaAtual}-${index}`"
+                    class="bg-gray-50 p-2 rounded border overflow-x-auto cursor-help hover:bg-blue-50 transition-colors relative"
                     style="white-space: pre"
                     @scroll="
                       sincronizarScroll(
                         $event,
-                        `base-linha-${index}`,
-                        `numeracao-linha-${index}`,
+                        `pc-base-linha-${paginaFaturaAtual}-${index}`,
+                        `pc-numeracao-linha-${paginaFaturaAtual}-${index}`,
                       )
                     "
                     @mousemove="
@@ -409,6 +451,7 @@
                     "
                     @mouseleave="esconderTooltip"
                   >
+                    <span v-if="campoDestacado?.linhaIndex === index" class="campo-highlight-overlay" :style="getHighlightStyle(`pc-validado-linha-${paginaFaturaAtual}-${index}`, diferenca.arquivo_validado_linha)"></span>
                     {{ diferenca.arquivo_validado_linha }}
                   </div>
                 </div>
@@ -434,7 +477,11 @@
                     <div class="flex justify-between items-start">
                       <div class="flex-1">
                         <div class="flex items-center">
-                          <span class="font-medium">
+                          <span
+                            class="font-medium cursor-pointer hover:text-blue-700 hover:underline transition-colors"
+                            title="Clique para destacar na linha"
+                            @click="destacarCampoNaLinha(index, campo)"
+                          >
                             Campo
                             {{
                               (campo.sequencia_campo || 0)
@@ -628,9 +675,11 @@ import {
   RotateCcw,
   Upload,
 } from "lucide-vue-next";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, nextTick } from "vue";
 import api from "../services/api";
 import localStorageService from "../services/localStorage";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // Config
 const config = ref({
@@ -663,6 +712,14 @@ const reportText = ref("");
 const timestamp = ref("");
 const layoutData = ref({ campos: [] });
 const paginaFaturaAtual = ref(0);
+
+// Estado para destaque de campo na linha
+const campoDestacado = ref(null);
+let highlightTimeout = null;
+
+// Estado para seleção de erros no relatório
+// Map: "faturaIndex-diffIndex" => true
+const errosSelecionados = ref(new Set());
 
 // Tooltip
 const tooltipInfo = ref({
@@ -814,6 +871,9 @@ async function handleComparison() {
     timestamp.value = response.data.timestamp;
     layoutData.value = response.data.layout;
     paginaFaturaAtual.value = 0;
+
+    // Inicializar todos os erros como selecionados
+    nextTick(() => inicializarSelecaoErros());
   } catch (err) {
     console.error("Erro na comparação:", err);
     if (err.response?.status === 504 || err.code === 'ECONNABORTED') {
@@ -826,7 +886,409 @@ async function handleComparison() {
   }
 }
 
-// Download report
+// === Funções de destaque de campo na linha ===
+
+function destacarCampoNaLinha(linhaIndex, campo) {
+  if (highlightTimeout) clearTimeout(highlightTimeout);
+
+  campoDestacado.value = {
+    linhaIndex,
+    posicao_inicio: campo.posicao_inicio,
+    posicao_fim: campo.posicao_fim,
+    nome_campo: campo.nome_campo,
+  };
+
+  const prefixo = `pc-base-linha-${paginaFaturaAtual.value}-${linhaIndex}`;
+  const baseEl = document.querySelector(`[data-ref="${prefixo}"]`);
+  if (baseEl) {
+    const style = window.getComputedStyle(baseEl);
+    const medidor = document.createElement("span");
+    medidor.style.font = style.font;
+    medidor.style.fontSize = style.fontSize;
+    medidor.style.fontFamily = style.fontFamily;
+    medidor.style.visibility = "hidden";
+    medidor.style.position = "absolute";
+    medidor.style.whiteSpace = "pre";
+    document.body.appendChild(medidor);
+
+    const linhaTexto = baseEl.textContent;
+    const segments = linhaTexto.split("|");
+    let charPos = 0;
+    const seq = campo.sequencia_campo || 0;
+    for (let i = 0; i < seq - 1 && i < segments.length; i++) {
+      charPos += segments[i].length + 1;
+    }
+    medidor.textContent = linhaTexto.substring(0, charPos);
+    const scrollTarget = medidor.offsetWidth - 100;
+    document.body.removeChild(medidor);
+
+    baseEl.scrollLeft = Math.max(0, scrollTarget);
+
+    const validadoEl = document.querySelector(`[data-ref="pc-validado-linha-${paginaFaturaAtual.value}-${linhaIndex}"]`);
+    const numeracaoEl = document.querySelector(`[data-ref="pc-numeracao-linha-${paginaFaturaAtual.value}-${linhaIndex}"]`);
+    if (validadoEl) validadoEl.scrollLeft = baseEl.scrollLeft;
+    if (numeracaoEl) numeracaoEl.scrollLeft = baseEl.scrollLeft;
+
+    baseEl.closest(".border")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  highlightTimeout = setTimeout(() => {
+    campoDestacado.value = null;
+  }, 4000);
+}
+
+function getHighlightStyle(refName, linhaTexto) {
+  if (!campoDestacado.value || !linhaTexto) return { display: "none" };
+
+  const campo = campoDestacado.value;
+  const el = document.querySelector(`[data-ref="${refName}"]`);
+  if (!el) return { display: "none" };
+
+  const style = window.getComputedStyle(el);
+  const medidor = document.createElement("span");
+  medidor.style.font = style.font;
+  medidor.style.fontSize = style.fontSize;
+  medidor.style.fontFamily = style.fontFamily;
+  medidor.style.visibility = "hidden";
+  medidor.style.position = "absolute";
+  medidor.style.whiteSpace = "pre";
+  document.body.appendChild(medidor);
+
+  const posInicio = campo.posicao_inicio - 1;
+  const posFim = campo.posicao_fim;
+
+  medidor.textContent = linhaTexto.substring(0, posInicio);
+  const left = medidor.offsetWidth;
+  medidor.textContent = linhaTexto.substring(posInicio, posFim);
+  const width = medidor.offsetWidth;
+  document.body.removeChild(medidor);
+
+  return {
+    position: "absolute",
+    left: left + "px",
+    top: "0",
+    width: width + "px",
+    height: "100%",
+    backgroundColor: "rgba(59, 130, 246, 0.25)",
+    borderLeft: "2px solid rgb(59, 130, 246)",
+    borderRight: "2px solid rgb(59, 130, 246)",
+    pointerEvents: "none",
+    zIndex: "10",
+    transition: "all 0.3s ease",
+    animation: "highlight-pulse 1.5s ease-in-out infinite",
+  };
+}
+
+// === Funções de seleção de erros para o relatório ===
+
+function getErroKey(faturaIndex, diffIndex) {
+  return `${faturaIndex}-${diffIndex}`;
+}
+
+function isErroSelecionado(faturaIndex, diffIndex) {
+  return errosSelecionados.value.has(getErroKey(faturaIndex, diffIndex));
+}
+
+function toggleErroSelecionado(faturaIndex, diffIndex) {
+  const key = getErroKey(faturaIndex, diffIndex);
+  const newSet = new Set(errosSelecionados.value);
+  if (newSet.has(key)) {
+    newSet.delete(key);
+  } else {
+    newSet.add(key);
+  }
+  errosSelecionados.value = newSet;
+}
+
+function toggleTodosDaFatura() {
+  if (!faturaAtual.value?.diferencas_por_linha) return;
+  const newSet = new Set(errosSelecionados.value);
+  const allSelected = todosDaFaturaSelecionados.value;
+
+  faturaAtual.value.diferencas_por_linha.forEach((_, idx) => {
+    const key = getErroKey(paginaFaturaAtual.value, idx);
+    if (allSelected) {
+      newSet.delete(key);
+    } else {
+      newSet.add(key);
+    }
+  });
+  errosSelecionados.value = newSet;
+}
+
+function toggleTodosErros() {
+  if (!faturasComparadas.value?.length) return;
+  const newSet = new Set(errosSelecionados.value);
+  const allSelected = todosErrosSelecionados.value;
+
+  faturasComparadas.value.forEach((fatura, fatIdx) => {
+    if (fatura.diferencas_por_linha) {
+      fatura.diferencas_por_linha.forEach((_, diffIdx) => {
+        const key = getErroKey(fatIdx, diffIdx);
+        if (allSelected) {
+          newSet.delete(key);
+        } else {
+          newSet.add(key);
+        }
+      });
+    }
+  });
+  errosSelecionados.value = newSet;
+}
+
+const todosDaFaturaSelecionados = computed(() => {
+  if (!faturaAtual.value?.diferencas_por_linha) return false;
+  return faturaAtual.value.diferencas_por_linha.every((_, idx) =>
+    isErroSelecionado(paginaFaturaAtual.value, idx)
+  );
+});
+
+const todosErrosSelecionados = computed(() => {
+  if (!faturasComparadas.value?.length) return false;
+  return errosSelecionados.value.size === totalErrosDisponiveis.value;
+});
+
+const totalErrosSelecionados = computed(() => errosSelecionados.value.size);
+
+const totalErrosDisponiveis = computed(() => {
+  if (!faturasComparadas.value?.length) return 0;
+  let total = 0;
+  faturasComparadas.value.forEach((fatura) => {
+    total += fatura.diferencas_por_linha?.length || 0;
+  });
+  return total;
+});
+
+function inicializarSelecaoErros() {
+  const allKeys = new Set();
+  faturasComparadas.value.forEach((fatura, fatIdx) => {
+    if (fatura.diferencas_por_linha) {
+      fatura.diferencas_por_linha.forEach((_, diffIdx) => {
+        allKeys.add(getErroKey(fatIdx, diffIdx));
+      });
+    }
+  });
+  errosSelecionados.value = allKeys;
+}
+
+// === Download de relatório em PDF bonito ===
+
+function downloadReportPDF() {
+  if (!comparisonResult.value) return;
+
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  let y = 20;
+
+  // === CAPA / HEADER ===
+  doc.setFillColor(30, 58, 138); // blue-900
+  doc.rect(0, 0, pageWidth, 45, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Relatório de Comparação", pageWidth / 2, 18, { align: "center" });
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("PrintCenter - Validador de Documentos", pageWidth / 2, 28, { align: "center" });
+
+  doc.setFontSize(9);
+  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, pageWidth / 2, 37, { align: "center" });
+
+  y = 55;
+
+  // === ESTATÍSTICAS ===
+  doc.setTextColor(30, 58, 138);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Resumo da Comparação", margin, y);
+  y += 3;
+
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  const stats = [
+    ["Total de Linhas Comparadas", String(comparisonResult.value.total_linhas_comparadas || 0)],
+    ["Linhas Idênticas", String(comparisonResult.value.linhas_identicas || 0)],
+    ["Linhas com Diferenças", String(comparisonResult.value.linhas_com_diferencas || 0)],
+    ["Taxa de Identidade", `${(comparisonResult.value.taxa_identidade || 0).toFixed(2)}%`],
+    ["Diferenças incluídas neste relatório", `${totalErrosSelecionados.value} de ${totalErrosDisponiveis.value}`],
+  ];
+
+  doc.autoTable({
+    startY: y,
+    head: [["Métrica", "Valor"]],
+    body: stats,
+    margin: { left: margin, right: margin },
+    theme: "grid",
+    headStyles: {
+      fillColor: [30, 58, 138],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 10,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: [50, 50, 50],
+    },
+    alternateRowStyles: {
+      fillColor: [240, 245, 255],
+    },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 100 },
+      1: { halign: "center" },
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 12;
+
+  // === CONTAS NÃO ENCONTRADAS ===
+  if (comparisonResult.value.contas_nao_encontradas?.length > 0) {
+    if (y > 250) { doc.addPage(); y = 20; }
+
+    doc.setTextColor(180, 83, 9);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Contas Não Encontradas no Arquivo de Produção", margin, y);
+    y += 8;
+
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    comparisonResult.value.contas_nao_encontradas.forEach((conta) => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.text(`• ${conta}`, margin + 4, y);
+      y += 5;
+    });
+    y += 8;
+  }
+
+  // === DIFERENÇAS POR FATURA (apenas selecionadas) ===
+  faturasComparadas.value.forEach((fatura, fatIdx) => {
+    const diferencasFiltradas = (fatura.diferencas_por_linha || []).filter(
+      (_, diffIdx) => isErroSelecionado(fatIdx, diffIdx)
+    );
+
+    if (diferencasFiltradas.length === 0) return;
+
+    if (y > 240) { doc.addPage(); y = 20; }
+
+    // Header da fatura
+    doc.setFillColor(239, 246, 255); // blue-50
+    doc.rect(margin, y - 5, pageWidth - margin * 2, 12, "F");
+
+    doc.setTextColor(30, 58, 138);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+
+    let tituloFatura = "";
+    if (fatura.conta_cliente === "HEADER") {
+      tituloFatura = "Header (Tipo 00)";
+    } else {
+      tituloFatura = `Fatura: CPS ${fatura.cps_fatura} | Conta ${fatura.conta_cliente}`;
+    }
+    doc.text(tituloFatura, margin + 2, y + 2);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `${fatura.total_linhas} linhas | ${fatura.linhas_com_diferencas} com diferenças | ${diferencasFiltradas.length} no relatório`,
+      pageWidth - margin - 2,
+      y + 2,
+      { align: "right" }
+    );
+    y += 14;
+
+    // Tabela de diferenças da fatura
+    const tableBody = [];
+
+    diferencasFiltradas.forEach((dif) => {
+      if (dif.diferencas_campos?.length > 0) {
+        dif.diferencas_campos.forEach((campo) => {
+          const seq = (campo.sequencia_campo || 0).toString().padStart(2, "0");
+          const isCalculo = campo.tipo_diferenca?.startsWith("CALCULO_");
+
+          tableBody.push([
+            String(dif.numero_linha),
+            dif.tipo_registro,
+            `${seq} - ${campo.nome_campo}`,
+            isCalculo ? (campo.tipo_diferenca || "") : (campo.valor_base || ""),
+            isCalculo ? (campo.descricao || "").substring(0, 60) : (campo.valor_validado || ""),
+            isCalculo ? "Cálculo" : (campo.tipo_diferenca || "Diferença"),
+          ]);
+        });
+      }
+    });
+
+    if (tableBody.length > 0) {
+      doc.autoTable({
+        startY: y,
+        head: [["Linha", "Tipo", "Campo", "Produção / Tipo", "Seu Arquivo / Detalhe", "Categoria"]],
+        body: tableBody,
+        margin: { left: margin, right: margin },
+        theme: "striped",
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 7,
+        },
+        bodyStyles: {
+          fontSize: 7,
+          textColor: [50, 50, 50],
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { cellWidth: 14, halign: "center" },
+          1: { cellWidth: 14, halign: "center" },
+          2: { cellWidth: 42 },
+          3: { cellWidth: 38 },
+          4: { cellWidth: 48 },
+          5: { cellWidth: 20, halign: "center" },
+        },
+        didParseCell: function (data) {
+          if (data.section === "body" && data.column.index === 5) {
+            if (data.cell.raw === "Cálculo") {
+              data.cell.styles.fillColor = [255, 237, 213]; // orange-100
+              data.cell.styles.textColor = [154, 52, 18]; // orange-800
+            } else {
+              data.cell.styles.fillColor = [254, 226, 226]; // red-100
+              data.cell.styles.textColor = [153, 27, 27]; // red-800
+            }
+          }
+        },
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    }
+  });
+
+  // === RODAPÉ EM TODAS AS PÁGINAS ===
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont("helvetica", "normal");
+    doc.text("Validador de Documentos - PrintCenter", margin, pageHeight - 8);
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+  }
+
+  doc.save(`printcenter_comparacao_${timestamp.value}.pdf`);
+}
+
+// Download report TXT
 function downloadReport() {
   if (!reportText.value) return;
   const filename = `printcenter_comparacao_${timestamp.value}.txt`;
@@ -844,6 +1306,8 @@ function resetComparison() {
   loteUploadError.value = "";
   error.value = "";
   paginaFaturaAtual.value = 0;
+  campoDestacado.value = null;
+  errosSelecionados.value = new Set();
   if (userFileInput.value) userFileInput.value.value = "";
 }
 
@@ -1047,5 +1511,20 @@ function sincronizarScroll(event, targetRefName, numeracaoRefName = null) {
 
 .z-50 {
   z-index: 9999 !important;
+}
+
+/* Overlay de destaque do campo */
+.campo-highlight-overlay {
+  display: block;
+  border-radius: 2px;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: rgba(59, 130, 246, 0.25);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.45);
+  }
 }
 </style>
