@@ -1425,6 +1425,15 @@ async def identificar_cenarios_endpoint(
                         'texto_original': f.retencao.texto_original,
                     } if f.retencao else None,
                     mensagens=f.mensagens if f.mensagens else None,
+                    quantidade_sites=f.quantidade_sites,
+                    servicos=[
+                        {
+                            'sigla': s.sigla,
+                            'descricao': s.descricao,
+                            'valor': s.valor,
+                        }
+                        for s in f.servicos
+                    ] if f.servicos else None,
                 )
                 for f in resultado.faturas
             ],

@@ -78,10 +78,14 @@
       </div>
 
       <!-- Estatísticas Gerais -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-blue-600">{{ resultado.total_faturas }}</p>
           <p class="text-sm text-gray-600">Total de Faturas</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-bold text-cyan-600">{{ totalClientesUnicos }}</p>
+          <p class="text-sm text-gray-600">Clientes Únicos</p>
         </div>
         <div class="card p-4 text-center">
           <p class="text-2xl font-bold text-green-600">{{ resultado.cenarios_encontrados.length }}</p>
@@ -264,9 +268,11 @@
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conta Cliente</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPS/Fatura</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
                   <th v-if="resultadoBuscaCampo" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                     {{ campoEncontrado?.nome || campoBusca }}
                   </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cenários</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alíq. ICMS</th>
                   <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Isenção</th>
@@ -286,8 +292,38 @@
                   <td class="px-4 py-3 text-sm text-gray-500">{{ (paginaAtual - 1) * itensPorPagina + index + 1 }}</td>
                   <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ fatura.conta_cliente }}</td>
                   <td class="px-4 py-3 text-sm font-mono text-gray-900">{{ fatura.cps_fatura }}</td>
+                  <td class="px-4 py-3 text-sm text-center">
+                    <span
+                      class="inline-block px-2 py-1 rounded-full text-xs font-bold"
+                      :class="fatura.quantidade_sites > 1
+                        ? 'bg-cyan-100 text-cyan-800'
+                        : 'bg-gray-100 text-gray-600'"
+                    >
+                      {{ fatura.quantidade_sites }}
+                    </span>
+                  </td>
                   <td v-if="resultadoBuscaCampo" class="px-4 py-3 text-sm font-mono text-green-700 bg-green-50 font-bold">
                     {{ fatura.valor_campo || '-' }}
+                  </td>
+                  <td class="px-4 py-3 text-sm">
+                    <div v-if="fatura.servicos && fatura.servicos.length" class="space-y-1">
+                      <div
+                        v-for="servico in fatura.servicos"
+                        :key="servico.sigla"
+                        class="flex items-center gap-1"
+                      >
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">
+                          {{ servico.sigla }}
+                        </span>
+                        <span class="text-xs text-gray-700 truncate max-w-[150px]" :title="servico.descricao">
+                          {{ servico.descricao }}
+                        </span>
+                        <span v-if="servico.valor" class="text-[10px] font-mono text-emerald-700 font-semibold whitespace-nowrap">
+                          {{ servico.valor }}
+                        </span>
+                      </div>
+                    </div>
+                    <span v-else class="text-gray-400">—</span>
                   </td>
                   <td class="px-4 py-3 text-sm">
                     <span
@@ -358,7 +394,7 @@
                   <td class="px-4 py-3 text-sm text-gray-600">{{ fatura.total_linhas }}</td>
                 </tr>
                 <tr v-if="faturasFiltradas.length === 0">
-                  <td :colspan="resultadoBuscaCampo ? 12 : 11" class="px-4 py-8 text-center text-gray-500">
+                  <td :colspan="resultadoBuscaCampo ? 15 : 14" class="px-4 py-8 text-center text-gray-500">
                     Nenhuma fatura encontrada para os filtros selecionados.
                   </td>
                 </tr>
@@ -426,6 +462,12 @@ const isBuscandoCampo = ref(false)
 const resultadoBuscaCampo = ref(null)
 
 const hasResults = computed(() => resultado.value !== null)
+
+const totalClientesUnicos = computed(() => {
+  if (!resultado.value) return 0
+  const clientes = new Set(resultado.value.faturas.map(f => f.conta_cliente))
+  return clientes.size
+})
 
 const faturasFiltradas = computed(() => {
   if (!resultado.value) return []

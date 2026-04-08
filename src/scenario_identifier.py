@@ -133,6 +133,13 @@ class RetencaoInfo:
 
 
 @dataclass
+class ServicoFatura:
+    sigla: str               # Ex: "INN", "VPE", "SCE"
+    descricao: str           # Ex: "INTERNET", "VOIP", "SERVICO COMUNICACAO"
+    valor: Optional[str] = None  # Ex: "R$ 1.234,56" (do registro 02)
+
+
+@dataclass
 class FaturaCenario:
     conta_cliente: str
     cps_fatura: str
@@ -146,6 +153,8 @@ class FaturaCenario:
     valor_isentos: Optional[str] = None       # Ex: "R$ 4.082,60"
     retencao: Optional[RetencaoInfo] = None
     mensagens: List[str] = field(default_factory=list)
+    quantidade_sites: int = 0                 # Qtd de sites (faturas) do mesmo cliente
+    servicos: List[ServicoFatura] = field(default_factory=list)  # Serviços cobrados
 
 
 @dataclass
@@ -177,6 +186,7 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
     valor_isentos_atual: Optional[str] = None
     retencao_atual: Optional[RetencaoInfo] = None
     mensagens_atual: List[str] = []
+    servicos_atual: Dict[str, ServicoFatura] = {}  # sigla -> ServicoFatura
 
     def formatar_valor_brl(valor_raw: str) -> str:
         """Formata valor numérico bruto (sem vírgula, 2 decimais implícitas) para R$."""
@@ -198,7 +208,7 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
     def finalizar_fatura():
         """Salva a fatura atual na lista."""
         nonlocal retencao_atual, mensagens_atual, isencao_atual
-        nonlocal aliquota_icms_atual, valor_isentos_atual
+        nonlocal aliquota_icms_atual, valor_isentos_atual, servicos_atual
         if not conta_atual and not cps_atual:
             return
 
@@ -235,12 +245,14 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
             valor_isentos=valor_isentos_atual,
             retencao=retencao_atual,
             mensagens=mensagens_atual,
+            servicos=list(servicos_atual.values()),
         ))
         retencao_atual = None
         mensagens_atual = []
         isencao_atual = False
         aliquota_icms_atual = None
         valor_isentos_atual = None
+        servicos_atual = {}
 
     # Ler arquivo linha por linha
     encodings = ['utf-8', 'latin-1']
@@ -269,6 +281,7 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
                         isencao_atual = False
                         aliquota_icms_atual = None
                         valor_isentos_atual = None
+                        servicos_atual = {}
 
                         # Flag débito automático (pos 266, 0-indexed = 265)
                         debito_auto_atual = (
@@ -297,6 +310,22 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
                                     isencao_atual = True
                                     valor_isentos_atual = formatar_valor_brl(vi_raw)
 
+                        # Extrair serviços do registro 02 (Resumo Serviços)
+                        if tipo_registro == '02' and len(linha) >= 57:
+                            sigla = linha[2:7].strip()   # pos 3-7 (0-indexed: 2-7)
+                            descricao = linha[7:57].strip()  # pos 8-57 (0-indexed: 7-57)
+                            valor_servico = None
+                            if len(linha) >= 72:
+                                val_raw = linha[58:72].strip()  # pos 59-72
+                                if val_raw and not all(c in '0 ' for c in val_raw):
+                                    valor_servico = formatar_valor_brl(val_raw)
+                            if sigla and sigla not in servicos_atual:
+                                servicos_atual[sigla] = ServicoFatura(
+                                    sigla=sigla,
+                                    descricao=descricao,
+                                    valor=valor_servico,
+                                )
+
                         # Capturar mensagens dos registros 85, 86, 87, 88
                         if tipo_registro in ('85', '86', '87', '88'):
                             msg_texto = linha[2:].strip()
@@ -316,6 +345,16 @@ def identificar_cenarios(file_path: str) -> ResultadoCenarios:
 
     # Finalizar última fatura
     finalizar_fatura()
+
+    # Calcular quantidade de sites por cliente (faturas do mesmo conta_cliente)
+    sites_por_cliente: Dict[str, int] = {}
+    for fatura in faturas:
+        cliente = fatura.conta_cliente
+        sites_por_cliente[cliente] = sites_por_cliente.get(cliente, 0) + 1
+
+    # Atribuir quantidade de sites a cada fatura
+    for fatura in faturas:
+        fatura.quantidade_sites = sites_por_cliente.get(fatura.conta_cliente, 1)
 
     # Calcular contagens
     contagem: Dict[str, int] = {}
@@ -365,6 +404,7 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
     aliquota_icms_atual: Optional[str] = None
     valor_isentos_atual: Optional[str] = None
     retencao_atual: Optional[RetencaoInfo] = None
+    servicos_atual: Dict[str, ServicoFatura] = {}
 
     def formatar_valor_brl2(valor_raw: str) -> str:
         try:
@@ -383,7 +423,7 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
 
     def finalizar_fatura():
         nonlocal match_encontrado, valor_campo_encontrado, retencao_atual, isencao_atual
-        nonlocal aliquota_icms_atual, valor_isentos_atual
+        nonlocal aliquota_icms_atual, valor_isentos_atual, servicos_atual
         if not conta_atual and not cps_atual:
             return
         if match_encontrado:
@@ -423,6 +463,10 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
                 'aliquota_icms': aliquota_icms_atual,
                 'valor_isentos': valor_isentos_atual,
                 'retencao': retencao_dict,
+                'servicos': [
+                    {'sigla': s.sigla, 'descricao': s.descricao, 'valor': s.valor}
+                    for s in servicos_atual.values()
+                ],
             })
         match_encontrado = False
         valor_campo_encontrado = ""
@@ -430,6 +474,7 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
         isencao_atual = False
         aliquota_icms_atual = None
         valor_isentos_atual = None
+        servicos_atual = {}
 
     encodings = ['utf-8', 'latin-1']
     for encoding in encodings:
@@ -455,6 +500,7 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
                         isencao_atual = False
                         aliquota_icms_atual = None
                         valor_isentos_atual = None
+                        servicos_atual = {}
                         debito_auto_atual = (
                             len(linha) > FLAG_DEBITO_AUTO_POS and
                             linha[FLAG_DEBITO_AUTO_POS].upper() == 'S'
@@ -477,6 +523,22 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
                                     isencao_atual = True
                                     valor_isentos_atual = formatar_valor_brl2(vi_raw)
 
+                        # Extrair serviços do registro 02 (Resumo Serviços)
+                        if tipo_reg == '02' and len(linha) >= 57:
+                            sigla = linha[2:7].strip()
+                            descricao = linha[7:57].strip()
+                            valor_servico = None
+                            if len(linha) >= 72:
+                                val_raw = linha[58:72].strip()
+                                if val_raw and not all(c in '0 ' for c in val_raw):
+                                    valor_servico = formatar_valor_brl2(val_raw)
+                            if sigla and sigla not in servicos_atual:
+                                servicos_atual[sigla] = ServicoFatura(
+                                    sigla=sigla,
+                                    descricao=descricao,
+                                    valor=valor_servico,
+                                )
+
                         # Capturar retenção do registro 88
                         if tipo_reg == '88':
                             ret = parse_retencao(linha)
@@ -498,4 +560,13 @@ def buscar_faturas_por_campo(file_path: str, tipo_registro: str,
             continue
 
     finalizar_fatura()
+
+    # Calcular quantidade de sites por cliente nos resultados da busca
+    sites_por_cliente: Dict[str, int] = {}
+    for f in faturas_match:
+        cliente = f['conta_cliente']
+        sites_por_cliente[cliente] = sites_por_cliente.get(cliente, 0) + 1
+    for f in faturas_match:
+        f['quantidade_sites'] = sites_por_cliente.get(f['conta_cliente'], 1)
+
     return faturas_match

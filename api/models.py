@@ -168,6 +168,12 @@ class ComparacaoEstruturalCompleta(BaseModel):
     dados_comparacao: Optional[Dict] = None  # Dados para localStorage
 
 
+class ServicoFaturaResponse(BaseModel):
+    sigla: str           # Ex: "INN", "VPE"
+    descricao: str       # Ex: "INTERNET", "VOIP"
+    valor: Optional[str] = None  # Ex: "R$ 1.234,56"
+
+
 class RetencaoInfoResponse(BaseModel):
     percentual: str  # Ex: "9,45%", "4,8%", "4,65%"
     valor: str       # Ex: "R$ 9.210,44"
@@ -189,6 +195,8 @@ class FaturaCenarioResponse(BaseModel):
     valor_isentos: Optional[str] = None
     retencao: Optional[RetencaoInfoResponse] = None
     mensagens: Optional[List[str]] = None
+    quantidade_sites: int = 0
+    servicos: Optional[List[ServicoFaturaResponse]] = None
 
 
 class CenarioIdentificadoResponse(BaseModel):
